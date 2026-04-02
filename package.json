@@ -1,0 +1,121 @@
+{
+  "name": "claude-code-gui",
+  "displayName": "Claude Code GUI",
+  "description": "GUI for Claude Code CLI - VSCode Edition",
+  "version": "0.1.0",
+  "publisher": "Sam",
+  "author": {
+    "name": "Sam"
+  },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other", "AI"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "icon": "media/icon.png",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claude-code-gui",
+          "title": "Claude Code GUI",
+          "icon": "media/icon-small.svg"
+        }
+      ]
+    },
+    "views": {
+      "claude-code-gui": [
+        {
+          "type": "webview",
+          "id": "claudeCodeGui.mainView",
+          "name": "CCG"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claudeCodeGui.newSession",
+        "title": "New Session",
+        "category": "Claude Code GUI",
+        "icon": "$(add)"
+      },
+      {
+        "command": "claudeCodeGui.sendSelection",
+        "title": "Send Selection to Claude",
+        "category": "Claude Code GUI"
+      },
+      {
+        "command": "claudeCodeGui.sendFilePath",
+        "title": "Send File Path to Claude",
+        "category": "Claude Code GUI"
+      },
+      {
+        "command": "claudeCodeGui.generateCommitMessage",
+        "title": "Generate Commit Message with Claude",
+        "category": "Claude Code GUI",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "claudeCodeGui.quickFixWithClaude",
+        "title": "Fix with Claude",
+        "category": "Claude Code GUI"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "claudeCodeGui.sendSelection",
+          "when": "editorHasSelection",
+          "group": "claude@1"
+        },
+        {
+          "command": "claudeCodeGui.sendFilePath",
+          "group": "claude@2"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "claudeCodeGui.generateCommitMessage",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "claudeCodeGui.sendSelection",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
+        "when": "editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Code GUI",
+      "properties": {
+        "claudeCodeGui.nodePath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to Node.js executable"
+        },
+        "claudeCodeGui.autoSyncActiveFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sync active editor file context to Claude"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "npm run build:ext && npm run build:webview",
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "build:webview": "cd webview && npm run build",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch",
+    "dev": "npm run watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "~5.3.0"
+  }
+}

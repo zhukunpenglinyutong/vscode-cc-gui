@@ -1,0 +1,1340 @@
+{
+  "common": {
+    "ready": "就緒",
+    "loading": "載入中",
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確定",
+    "delete": "刪除",
+    "edit": "編輯",
+    "add": "新增",
+    "back": "返回",
+    "close": "關閉",
+    "newSession": "新會話",
+    "newTab": "新標籤頁",
+    "history": "歷史記錄",
+    "settings": "設定",
+    "thinking": "思考",
+    "thinkingProcess": "思考過程",
+    "success": "成功",
+    "error": "錯誤",
+    "warning": "警告",
+    "info": "資訊",
+    "seconds": "秒",
+    "minutes": "分",
+    "optional": "Optional"
+  },
+  "chat": {
+    "sendMessage": "給 {{provider}} 發送訊息",
+    "createNewSession": "建立新會話",
+    "confirmNewSession": "目前會話已有訊息，確定要建立新會話嗎？",
+    "confirmInterrupt": "目前正在對話中，建立新會話將中斷目前對話，是否繼續？",
+    "requestInterrupted": "請求已被使用者中斷",
+    "uploadedFiles": "已上傳附件: {{files}}",
+    "emptyMessage": "空訊息",
+    "clickToPreview": "點選預覽大圖",
+    "userUploadedImage": "使用者上傳的圖片",
+    "inputPlaceholder": "@引用檔案，#喚起智能體，Enter 發送",
+    "inputPlaceholderEnter": "@引用檔案，#喚起智能體，Enter 發送",
+    "inputPlaceholderCmdEnter": "@引用檔案，#喚起智能體，⌘Enter 發送",
+    "noThinkingContent": "無思考內容",
+    "parseError": "無法解析內容",
+    "sendMessageEnter": "發送訊息 (Enter)",
+    "currentMode": "目前模式: {{mode}}",
+    "currentModel": "目前模型: {{model}}",
+    "removeAttachment": "移除附件",
+    "closePreview": "關閉預覽",
+    "loadingDropdown": "載入中...",
+    "addAttachment": "新增附件",
+    "stopGeneration": "停止生成",
+    "generatingResponse": "正在生成響應",
+    "elapsedTime": "已用 {{time}}",
+    "minutesAndSeconds": "{{minutes}} 分 {{seconds}} 秒",
+    "imagePreview": "預覽",
+    "context": "上下文",
+    "usage": "上下文",
+    "usagePercentage": "上下文: {{percentage}}",
+    "noMatchingFiles": "無匹配檔案",
+    "noMatchingCommands": "無匹配指令",
+    "noMatchingHistory": "無匹配歷史",
+    "noAvailableAgents": "無可用代理程式",
+    "collapse": "收起",
+    "expand": "展開",
+    "backToTop": "回到頂部",
+    "backToBottom": "回到底部",
+    "refresh": "重新整理",
+    "clickToDisable": "點選停用",
+    "clickToEnable": "點選啟用",
+    "copyHomepageLink": "複製首頁連結",
+    "copyDocsLink": "複製文件連結",
+    "copyConfig": "Copy config",
+    "editConfig": "編輯設定",
+    "deleteServer": "刪除伺服器",
+    "loadingFailed": "載入失敗",
+    "pleaseCloseAndReopen": "請關閉並重新開啟",
+    "loadingSlashCommands": "正在載入斜線指令...",
+    "pleaseWait": "請稍候...",
+    "retrying": "正在重試 ({{count}}/{{max}})...",
+    "global": "全域",
+    "localProject": "本地專案",
+    "disabled": "已停用",
+    "sdkNotInstalled": "{{provider}} SDK 尚未安裝，請先安裝 SDK 才能開始對話",
+    "sdkStatusLoading": "Checking SDK status...",
+    "openSourceBanner": "本專案保證100%開源（謹防盜版項目）",
+    "goInstallSdk": "前往安裝",
+    "commandNotImplemented": "`{{command}}` 功能尚未實現。",
+    "clearCommandDescription": "清除對話歷史並新建會話",
+    "attachmentFile": "[附件: {{fileName}}]",
+    "unknownFile": "Unknown file",
+    "attachmentsUploaded": "[已上傳附件]",
+    "streamingConnected": "Claude 已成功連接，正在理解問題",
+    "showEarlierMessages": "顯示之前的 {{count}} 則訊息"
+  },
+  "settings": {
+    "title": "設定",
+    "basic": {
+      "title": "基礎配置",
+      "description": "配置頁面主題、語言和 Node.js 執行環境",
+      "tabs": {
+        "appearance": "外觀",
+        "behavior": "行為",
+        "environment": "環境"
+      },
+      "theme": {
+        "label": "介面主題",
+        "system": "跟隨 IDE",
+        "systemDesc": "自動跟隨 IDE 主題",
+        "light": "亮色",
+        "lightDesc": "清爽明亮，適合白天使用",
+        "dark": "暗色",
+        "darkDesc": "護眼舒適，適合夜間使用"
+      },
+      "language": {
+        "label": "介面語言",
+        "simplifiedChinese": "简体中文",
+        "traditionalChinese": "繁體中文",
+        "english": "English",
+        "hindi": "हिन्दी",
+        "spanish": "Español",
+        "french": "Français",
+        "japanese": "日本語",
+        "russian": "Русский",
+        "korean": "한국어"
+      },
+      "nodePath": {
+        "label": "Node.js 路徑",
+        "placeholder": "例如 C:\\Program Files\\nodejs\\node.exe 或 /usr/local/bin/node",
+        "hint": "在終端中執行",
+        "hintCommand": "node -p \"process.execPath\"",
+        "hintText": "獲取實際的 Node.js 可執行檔案路徑。為空時外掛會自動嘗試檢測 Node.js。",
+        "versionTooLow": "Node.js 版本過低，外掛需要 v{{minVersion}} 或更高版本才能正常運行"
+      },
+      "workingDirectory": {
+        "label": "Working Directory",
+        "placeholder": "e.g. project1 or leave empty to use project root",
+        "hint": "Specify the directory where Claude works. Can use relative path (relative to project root) or absolute path. Leave empty to use project root."
+      },
+      "fontSize": {
+        "label": "字體大小",
+        "level1": "小（80%）",
+        "level2": "較小（90%）",
+        "level3": "標準（100%）",
+        "level4": "較大（110%）",
+        "level5": "大（120%）",
+        "level6": "最大（140%）"
+      },
+      "editorFont": {
+        "label": "字體（跟隨編輯器字體）",
+        "hint": "此處暫時不可修改，如需修改，請在 IDEA 設定 → 編輯器 → 字體 中調整（重啟 IDEA 後本外掛字體生效）"
+      },
+      "streaming": {
+        "label": "Streaming",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, AI responses will appear character by character in real-time, instead of waiting for the complete response. May consume more resources."
+      },
+      "autoOpenFile": {
+        "label": "發送已開啟的檔案路徑",
+        "enabled": "已啟用",
+        "disabled": "已停用",
+        "hint": "開啟後，在專案樹選擇檔案時會自動將檔案路徑告訴 AI（注意：只傳遞檔案路徑，不傳檔案內容）。關閉後需要手動操作。"
+      },
+      "diffExpanded": {
+        "label": "預設展開差異",
+        "enabled": "已展開",
+        "disabled": "已折疊",
+        "hint": "開啟後，聊天中的程式碼差異將預設展開顯示。關閉後，差異預設摺疊，可點擊展開。"
+      },
+      "sendShortcut": {
+        "label": "發送快捷鍵",
+        "enter": "Enter 發送",
+        "enterDesc": "按 Enter 發送訊息，Shift+Enter 換行",
+        "cmdEnter": "⌘/Ctrl+Enter 發送",
+        "cmdEnterDesc": "按 ⌘/Ctrl+Enter 發送訊息，Enter 換行"
+      },
+      "chatBgColor": {
+        "label": "聊天背景色",
+        "custom": "自訂",
+        "reset": "恢復預設",
+        "hint": "自訂聊天區域的背景顏色，留空則跟隨主題預設顏色"
+      },
+      "userMsgColor": {
+        "label": "使用者訊息顏色",
+        "custom": "自訂",
+        "reset": "恢復預設",
+        "hint": "自訂您的訊息背景顏色，留空則跟隨主題預設顏色"
+      }
+    },
+    "providers": "供應商管理",
+    "providersDesc": "管理 Claude 和 Codex API 供應商配置，切換不同的 API 服務提供商",
+    "providerTab": {
+      "claude": "Claude Code",
+      "codex": "Codex"
+    },
+    "pluginModels": {
+      "title": "自訂模型",
+      "description": "在此新增的自訂模型將在所有供應商下可見，顯示在模型選擇清單的最前面",
+      "dialogTitle": "管理自訂模型",
+      "manage": "管理模型"
+    },
+    "dependencies": "SDK 依賴",
+    "dependenciesDesc": "管理 AI SDK 依賴套件的安裝和更新",
+    "dependency": {
+      "title": "SDK 依賴管理",
+      "description": "管理 AI SDK 依賴套件。首次使用時需要安裝對應的 SDK。",
+      "installPolicyTip": "安裝遇到問題？可將報錯複製給終端CLI AI 解決",
+      "claudeSdkName": "Claude Code SDK",
+      "claudeSdkDescription": "Claude AI 功能所需。包含 Claude Code SDK 及相關依賴。",
+      "codexSdkName": "Codex SDK",
+      "codexSdkDescription": "Codex AI 功能所需。包含 OpenAI Codex SDK。",
+      "loading": "正在載入依賴狀態...",
+      "install": "安裝",
+      "installing": "安裝中...",
+      "uninstall": "解除安裝",
+      "uninstalling": "解除安裝中...",
+      "update": "更新",
+      "updateAvailable": "有更新",
+      "installLogs": "安裝日誌",
+      "waitingForLogs": "等待日誌輸出...",
+      "nodeNotConfigured": "Node.js 未配置，請先在基礎配置中設定 Node.js 路徑。",
+      "installSuccess": "{{name}} 安裝成功",
+      "installFailed": "安裝失敗: {{error}}",
+      "uninstallSuccess": "{{name}} 已解除安裝",
+      "uninstallFailed": "解除安裝失敗: {{error}}",
+      "updating": "更新中...",
+      "updateSuccess": "{{name}} 更新成功"
+    },
+    "usage": "使用統計",
+    "usageDesc": "檢視您的 Token 消耗、費用統計和使用趨勢分析",
+    "mcp": "MCP 伺服器",
+    "mcpDesc": "配置和管理 Model Context Protocol 伺服器",
+    "permissions": "權限配置",
+    "permissionsDesc": "管理 Claude Code 的檔案存取和操作權限",
+    "commit": {
+      "title": "Commit AI",
+      "description": "Configure AI-generated Git commit message behavior",
+      "prompt": {
+        "label": "Additional Prompt",
+        "placeholder": "Add your extra requirements here, e.g., generate commit in English, include issue number, etc...",
+        "hint": "The plugin has built-in CCG Commits specification prompts. Content you add here will be used as additional requirements, and AI will prioritize your instructions."
+      },
+      "codeReview": {
+        "comingSoon": "Coming Soon",
+        "label": "Code Review AI Additional Prompt",
+        "placeholder": "This feature is under development, stay tuned...",
+        "hint": "Code Review AI will help you automatically review code, identify potential issues, and provide improvement suggestions. You can configure review preferences and focus areas here."
+      }
+    },
+    "agents": "Agents",
+    "agentsDesc": "管理和配置AI代理",
+    "skills": "Skills",
+    "skillsDesc": "管理和配置技能模組",
+    "other": {
+      "title": "其他設定",
+      "description": "配置其他雜項設定",
+      "historyCompletion": {
+        "label": "歷史輸入補全",
+        "enabled": "已開啟",
+        "disabled": "已關閉",
+        "hint": "開啟後，輸入框會根據歷史輸入自動補全，按 Tab 鍵接受建議",
+        "manageHistory": "管理歷史記錄",
+        "empty": "暫無歷史記錄",
+        "clearAll": "清空全部",
+        "clearLow": "清空低重要度",
+        "clearLowHint": "刪除重要度 ≤ 1 的記錄",
+        "delete": "刪除",
+        "edit": "編輯",
+        "add": "新增",
+        "importance": "重要度",
+        "editor": {
+          "addTitle": "新增歷史記錄",
+          "editTitle": "編輯歷史記錄",
+          "contentLabel": "內容",
+          "contentPlaceholder": "輸入歷史記錄內容...",
+          "importanceLabel": "重要度",
+          "importanceHint": "重要度越高，自動補全時越靠前"
+        },
+        "timeAgo": {
+          "yearsAgo_one": "{{count}} year ago",
+          "yearsAgo_other": "{{count}} years ago",
+          "monthsAgo_one": "{{count}} month ago",
+          "monthsAgo_other": "{{count}} months ago",
+          "daysAgo_one": "{{count}} day ago",
+          "daysAgo_other": "{{count}} days ago",
+          "hoursAgo_one": "{{count}} hour ago",
+          "hoursAgo_other": "{{count}} hours ago",
+          "minutesAgo_one": "{{count}} minute ago",
+          "minutesAgo_other": "{{count}} minutes ago",
+          "justNow": "剛剛",
+          "yearsAgo": "{{count}}年前",
+          "monthsAgo": "{{count}}個月前",
+          "daysAgo": "{{count}}天前",
+          "hoursAgo": "{{count}}小時前",
+          "minutesAgo": "{{count}}分鐘前"
+        }
+      }
+    },
+    "codexFeatureUnavailable": "Codex 暫未適配此功能，請切換到 Claude Code 使用",
+    "sidebar": {
+      "expand": "Expand Sidebar",
+      "collapse": "Collapse Sidebar"
+    },
+    "community": "官方交流群",
+    "communityDesc": "掃描下方二維碼加入官方微信交流群，獲取最新資訊和技術支援",
+    "communityQrTip": "使用微信掃一掃加入交流群",
+    "communityQrAlt": "官方微信交流群二維碼",
+    "githubTitle": "GitHub 開源地址",
+    "githubDesc": "本專案已在 GitHub 開源，歡迎 Star 支持",
+    "githubCopyBtn": "複製開源地址",
+    "githubCopied": "開源地址已複製到剪貼簿，請在瀏覽器中訪問",
+    "githubCopyFailed": "複製失敗，請手動複製",
+    "sponsor": "贊助支持",
+    "sponsorDesc": "如果這個項目對你有幫助，歡迎贊助支持，你的支持是我持續維護的動力！",
+    "alipay": "支付寶",
+    "wechatPay": "微信",
+    "paypal": "PayPal",
+    "provider": {
+      "currentConfig": "目前ClaudeCode配置",
+      "loading": "載入中...",
+      "noConfig": "暫無配置資訊",
+      "emptyProvider": "暫無供應商配置",
+      "notConfigured": "未配置",
+      "apiKey": "API Key",
+      "apiKeyHelper": "API Key 助手",
+      "baseUrl": "Base URL",
+      "provider": "供應商",
+      "source": "來源",
+      "show": "顯示",
+      "hide": "隱藏",
+      "switchTo": "切換到",
+      "addProvider": "新增供應商",
+      "importProvider": "匯入供應商",
+      "importFrom": "從以下來源匯入",
+      "importFromCcSwitch": "從 cc-switch 匯入",
+      "edit": "編輯",
+      "delete": "刪除",
+      "deleteConfirm": "確認刪除供應商配置",
+      "deleteMessage": "確定要刪除供應商 \"{{name}}\" 嗎？此操作無法撤銷。",
+      "convertLocal": "轉為本地配置",
+      "convertMessage": "轉換後將斷開與匯入源的關聯，此操作不可逆。",
+      "convertSuccess": "轉換成功，已生成新 ID 並斷開關聯",
+      "importing": "匯入中...",
+      "allProviders": "所有供應商",
+      "import": "匯入",
+      "importFromCcSwitchUpdate": "從cc-switch匯入/更新",
+      "importFromCcSwitchFile": "Select cc-switch.db File to Import",
+      "importFromCcSwitchCli": "從cc-switch CLI匯入/更新",
+      "importFromClaudeRouter": "從Claude Code Router匯入/更新",
+      "featureComingSoon": "功能暫未實現，敬請期待",
+      "readingCcSwitch": "正在讀取 cc-switch 配置...",
+      "editCcSwitchTitle": "編輯 cc-switch 配置",
+      "editCcSwitchWarning": "您目前正在編輯 cc-switch 類型配置，編輯此配置不會更新 cc-switch，相反匯入的時候有可能會覆蓋您的配置，建議您將 cc-switch 配置轉為本外掛配置再進行編輯。",
+      "continueEdit": "繼續編輯",
+      "convertAndEdit": "轉換並編輯",
+      "convertToPlugin": "轉換為外掛配置",
+      "convertConfirmMessage": "是否將 cc-switch 配置 \"{{name}}\" 轉換為本外掛配置？",
+      "convertDetailMessage": "轉換後將斷開與 cc-switch 的 ID 連接關係，後續匯入 cc-switch 資料時不會覆蓋此配置。",
+      "confirmConvert": "確認轉換",
+      "inUse": "使用中",
+      "enable": "啟用",
+      "localProviderName": "Local settings.json",
+      "localProviderDescription": "Use configuration directly from ~/.claude/settings.json",
+      "localProviderHelp": "When using local provider mode:\n• The plugin will not modify your ~/.claude/settings.json file\n• You need to manually manage your configurations\n• Make sure the file exists and contains valid JSON\n• Suitable for advanced users who prefer manual control",
+      "authorizeAndEnable": "授權並啟用",
+      "revokeAuthorization": "取消授權",
+      "cliLoginProviderName": "CLI 登入狀態",
+      "cliLoginProviderDescription": "將重用您已在終端完成的 Claude CLI 登入狀態",
+      "cliLoginAuthorizeTitle": "授權使用 CLI 登入狀態",
+      "cliLoginAuthorizeMessage": "這將允許插件使用您的 Claude CLI 登入會話進行 API 請求。您必須已在終端透過 Claude CLI 登入。",
+      "cliLoginAuthorizeDetail": "插件將認證委託給 Claude SDK 的原生 OAuth 流程。您可以隨時取消此授權。",
+      "cliLoginDisableTitle": "取消 CLI 登入授權",
+      "cliLoginDisableMessage": "此操作會停止使用 CLI 登入狀態，並讓 Claude 處於未啟用任何供應商的狀態，直到您再次顯式啟用其它供應商。",
+      "cliLoginAccountInfo": "已登入：{{email}}",
+      "subscriptionTutorial": {
+        "entry": "訂閱制帳號教學",
+        "dialogTitle": "如何使用訂閱制帳號",
+        "tabAriaLabel": "訂閱制帳號教學標籤",
+        "tabs": {
+          "claude": "Claude訂閱制",
+          "codex": "Codex訂閱制"
+        },
+        "code": {
+          "copy": "複製程式碼",
+          "copied": "已複製"
+        },
+        "providers": {
+          "claude": {
+            "title": "Claude Code 訂閱制帳號使用方式",
+            "item1": "首先在終端 Claude Code CLI 登入成功 Claude Code 訂閱制帳號，然後可以正常在終端提問",
+            "item2": "確保 ~/.claude/settings.json 檔案和 .env 檔案內容為空",
+            "item3": "重啟 IDEA，就可以正常提問了",
+            "emptyConfigCodeLabel": "~/.claude/settings.json",
+            "emptyConfigCode": "{\n  \"env\": {\n  }\n}",
+            "noteTitle": "特殊情況備註：",
+            "note1": "如果已經進行上述操作，但是本外掛還是無法回覆，可以將 ~/.claude/settings.json .env 內容改為：",
+            "proxyConfigCodeLabel": "~/.claude/settings.json",
+            "proxyConfigCode": "{\n  \"env\": {\n    \"HTTP_PROXY\": \"http://127.0.0.1:7897\",\n    \"HTTPS_PROXY\": \"http://127.0.0.1:7897\"\n  }\n}",
+            "issuePrefix": "如果還是不行，可以去GitHub留言排查：",
+            "issueUrl": "https://github.com/zhukunpenglinyutong/idea-claude-code-gui/issues"
+          },
+          "codex": {
+            "title": "Codex 訂閱制帳號使用方式",
+            "item1": "在終端 Codex CLI 執行 codex login 登入成功之後，可以正常在終端提問",
+            "item2": "重啟 IDEA",
+            "item3": "即可正常對話",
+            "emptyConfigCodeLabel": "",
+            "emptyConfigCode": "",
+            "noteTitle": "",
+            "note1": "",
+            "proxyConfigCodeLabel": "",
+            "proxyConfigCode": "",
+            "issuePrefix": "如果還是不行，可以去GitHub留言排查：",
+            "issueUrl": "https://github.com/zhukunpenglinyutong/idea-claude-code-gui/issues"
+          }
+        }
+      },
+      "importDialog": {
+        "title": "匯入 cc-switch 配置",
+        "summary": "共識別到 {{total}} 個配置，其中",
+        "newCount": "{{count}} 新增",
+        "updateCount": "{{count}} 更新",
+        "columnName": "名稱",
+        "columnId": "ID",
+        "columnStatus": "狀態",
+        "statusNew": "新增",
+        "statusUpdate": "更新",
+        "selectedCount": "已選擇 {{count}} 項",
+        "confirmImport": "確認匯入"
+      },
+      "deleteProviderMessage": "Are you sure you want to delete provider \"{{name}}\"?\n\nThis action cannot be undone.",
+      "dialog": {
+        "addTitle": "新增供應商",
+        "editTitle": "編輯供應商: {{name}}",
+        "addDescription": "配置新的供應商資訊",
+        "securityNotice": "聲明：當前設定全部在您電腦本地，本項目100%開源，請放心使用",
+        "editDescription": "更新配置後將立即應用到目前供應商。",
+        "providerName": "供應商名稱",
+        "providerNamePlaceholder": "例如：Claude官方",
+        "remark": "備註",
+        "remarkPlaceholder": "選填",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "sk-ant-...",
+        "apiKeyHint": "請輸入您的API Key",
+        "apiUrl": "請求位址 (API Endpoint)",
+        "apiUrlPlaceholder": "https://api.anthropic.com",
+        "apiUrlHint": "填寫相容 Claude API 的服務端口位址",
+        "modelMapping": "模型映射（會注入到 JSON 的 env 裡）",
+        "mainModel": "主模型",
+        "mainModelPlaceholder": "例如：claude-sonnet-4-6",
+        "haikuModel": "Haiku 預設模型",
+        "haikuModelPlaceholder": "例如：claude-haiku-4-5",
+        "sonnetModel": "Sonnet 預設模型",
+        "sonnetModelPlaceholder": "例如：claude-sonnet-4-6",
+        "opusModel": "Opus 預設模型",
+        "opusModelPlaceholder": "例如：claude-opus-4-6",
+        "modelMappingHint": "選填：指定預設使用的 Claude 模型，留空則使用系統預設。",
+        "customModels": "自訂模型",
+        "customModelsHint": "新增此供應商支援的額外模型，自訂模型將顯示在模型選擇列表的最前面",
+        "jsonConfig": "配置 JSON",
+        "jsonConfigDescription": "此處可配置完整的 settings.json 內容，支援所有欄位（如 model、alwaysThinkingEnabled、ccSwitchProviderId、codemossProviderId 等）",
+        "jsonError": "JSON 格式無效",
+        "required": "*",
+        "showApiKey": "顯示",
+        "hideApiKey": "隱藏",
+        "confirmAdd": "確認新增",
+        "saveChanges": "儲存變更",
+        "codeView": "Code",
+        "visualView": "Visual",
+        "formatJson": "Format",
+        "invalidJson": "Invalid JSON format, please switch to code view to fix",
+        "presetGroup": "Quick Presets"
+      },
+      "presets": {
+        "custom": "Custom",
+        "zhipu": "Zhipu GLM",
+        "kimi": "Kimi K2",
+        "deepseek": "DeepSeek",
+        "minimax": "MiniMax",
+        "xiaomi": "Xiaomi MiMo",
+        "qwen": "阿里千問",
+        "openrouter": "OpenRouter"
+      }
+    },
+    "comingSoon": "功能即將推出...",
+    "permissionsComingSoon": "權限配置功能即將推出...",
+    "agentsComingSoon": "Agents配置功能即將推出...",
+    "skillsComingSoon": "Skills配置功能即將推出...",
+    "codexProvider": {
+      "title": "Codex Provider Management",
+      "description": "Manage Codex provider configurations, settings will be written to ~/.codex/ directory",
+      "emptyProvider": "No Codex providers configured, click Add to create one",
+      "deleteConfirmTitle": "Confirm Delete",
+      "deleteConfirmMessage": "Are you sure you want to delete provider \"{{name}}\"? This action cannot be undone.",
+      "dialog": {
+        "addTitle": "Add Codex Provider",
+        "editTitle": "Edit Provider: {{name}}",
+        "addDescription": "Configure new Codex provider, will be written to ~/.codex/ directory",
+        "editDescription": "Changes will be applied immediately to ~/.codex/ directory",
+        "providerName": "Provider Name",
+        "providerNamePlaceholder": "e.g., Codex Official",
+        "configJson": "Config",
+        "authJsonLabel": "Config",
+        "formatJson": "Format",
+        "formatSuccess": "Format successful",
+        "formatError": "Format failed, invalid JSON",
+        "nameRequired": "Please enter provider name",
+        "configJsonError": "config.toml JSON format error",
+        "authJsonError": "auth.json JSON format error",
+        "configJsonHint": "JSON object containing model_provider, model, model_providers, etc.",
+        "authJsonHint": "JSON object containing OPENAI_API_KEY and other auth info",
+        "customModels": "Custom Models",
+        "customModelsHint": "Add extra models supported by this provider. Custom models will appear at the top of the model selection list",
+        "noCustomModels": "No custom models",
+        "addModel": "Add Model",
+        "modelIdPlaceholder": "Model ID (required, e.g., gpt-4o)",
+        "modelLabelPlaceholder": "Display name (optional)",
+        "modelDescPlaceholder": "Model description (optional)",
+        "modelIdRequired": "Model ID is required",
+        "modelIdInvalid": "Invalid model ID format (only letters, numbers, dots, hyphens, underscores, slashes and colons allowed)",
+        "modelIdDuplicate": "Model ID already exists"
+      }
+    },
+    "agent": {
+      "title": "智慧體",
+      "create": "建立",
+      "createAgent": "建立智慧體",
+      "createAgentHint": "點選跳轉到智慧體設定頁面進行建立",
+      "customAgents": "自訂智慧體",
+      "noAgents": "暫無自訂智慧體",
+      "noAgentsDropdown": "暫無智慧體",
+      "loadFailed": "載入失敗",
+      "loading": "載入中...",
+      "menu": "選單",
+      "addSuccess": "智慧體建立成功",
+      "updateSuccess": "智慧體更新成功",
+      "deleteSuccess": "智慧體刪除成功",
+      "operationSuccess": "操作成功",
+      "operationFailed": "操作失敗",
+      "deleteConfirmTitle": "確認刪除",
+      "deleteConfirmMessage": "確定要刪除智慧體 \"{{name}}\" 嗎？此操作無法撤銷。",
+      "clearAgent": "取消選擇智慧體",
+      "dialog": {
+        "addTitle": "建立智慧體",
+        "editTitle": "編輯智慧體",
+        "name": "名稱",
+        "namePlaceholder": "請輸入智慧體名稱",
+        "nameRequired": "請輸入智慧體名稱",
+        "prompt": "提示詞",
+        "promptPlaceholder": "請輸入智慧體的角色、語氣、工作流程、工具偏好及規則規範等。（選填）",
+        "promptHint": "提示詞會在對話開始時作為系統指令傳送給AI",
+        "confirmAdd": "建立",
+        "saveChanges": "儲存"
+      }
+    },
+    "prompts": "Prompt Library",
+    "promptsDesc": "Manage common prompt templates for quick insertion during chat",
+    "prompt": {
+      "title": "Prompt Library",
+      "create": "Create",
+      "createPrompt": "Create Prompt",
+      "createPromptHint": "Click to go to prompt settings page to create",
+      "customPrompts": "Custom Prompts",
+      "noPrompts": "No custom prompts",
+      "noPromptsDropdown": "No prompts",
+      "loadFailed": "Load failed",
+      "loading": "Loading...",
+      "menu": "Menu",
+      "addSuccess": "Prompt created successfully",
+      "updateSuccess": "Prompt updated successfully",
+      "deleteSuccess": "Prompt deleted successfully",
+      "operationSuccess": "Operation successful",
+      "operationFailed": "Operation failed",
+      "deleteConfirmTitle": "Confirm Delete",
+      "deleteConfirmMessage": "Are you sure you want to delete prompt \"{{name}}\"? This action cannot be undone.",
+      "description": "Create common prompt templates. Type ! in the chat input to quickly select and insert",
+      "dialog": {
+        "addTitle": "Create Prompt",
+        "editTitle": "Edit Prompt",
+        "name": "Name",
+        "namePlaceholder": "Enter prompt name",
+        "nameRequired": "Please enter prompt name",
+        "content": "Content",
+        "contentPlaceholder": "Enter prompt content, you can include variables like {{variable}}",
+        "contentHint": "Prompt content will be inserted directly into the input box when selected",
+        "confirmAdd": "Create",
+        "saveChanges": "Save"
+      }
+    }
+  },
+  "history": {
+    "title": "歷史會話",
+    "sessionDeleted": "會話已刪除",
+    "confirmDelete": "確認刪除",
+    "deleteMessage": "確定要刪除這個會話嗎?此操作無法撤銷。",
+    "deleteSession": "刪除此會話",
+    "exportSession": "匯出會話",
+    "exportSuccess": "會話已匯出",
+    "exportFailed": "匯出失敗",
+    "favoriteSession": "收藏會話",
+    "unfavoriteSession": "取消收藏",
+    "favorited": "已收藏",
+    "unfavorited": "已取消收藏",
+    "loading": "載入歷史記錄中...",
+    "loadFailed": "載入失敗",
+    "noSessions": "暫無歷史會話",
+    "noSessionsDesc": "目前專案下沒有找到 Claude 會話記錄",
+    "totalSessions": "共 {{count}} 個會話 · {{total}} 條訊息",
+    "messageCount": "{{count}} 條訊息",
+    "searchPlaceholder": "搜尋會話標題...",
+    "noSearchResults": "未找到相符的會話",
+    "tryOtherKeywords": "嘗試其他搜尋關鍵詞",
+    "deepSearchTooltip": "Deep Search (clear cache and reload)",
+    "editTitle": "編輯標題",
+    "saveTitleButton": "儲存",
+    "cancelEditButton": "取消",
+    "titleTooLong": "標題過長（最多50個字元）",
+    "titleUpdated": "標題已更新",
+    "timeAgo": {
+      "yearsAgo": "年前",
+      "monthsAgo": "個月前",
+      "daysAgo": "天前",
+      "hoursAgo": "小時前",
+      "minutesAgo": "分鐘前",
+      "secondsAgo": "秒前"
+    }
+  },
+  "permission": {
+    "dialogTitle": "權限請求",
+    "allow": "允許一次",
+    "allowAlways": "總是允許",
+    "deny": "拒絕",
+    "userDenied": "使用者拒絕了權限請求",
+    "fromExternalProcess": "來自外部處理程序的請求",
+    "tools": {
+      "Write": "寫入檔案",
+      "Edit": "編輯檔案",
+      "Read": "讀取檔案",
+      "ReadBatch": "批量讀取檔案",
+      "Bash": "執行命令",
+      "TodoWrite": "寫入待辦",
+      "TodoRead": "讀取待辦",
+      "WebSearch": "網頁搜尋",
+      "WebFetch": "獲取網頁",
+      "execute": "執行 {{toolName}}",
+      "readDirectory": "讀取目錄"
+    }
+  },
+  "askUserQuestion": {
+    "title": "Claude 有一些問題想問你",
+    "progress": "問題 {{current}} / {{total}}",
+    "multiSelectHint": "可以選擇多個選項",
+    "cancel": "取消",
+    "back": "上一步",
+    "next": "下一步",
+    "submit": "提交",
+    "otherOption": "其他",
+    "otherOptionDesc": "輸入自訂答案",
+    "customInputPlaceholder": "請輸入您的答案...",
+    "timeoutWarning": "請儘快回答，對話框將在 {{seconds}} 秒後自動關閉",
+    "expand": "展開",
+    "collapse": "收起",
+    "clickToAnswer": "點擊回答"
+  },
+  "planApproval": {
+    "title": "Plan Ready for Approval",
+    "subtitle": "Claude has finished planning and is ready to execute.",
+    "requestedPermissions": "Requested Permissions",
+    "executionMode": "Execution Mode",
+    "executionModeDescription": "Select how Claude should execute the plan:",
+    "approve": "Approve & Execute",
+    "reject": "Reject",
+    "toApprove": "to approve",
+    "toReject": "to reject",
+    "timeoutWarning": "Please make a choice soon, dialog will close in {{seconds}} seconds"
+  },
+  "toast": {
+    "switchSuccess": "切換成功",
+    "thinkingEnabled": "思考已開啟",
+    "thinkingDisabled": "思考已關閉",
+    "configLoading": "Configuration loading, please try again",
+    "saveSuccess": "儲存成功",
+    "saveFailed": "Save failed",
+    "deleteSuccess": "刪除成功",
+    "operationFailed": "操作失敗",
+    "copySuccess": "{{label}}已複製到剪貼簿",
+    "copyFailed": "複製失敗",
+    "newSessionCreatedReady": "新會話已建立，可以開始提問",
+    "providerSwitchSuccess": "供應商切換成功！",
+    "providerSwitchFailed": "切換供應商失敗",
+    "operationSuccess": "操作成功",
+    "pleaseEnterProviderName": "請輸入供應商名稱",
+    "invalidJsonConfig": "配置 JSON 格式錯誤，請修正後再儲存",
+    "providerAdded": "供應商新增成功",
+    "providerUpdated": "供應商更新成功",
+    "providerDeleted": "供應商刪除成功"
+  },
+  "config": {
+    "clickToCopy": "點選複製",
+    "switch": "切換",
+    "switchProvider": "切換供應商",
+    "link": "連結"
+  },
+  "markdown": {
+    "copyCode": "複製程式碼",
+    "copyMessage": "複製訊息",
+    "copySuccess": "複製成功"
+  },
+  "usage": {
+    "loading": "載入統計資料中...",
+    "noData": "暫無統計資料",
+    "loadData": "載入資料",
+    "currentProject": "目前專案",
+    "allProjects": "所有專案",
+    "last7Days": "最近7天",
+    "last30Days": "最近30天",
+    "allTime": "全部時間",
+    "refreshData": "重新整理資料",
+    "estimateNotice": "當前使用統計為估算值，可作為使用趨勢參考，不能作為真實帳單依據",
+    "overview": "總覽",
+    "models": "模型",
+    "sessions": "會話",
+    "timeline": "趨勢",
+    "totalCost": "總消費",
+    "totalSessions": "總會話數",
+    "totalTokens": "總Token數",
+    "avgPerSession": "平均/會話",
+    "comparedToLastWeek": "較上週",
+    "tokenBreakdown": "Token 分解",
+    "input": "輸入",
+    "output": "輸出",
+    "cacheWrite": "快取寫入",
+    "cacheRead": "快取讀取",
+    "topModels": "最常用模型",
+    "byModel": "按模型統計",
+    "sessionCount": "會話數",
+    "sessionList": "會話列表",
+    "sortByCost": "按消費",
+    "sortByTime": "按時間",
+    "dailyTrend": "每日使用趨勢",
+    "noDataInRange": "該時間範圍內暫無資料",
+    "sessionsCount": "次會話",
+    "lastUpdated": "最後更新",
+    "today": "今天",
+    "yesterday": "昨天",
+    "daysAgo": "天前",
+    "justNow": "剛剛",
+    "minutesAgo": "分鐘前",
+    "hoursAgo": "小時前",
+    "description": "描述",
+    "command": "命令"
+  },
+  "mcp": {
+    "title": "MCP 伺服器",
+    "whatIsMcp": "什麼是 MCP?",
+    "refreshStatus": "重新整理伺服器狀態",
+    "add": "新增",
+    "manualConfig": "手動配置",
+    "addFromMarket": "從 MCP市場 新增",
+    "marketComingSoon": "MCP 市場功能暫未實現，敬請期待",
+    "description": "描述",
+    "command": "命令",
+    "url": "URL",
+    "homepage": "主頁",
+    "docs": "文件",
+    "edit": "編輯",
+    "delete": "刪除",
+    "noServers": "暫無 MCP 伺服器",
+    "addServerHint": "點選「新增」按鈕新增伺服器",
+    "loading": "載入中...",
+    "deleteTitle": "刪除 MCP 伺服器",
+    "deleteMessage": "確定要刪除伺服器 \"{{name}}\" 嗎？\n\n此操作無法撤銷。",
+    "deleteConfirm": "刪除",
+    "cancel": "取消",
+    "enabled": "已啟用",
+    "disabled": "已停用",
+    "deleted": "已刪除",
+    "updated": "已更新",
+    "saved": "已儲存",
+    "added": "已新增",
+    "linkCopied": "連結已複製，請到瀏覽器開啟",
+    "configCopied": "Config copied to clipboard",
+    "copyFailed": "複製失敗，請手動複製",
+    "connectionStatus": "Connection Status",
+    "serverVersion": "Server Version",
+    "statusConnected": "Connected",
+    "statusFailed": "Connection Failed",
+    "statusNeedsAuth": "Needs Authentication",
+    "statusPending": "Connecting...",
+    "statusUnknown": "Unknown",
+    "errorDetails": "Error Details",
+    "logs": {
+      "title": "Connection Logs",
+      "empty": "No logs yet",
+      "clear": "Clear logs",
+      "close": "Close",
+      "count": "{{count}} log entries",
+      "connected": "Connected",
+      "failed": "Connection failed",
+      "needsAuth": "Authentication required",
+      "unknownError": "Unknown error",
+      "loadingServers": "Loading MCP server list...",
+      "refreshingStatus": "Refreshing MCP server connection status...",
+      "loadedToolsFromCache": "Loaded tools from cache for \"{{name}}\": {{count}} tools",
+      "forceRefreshingTools": "Force refreshing tools for \"{{name}}\"...",
+      "loadingTools": "Loading tools for \"{{name}}\"...",
+      "fastLoadCache": "Fast load from cache: {{count}} servers (cached {{seconds}}s ago)",
+      "loadedToolsFromCacheSimple": "Loaded tools from cache: {{count}} tools",
+      "usingCacheStrategy": "Using cache-first strategy. Click refresh to get latest data",
+      "firstLoad": "First load, fetching server list...",
+      "loadedServersSuccess": "Loaded server list: {{count}} servers found",
+      "loadedServersFailed": "Failed to load server list: {{error}}",
+      "statusUpdateComplete": "Status update complete: {{total}} servers ({{connected}} connected, {{failed}} failed, {{pending}} pending, {{needsAuth}} need auth)",
+      "loadedStatusFailed": "Failed to load server status: {{error}}",
+      "cleared": "Refresh logs cleared",
+      "refreshingAll": "Refreshing all MCP servers...",
+      "startRefresh": "Starting refresh",
+      "forceRefreshingToolsServer": "Force refreshing tools for \"{{name}}\"...",
+      "startRefreshServer": "Starting refresh for \"{{name}}\"...",
+      "checkingConnection": "Checking connection status",
+      "checkingConnectionServer": "Server \"{{name}}\" - Checking connection status...",
+      "refreshComplete": "Server \"{{name}}\" refresh complete",
+      "forceRefreshTools": "Force refresh tools"
+    },
+    "presets": {
+      "fetch": "Web content fetching tool for scraping web pages",
+      "time": "Time and timezone utilities",
+      "memory": "Knowledge graph and memory storage tool",
+      "sequentialThinking": "Sequential thinking and reasoning tool",
+      "context7": "Document search and context retrieval tool"
+    },
+    "help": {
+      "title": "什麼是 MCP?",
+      "protocol": {
+        "title": "Model Context Protocol",
+        "description": "MCP (Model Context Protocol) 是 Anthropic 開發的開放協議，讓 AI 模型能夠安全地存取外部工具和資料來源。"
+      },
+      "features": {
+        "title": "主要特性",
+        "toolExtension": {
+          "label": "工具擴充",
+          "description": "為 Claude 新增檔案系統、網路存取等能力"
+        },
+        "dataConnection": {
+          "label": "資料連接",
+          "description": "連接資料庫、API 等外部資料來源"
+        },
+        "security": {
+          "label": "安全可控",
+          "description": "嚴格的權限控制和資料隔離"
+        },
+        "integration": {
+          "label": "易於整合",
+          "description": "支援多種程式語言和執行環境"
+        }
+      },
+      "configuration": {
+        "title": "配置方式",
+        "description": "支援兩種配置類型：",
+        "stdio": {
+          "description": "透過標準輸入輸出與本地行程通訊",
+          "example": "npx/uvx 命令啟動"
+        },
+        "httpSse": {
+          "description": "透過網路與遠端伺服器通訊",
+          "example": "URL 位址"
+        }
+      },
+      "learnMore": {
+        "title": "了解更多",
+        "description": "造訪官方文件："
+      },
+      "gotIt": "知道了"
+    },
+    "serverDialog": {
+      "addTitle": "手動配置",
+      "editTitle": "編輯伺服器",
+      "rawConfig": "原始配置（JSON）",
+      "description": "請輸入 MCP Servers 配置 JSON（優先使用 NPX 或 UVX 配置）",
+      "securityWarning": "配置前請自行確認來源，甄別風險",
+      "saving": "保存中...",
+      "errors": {
+        "idExists": "伺服器 ID \"{{id}}\" 已存在",
+        "unrecognizedFormat": "無法識別的配置格式",
+        "jsonParseError": "JSON 解析錯誤: {{message}}"
+      }
+    },
+    "tools": "Tools",
+    "loadTools": "Load Tool List",
+    "notConnected": "Not Connected",
+    "loadFailed": "Load Failed",
+    "noTools": "No Tools",
+    "clickToLoad": "Click to Load",
+    "refreshLogs": "Refresh Logs",
+    "clearLogs": "Clear Logs",
+    "clear": "Clear",
+    "noRefreshLogs": "No Refresh Logs",
+    "refreshLogsHint": "After clicking the refresh button, detailed refresh process information will be displayed here",
+    "noParams": "No Parameters",
+    "required": "Required",
+    "optional": "Optional",
+    "refreshServer": "Refresh {{name}}"
+  },
+  "tools": {
+    "toolCall": "工具調用",
+    "runCommand": "運行命令",
+    "contextEngine": "上下文引擎",
+    "task": "任務",
+    "promptLabel": "提示詞",
+    "readFile": "讀取文件",
+    "editFile": "編輯文件",
+    "writeFile": "寫入文件",
+    "replaceString": "替換字符串",
+    "executeCommand": "執行命令",
+    "search": "搜索",
+    "fileMatch": "文件匹配",
+    "webFetch": "網頁獲取",
+    "webSearch": "網頁搜索",
+    "delete": "刪除",
+    "explore": "探索",
+    "createDirectory": "創建目錄",
+    "moveFile": "移動文件",
+    "copyFile": "複製文件",
+    "listFiles": "列出文件",
+    "findFile": "查找文件",
+    "todoList": "任務列表",
+    "editFileTitle": "編輯文件",
+    "clickToOpen": "點擊打開 {{filePath}}",
+    "refreshFileInIdea": "在 IDEA 中重新整理檔案",
+    "refreshFileInIdeaSuccess": "已手動重新整理本檔案在 IDEA 中的內容",
+    "showDiffInIdea": "在 IDEA 中顯示變更",
+    "diffButton": "Diff",
+    "editBatchTitle": "批量編輯檔案",
+    "searchBatchTitle": "批量搜尋",
+    "editPrefix": "編輯: {{fileName}}",
+    "lineRange": "第 {{start}}-{{end}} 行",
+    "lineSingle": "第 {{line}} 行",
+    "filePath": "檔案路徑：",
+    "unknownTool": "未知工具",
+    "bashGroupBatchRun": "Batch Run Commands",
+    "bashGroupBatchExecution": "Batch Execution",
+    "bashGroupCompleted": "completed",
+    "bashGroupAllCompleted": "All Completed",
+    "bashGroupFailed": "failed"
+  },
+  "todo": {
+    "inProgress": "進行中 {{completed}}/{{total}} 個任務",
+    "allCompleted": "已完成 {{completed}}/{{total}} 個任務",
+    "stopped": "已停止",
+    "progress": "已完成 {{completed}}/{{total}} 個任務"
+  },
+  "statusPanel": {
+    "todoTab": "計畫",
+    "tasksTab": "任務",
+    "subagentTab": "子代理",
+    "filesTab": "檔案改動",
+    "editsTab": "編輯",
+    "noTodos": "暫無任務運行",
+    "noSubagents": "暫無子代理運行",
+    "noFileChanges": "暫無檔案改動",
+    "showDiff": "查看差異",
+    "expand": "展開狀態面板",
+    "collapse": "收起狀態面板",
+    "undoChanges": "撤銷更改",
+    "undoConfirmTitle": "撤銷檔案更改",
+    "undoWillDelete": "此檔案是新建立的，撤銷將刪除該檔案。",
+    "undoWillRestore": "將恢復此檔案到 Claude 修改之前的狀態。",
+    "undoCannotUndo": "此操作無法撤銷。",
+    "confirmUndo": "確認撤銷",
+    "undoSuccess": "已撤銷 {{fileName}} 的更改",
+    "undoFailed": "撤銷失敗: {{error}}",
+    "discardAll": "回撤全部",
+    "keepAll": "保存全部",
+    "discardAllConfirmTitle": "回撤全部更改",
+    "discardAllConfirmMessage": "將撤銷所有檔案的更改，此操作無法恢復。",
+    "keepAllConfirmTitle": "保存全部",
+    "keepAllConfirmMessage": "將當前改動作為新基準，後續改動從零開始記錄。",
+    "discardAllSuccess": "已撤銷所有檔案更改",
+    "discardAllFailed": "撤銷失敗: {{error}}",
+    "keepAllSuccess": "已保存全部，改動記錄已重置"
+  },
+  "skills": {
+    "title": "Skills",
+    "all": "全部",
+    "global": "全局",
+    "local": "本項目",
+    "filterEnabled": "Filter enabled Skills",
+    "enabled": "Enabled",
+    "filterDisabled": "Filter disabled Skills",
+    "disabled": "Disabled",
+    "searchPlaceholder": "Search Skills...",
+    "whatIsSkills": "What are Skills?",
+    "importSkill": "Import Skill",
+    "importGlobalSkill": "Import Global Skill",
+    "importLocalSkill": "Import Local Skill",
+    "importUserSkill": "匯入使用者 Skill",
+    "importRepoSkill": "匯入儲存庫 Skill",
+    "user": "使用者",
+    "repo": "儲存庫",
+    "description": "描述",
+    "noDescription": "暫無描述",
+    "noSkills": "No Skills",
+    "noMatchingSkills": "未找到匹配的技能",
+    "importHint": "Click + button to import Skill file or folder",
+    "deleteTitle": "Delete Skill",
+    "deleteMessage": "Are you sure you want to delete {{scope}} Skill \"{{name}}\"?\n\nThis action cannot be undone.",
+    "deleteMessageGlobal": "global",
+    "deleteMessageLocal": "local",
+    "deleteMessageUser": "使用者",
+    "deleteMessageRepo": "儲存庫",
+    "importSuccess": "Successfully imported {{count}} Skills",
+    "importSuccessOne": "Successfully imported 1 Skill",
+    "importPartialSuccess": "Successfully imported {{count}}/{{total}} Skills, some failed",
+    "importFailed": "Failed to import Skill",
+    "deleteSuccess": "Successfully deleted Skill",
+    "toggleSuccess": "Updated Skill status",
+    "toggleFailed": "Failed to update Skill status",
+    "deleteFailed": "刪除 Skill 失敗",
+    "enableSuccess": "已成功啟用 Skill: {{name}}",
+    "disableSuccess": "已成功停用 Skill: {{name}}",
+    "operationFailed": "操作失敗: {{error}}",
+    "operationError": "操作 Skill 失敗",
+    "refreshed": "已重新整理 Skills 清單",
+    "help": {
+      "title": "什麼是 Skills?",
+      "overview": {
+        "title": "概述",
+        "description": "Skills 是 Claude 動態載入的指令、腳本和資源資料夾，用於提升特定任務的表現。Skills 可以教會 Claude 以可重複的方式完成特定任務，例如使用公司品牌指南建立文件、按照組織特定的工作流程分析資料，或自動化個人任務。"
+      },
+      "structure": {
+        "title": "Skill 結構",
+        "description": "一個 Skill 是包含 SKILL.md 檔案的資料夾：",
+        "example": "my-skill/\n├── SKILL.md          # 必須：技能定義檔案\n├── templates/        # 可選：範本檔案\n└── references/       # 可選：參考資料"
+      },
+      "format": {
+        "title": "SKILL.md 格式",
+        "description": "SKILL.md 檔案使用 YAML frontmatter + Markdown 格式：",
+        "example": "---\nname: my-skill-name\ndescription: 技能描述和使用時機\n---\n\n# 技能指令\n\n詳細的指令內容...",
+        "hint": "name 和 description 是必填欄位，可選欄位包括 license、allowed-tools、metadata"
+      },
+      "configuration": {
+        "title": "配置方式",
+        "description": "新增 Skill 的方式：",
+        "localPath": {
+          "label": "本地路徑",
+          "description": "指定包含 SKILL.md 的資料夾路徑"
+        },
+        "relativePath": {
+          "label": "相對路徑",
+          "description": "相對於專案根目錄，如 ./skills/my-skill"
+        },
+        "absolutePath": {
+          "label": "絕對路徑",
+          "description": "完整的檔案系統路徑"
+        }
+      },
+      "tips": {
+        "title": "使用提示",
+        "item1": "確保 Skill 目錄包含有效的 SKILL.md 檔案",
+        "item2": "Skill 名稱必須使用小寫字母、數字和連字符（hyphen-case）",
+        "item3": "Skill 載入後會在 Claude 會話中自動生效",
+        "item4": "可以透過啟用/停用開關控制單個 Skill 的狀態",
+        "item5": "在聊天中提及 Skill 名稱即可使用，如：「使用 pdf skill 提取表單欄位」"
+      },
+      "learnMore": {
+        "title": "了解更多",
+        "description": "更多關於 Skills 的資訊：",
+        "link1": "什麼是 Skills?",
+        "link2": "如何建立自訂 Skills",
+        "link3": "Anthropic Skills 示例倉庫"
+      },
+      "codex": {
+        "title": "什麼是 Codex Skills？",
+        "overview": {
+          "title": "概述",
+          "description": "Codex Skills 是儲存在 .agents/skills/ 目錄中的指令集，用於增強 Codex 在特定任務中的表現。在聊天中使用 $ 前綴來呼叫。"
+        },
+        "structure": {
+          "title": "Skill 結構",
+          "description": "Codex Skill 是一個包含 SKILL.md 檔案的資料夾：",
+          "example": ".agents/skills/\n└── my-skill/\n    ├── SKILL.md          # Required: skill definition file\n    ├── templates/        # Optional: template files\n    └── references/       # Optional: reference materials"
+        },
+        "format": {
+          "title": "SKILL.md 格式",
+          "description": "SKILL.md 檔案使用 YAML frontmatter + Markdown 格式：",
+          "example": "---\nname: my-skill-name\ndescription: Skill description and when to use\n---\n\n# Skill Instructions\n\nDetailed instruction content...",
+          "hint": "name 和 description 是必填欄位"
+        },
+        "configuration": {
+          "title": "設定",
+          "description": "Codex Skills 的儲存位置：",
+          "userPath": {
+            "label": "使用者目錄",
+            "description": "~/.agents/skills/，所有專案共用"
+          },
+          "repoPath": {
+            "label": "儲存庫目錄",
+            "description": "{project-root}/.agents/skills/，僅在當前專案中可用"
+          },
+          "configToml": {
+            "label": "啟用/停用",
+            "description": "透過 ~/.codex/config.toml 中的 [[skills.config]] 項目控制"
+          }
+        },
+        "tips": {
+          "title": "使用提示",
+          "item1": "確保 Skill 目錄包含有效的 SKILL.md 檔案",
+          "item2": "Skill 名稱必須使用小寫字母、數字和連字號",
+          "item3": "在聊天中輸入 $ 前綴以觸發 Skill 自動完成",
+          "item4": "使用啟用/停用切換來控制各個 Skill 的狀態",
+          "item5": "停用的 Skills 會記錄在 ~/.codex/config.toml 中"
+        },
+        "learnMore": {
+          "title": "瞭解更多",
+          "description": "更多關於 Codex Skills 的資訊：",
+          "link1": "Codex Skills 文件"
+        }
+      }
+    }
+  },
+  "models": {
+    "addModel": "新增模型",
+    "claude": {
+      "sonnet46": {
+        "label": "Sonnet 4.6",
+        "description": "Sonnet 4.6 · 預設推薦模型"
+      },
+      "opus46": {
+        "label": "Opus 4.6",
+        "description": "Opus 4.6 · 最新最強大的模型"
+      },
+      "opus46_1m": {
+        "label": "Opus (1M 上下文)",
+        "description": "Opus 4.6 長對話模式"
+      },
+      "haiku45": {
+        "label": "Haiku 4.5",
+        "description": "Haiku 4.5 · 速度最快，適合快速回覆"
+      }
+    },
+    "codex": {
+      "gpt53codex": {
+        "label": "gpt-5.3-codex",
+        "description": "最新前沿智慧編程模型，能力全面增強"
+      },
+      "gpt54": {
+        "label": "gpt-5.4",
+        "description": "最新前沿模型，能力進一步增強"
+      },
+      "gpt52codex": {
+        "label": "gpt-5.2-codex",
+        "description": "最新前沿智慧編程模型"
+      },
+      "gpt51codexMax": {
+        "label": "gpt-5.1-codex-max",
+        "description": "針對Codex優化的旗艦模型，深度與快速推理兼備"
+      },
+      "gpt51codexMini": {
+        "label": "gpt-5.1-codex-mini",
+        "description": "針對Codex優化。更便宜、更快，但性能較差"
+      }
+    }
+  },
+  "modes": {
+    "default": {
+      "label": "Default Mode",
+      "tooltip": "Standard permission behavior",
+      "description": "Requires manual confirmation for each operation, suitable for cautious use"
+    },
+    "plan": {
+      "label": "Plan Mode",
+      "tooltip": "Plan mode - read-only analysis",
+      "description": "Uses only read-only tools, generates plan for user approval"
+    },
+    "acceptEdits": {
+      "label": "Agent Mode",
+      "tooltip": "Automatically accept file edits",
+      "description": "Automatically accept file creation/editing, reducing confirmation steps"
+    },
+    "bypassPermissions": {
+      "label": "Auto Mode",
+      "tooltip": "Bypass all permission checks",
+      "description": "Fully automated, bypassing all permission checks [Use with caution]"
+    }
+  },
+  "codexModes": {
+    "default": {
+      "label": "Suggest (approval)",
+      "tooltip": "Codex approval_policy=untrusted – prompts before editing files or running shell commands.",
+      "description": "Safest option. Every write or command requires your approval."
+    },
+    "plan": {
+      "label": "Plan Mode",
+      "tooltip": "Plan mode - read-only analysis",
+      "description": "Uses only read-only tools, generates plan for user approval"
+    },
+    "acceptEdits": {
+      "label": "Auto Edit",
+      "tooltip": "Codex approval_policy=on-request – asks for approval when needed",
+      "description": "Balanced option. Allows normal editing flow while still requiring approvals when needed."
+    },
+    "bypassPermissions": {
+      "label": "Full Auto",
+      "tooltip": "Codex approval_policy=never – runs commands and writes files without prompting (workspace sandbox still enforced).",
+      "description": "Hands-off mode. Codex executes edits and shell commands immediately."
+    }
+  },
+  "providers": {
+    "claude": {
+      "label": "Claude Code"
+    },
+    "codex": {
+      "label": "Codex Cli"
+    },
+    "gemini": {
+      "label": "Gemini Cli"
+    },
+    "opencode": {
+      "label": "OpenCode"
+    }
+  },
+  "promptEnhancer": {
+    "title": "Prompt Enhancer",
+    "tooltip": "Enhance Prompt",
+    "tooltipFull": "Rewrite prompt to provide more context and improve agent responses",
+    "shortcut": "⌘/",
+    "enhancing": "Enhancing prompt...",
+    "originalPrompt": "Original Prompt",
+    "enhancedPrompt": "Enhanced Prompt",
+    "useEnhanced": "Use Enhanced",
+    "keepOriginal": "Keep Original",
+    "enhanceFailed": "Failed to enhance prompt",
+    "emptyPrompt": "Please enter a prompt first",
+    "copyEnhanced": "Copy Enhanced"
+  },
+  "fileContext": {
+    "placeholder": "檔案上下文",
+    "enableTitle": "開啟檔案上下文？",
+    "enableDescription": "開啟後，編輯器中當前打開的檔案路徑將發送給 AI。注意：僅傳遞檔案路徑，不會傳遞檔案內容。",
+    "enable": "開啟",
+    "cancel": "取消"
+  },
+  "rewind": {
+    "title": "回溯檔案到之前的狀態",
+    "tooltip": "將檔案恢復到此訊息時的狀態",
+    "tooltipFull": "Restore files to their state at this message",
+    "selectTitle": "選擇回溯點",
+    "noRewindableMessages": "目前會話中沒有可回溯的訊息",
+    "rewindTo": "回溯到",
+    "impact": "影響",
+    "willRestore": "將檔案恢復到此訊息時的狀態",
+    "changesLost": "此訊息之後的更改將遺失",
+    "messagesAffected": "則訊息受影響",
+    "historyKept": "對話歷史將保留",
+    "cannotUndo": "此操作無法撤銷。",
+    "restoreFiles": "恢復檔案",
+    "restoring": "正在恢復檔案...",
+    "success": "回滾成功",
+    "successSimple": "回滾成功",
+    "failed": "檔案恢復失敗",
+    "notAvailable": "目前會話不支援回溯",
+    "parseError": "解析結果失敗"
+  },
+  "reasoning": {
+    "title": "選擇思考深度",
+    "low": {
+      "label": "較少",
+      "description": "快速響應，基礎推理"
+    },
+    "medium": {
+      "label": "中等",
+      "description": "平衡思考（預設）"
+    },
+    "high": {
+      "label": "較多",
+      "description": "深度推理，適合複雜任務"
+    },
+    "xhigh": {
+      "label": "最多",
+      "description": "最深推理，最高精度"
+    }
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "The application encountered an unexpected error. Please copy the error details below and share them with the developer for troubleshooting.",
+    "possibleCauses": "Possible causes:",
+    "cause1": "Node.js is not installed or not configured correctly",
+    "cause2": "Network connection issues",
+    "cause3": "Plugin or IDE compatibility issues",
+    "cause4": "Insufficient system resources",
+    "errorDetails": "Error Details",
+    "copyError": "Copy Error Info",
+    "copied": "Copied!",
+    "reload": "Reload Application",
+    "helpText": "If the problem persists, please copy the error information and submit it as an issue on GitHub, or share it in the community group."
+  },
+  "aiBridge": {
+    "claudeCodeInterrupted": "Claude Code 運行被中斷（可能是響應超時或用戶取消）：",
+    "claudeCodeError": "Claude Code 出現錯誤：",
+    "errorMessage": "錯誤訊息",
+    "currentApiKeySource": "目前 API Key 來源",
+    "currentApiKeyPreview": "目前 API Key 預覽",
+    "currentBaseUrl": "目前 Base URL",
+    "source": "來源",
+    "notConfigured": "未配置",
+    "notConfiguredEmpty": "未配置（值為空或缺失）",
+    "defaultBaseUrl": "預設值（https://api.anthropic.com）",
+    "configTip": "提示：CLI 可以讀取環境變數或 settings.json 兩種方式；本外掛為了避免產生問題，只支援讀取 settings.json 內容，您可以在本外掛右上角設定 - 供應商管理配置下即可使用",
+    "apiError": "API 錯誤",
+    "apiErrorCauses": "可能的原因：\n1. API Key 配置不正確\n2. 第三方代理服務配置問題\n3. 請檢查 ~/.claude/settings.json 中的配置",
+    "codexAuthError": "Codex 認證錯誤：",
+    "codexAuthErrorChecks": "請檢查以下配置：\n1. 外掛設定中的 Codex API Key 是否正確\n2. API Key 是否有足夠的權限\n3. 如果使用自訂 Base URL，請確認地址正確",
+    "codexAuthTip": "提示：Codex 需要有效的 OpenAI API Key",
+    "codexNetworkError": "Codex 網路錯誤：",
+    "codexNetworkErrorChecks": "請檢查：\n1. 網路連線是否正常\n2. 如果使用代理，請確認代理配置\n3. 防火牆是否阻止了連線",
+    "codexError": "Codex 出現錯誤：",
+    "codexErrorCheck": "請檢查網路連線和 Codex 配置",
+    "codexThinkingHint": "Codex 未返回 reasoning 項。若依然看不到思考過程，請參考 docs/codex/docs/config.md 中 hide_agent_reasoning/show_raw_agent_reasoning 的說明，並確認 OpenAI 帳號已完成驗證。",
+    "userDeniedPermission": "用戶拒絕了 {{toolName}} 工具的使用權限",
+    "userDidNotProvideAnswers": "用戶未提供問題答案",
+    "dbMissingPath": "缺少資料庫檔案路徑參數",
+    "dbFileNotExist": "資料庫檔案不存在",
+    "dbReadFailed": "讀取資料庫失敗",
+    "dbParseProviderFailed": "解析供應商配置失敗",
+    "aiResponseEmpty": "AI 響應為空",
+    "enhancementFailed": "增強失敗",
+    "uploadedImages": "已上傳 {{count}} 張圖片",
+    "uploadedAttachments": "已上傳附件",
+    "emptyMessage": "空訊息",
+    "attachment": "附件"
+  },
+  "changelog": {
+    "title": "版本更新",
+    "close": "知道了",
+    "page": "{{current}} / {{total}}"
+  },
+  "error": {
+    "providerNotConfigured": "供應商未設定",
+    "providerNotConfiguredDesc": "尚未設定 AI 供應商或未授權使用本機設定，請先在供應商管理設定中完成設定後再開始對話。",
+    "goToProviderSettings": "前往設定"
+  }
+}

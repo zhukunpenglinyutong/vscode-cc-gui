@@ -1,0 +1,1590 @@
+import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as cp from 'child_process';
+import { NodeDetector } from './nodeDetector';
+
+type MessageCallback = (event: string, content: string) => void;
+
+// Claude model pricing (USD per 1M tokens) — approximate, kept in sync with Anthropic pricing page
+const MODEL_PRICING: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
+  'claude-opus-4':        { input: 15,   output: 75,   cacheRead: 1.5,  cacheWrite: 18.75 },
+  'claude-sonnet-4':      { input: 3,    output: 15,   cacheRead: 0.3,  cacheWrite: 3.75  },
+  'claude-haiku-4':       { input: 0.8,  output: 4,    cacheRead: 0.08, cacheWrite: 1     },
+  'claude-opus-4-5':      { input: 15,   output: 75,   cacheRead: 1.5,  cacheWrite: 18.75 },
+  'claude-sonnet-4-5':    { input: 3,    output: 15,   cacheRead: 0.3,  cacheWrite: 3.75  },
+  'claude-haiku-4-5':     { input: 0.8,  output: 4,    cacheRead: 0.08, cacheWrite: 1     },
+  'claude-3-7-sonnet':    { input: 3,    output: 15,   cacheRead: 0.3,  cacheWrite: 3.75  },
+  'claude-3-5-sonnet':    { input: 3,    output: 15,   cacheRead: 0.3,  cacheWrite: 3.75  },
+  'claude-3-5-haiku':     { input: 0.8,  output: 4,    cacheRead: 0.08, cacheWrite: 1     },
+  'claude-3-opus':        { input: 15,   output: 75,   cacheRead: 1.5,  cacheWrite: 18.75 },
+  'claude-3-haiku':       { input: 0.25, output: 1.25, cacheRead: 0.03, cacheWrite: 0.3   },
+};
+
+function _estimateCost(model: string, inputTokens: number, outputTokens: number, cacheRead: number, cacheWrite: number): number {
+  // Match by prefix (e.g. "claude-3-5-sonnet-20241022" → "claude-3-5-sonnet")
+  const pricing = Object.entries(MODEL_PRICING).find(([key]) => model.toLowerCase().startsWith(key))?.[1]
+    ?? { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 }; // default to sonnet pricing
+  return (
+    (inputTokens  * pricing.input     / 1_000_000) +
+    (outputTokens * pricing.output    / 1_000_000) +
+    (cacheRead    * pricing.cacheRead / 1_000_000) +
+    (cacheWrite   * pricing.cacheWrite/ 1_000_000)
+  );
+}
+
+export class BridgeServer {
+  private _callbacks: MessageCallback[] = [];
+  private _bridgeProcess?: cp.ChildProcess;
+  private _bridgePath: string;
+  private _workspacePath: string;
+  private _webview?: vscode.Webview;
+  private _log: vscode.OutputChannel;
+
+  constructor(private readonly context: vscode.ExtensionContext) {
+    this._log = vscode.window.createOutputChannel('Claude Code GUI');
+    this._log.show(true);
+    this._bridgePath = path.join(context.extensionPath, 'ai-bridge', 'daemon.js');
+    this._workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+    this._startBridge();
+
+    // Sync active file context when editor changes
+    context.subscriptions.push(
+      vscode.window.onDidChangeActiveTextEditor(e => this._pushActiveFile(e)),
+      vscode.window.onDidChangeTextEditorSelection(e => {
+        if (e.textEditor === vscode.window.activeTextEditor) {
+          this._pushActiveFile(e.textEditor);
+        }
+      }),
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        this._workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+      })
+    );
+  }
+
+  onMessage(cb: MessageCallback) {
+    this._callbacks.push(cb);
+  }
+
+  broadcast(event: string, content: string) {
+    this._callbacks.forEach(cb => cb(event, content));
+  }
+
+  setWebview(webview: vscode.Webview) {
+    this._webview = webview;
+    // Push current active file immediately when webview is ready
+    setTimeout(() => this._pushActiveFile(vscode.window.activeTextEditor), 500);
+  }
+
+  async handleWebviewMessage(message: any, webview: vscode.Webview) {
+    if (message.type !== 'bridge') return;
+    const payload: string = message.payload ?? '';
+    const colonIdx = payload.indexOf(':');
+    const event = colonIdx >= 0 ? payload.slice(0, colonIdx) : payload;
+    const content = colonIdx >= 0 ? payload.slice(colonIdx + 1) : '';
+
+    switch (event) {
+      case 'open_file':
+        await this._openFile(content);
+        break;
+      case 'open_browser':
+        vscode.env.openExternal(vscode.Uri.parse(content));
+        break;
+      case 'show_diff':
+        await this._showDiff(content);
+        break;
+      case 'show_editable_diff':
+      case 'show_interactive_diff':
+        await this._showInteractiveDiff(content, webview);
+        break;
+      case 'show_multi_edit_diff':
+      case 'show_edit_preview_diff':
+      case 'show_edit_full_diff':
+        await this._showEditDiff(event, content);
+        break;
+      case 'refresh_file':
+        await this._refreshFile(content);
+        break;
+      case 'write_clipboard':
+        await vscode.env.clipboard.writeText(content);
+        break;
+      case 'get_workspace_path':
+        webview.postMessage({ type: 'workspace_path', content: this._workspacePath });
+        break;
+      case 'get_active_file':
+        this._pushActiveFile(vscode.window.activeTextEditor);
+        break;
+      // Silently ignore these — handled client-side or not needed in VSCode
+      case 'tab_status_changed':
+      case 'set_provider':
+      case 'set_model':
+      case 'get_selected_agent':
+      case 'sort_providers':
+      case 'get_node_path':
+      case 'get_working_directory':
+      case 'get_editor_font_config':
+      case 'get_codex_sandbox_mode':
+      case 'get_commit_prompt':
+      case 'get_sound_notification_config': {
+        const cfg = this.context.globalState.get<any>('ccg.soundConfig') ?? {};
+        webview.postMessage({ type: 'update_sound_notification_config', content: JSON.stringify({
+          enabled: cfg.enabled ?? false,
+          onlyWhenUnfocused: cfg.onlyWhenUnfocused ?? false,
+          selectedSound: cfg.selectedSound ?? 'default',
+          customSoundPath: cfg.customSoundPath ?? '',
+        })});
+        break;
+      }
+      case 'set_sound_notification_config':
+      case 'set_sound_notification_enabled': {
+        const cfg = this.context.globalState.get<any>('ccg.soundConfig') ?? {};
+        try { Object.assign(cfg, JSON.parse(content)); } catch { /* ignore */ }
+        this.context.globalState.update('ccg.soundConfig', cfg);
+        break;
+      }
+      case 'set_sound_only_when_unfocused': {
+        const cfg = this.context.globalState.get<any>('ccg.soundConfig') ?? {};
+        try { cfg.onlyWhenUnfocused = JSON.parse(content).onlyWhenUnfocused; } catch { /* ignore */ }
+        this.context.globalState.update('ccg.soundConfig', cfg);
+        break;
+      }
+      case 'set_selected_sound': {
+        const cfg = this.context.globalState.get<any>('ccg.soundConfig') ?? {};
+        try { cfg.selectedSound = JSON.parse(content).soundId; } catch { /* ignore */ }
+        this.context.globalState.update('ccg.soundConfig', cfg);
+        break;
+      }
+      case 'set_custom_sound_path': {
+        const cfg = this.context.globalState.get<any>('ccg.soundConfig') ?? {};
+        try { cfg.customSoundPath = JSON.parse(content).path; } catch { /* ignore */ }
+        this.context.globalState.update('ccg.soundConfig', cfg);
+        break;
+      }
+      case 'test_sound':
+        this._playSound(content);
+        break;
+      case 'browse_sound_file':
+        vscode.window.showOpenDialog({
+          canSelectFiles: true, canSelectFolders: false, canSelectMany: false,
+          filters: { 'Audio': ['mp3', 'wav', 'ogg', 'aiff', 'm4a'] }, title: 'Select Sound File',
+        }).then(uris => {
+          if (uris?.[0]) {
+            webview.postMessage({ type: 'js_eval', content: `window.__onBrowseSoundResult && window.__onBrowseSoundResult(${JSON.stringify(uris[0].fsPath)})` });
+          }
+        });
+        break;
+      case 'set_send_shortcut':
+      case 'set_auto_open_file_enabled':
+      case 'set_thinking_enabled':
+      case 'check_node_environment':
+        break;
+
+      // ── Agents ────────────────────────────────────────────────────────────
+      case 'get_agents':
+        webview.postMessage({ type: 'update_agents', content: JSON.stringify(this.context.globalState.get('ccg.agents') ?? []) });
+        break;
+      case 'add_agent': {
+        const agents = this.context.globalState.get<any[]>('ccg.agents') ?? [];
+        const a = JSON.parse(content); a.id = a.id ?? Date.now().toString();
+        agents.push(a); this.context.globalState.update('ccg.agents', agents);
+        webview.postMessage({ type: 'update_agents', content: JSON.stringify(agents) });
+        break;
+      }
+      case 'update_agent': {
+        const { id: aid, updates: au } = JSON.parse(content);
+        const agents = (this.context.globalState.get<any[]>('ccg.agents') ?? []).map((a: any) => a.id === aid ? { ...a, ...au } : a);
+        this.context.globalState.update('ccg.agents', agents);
+        webview.postMessage({ type: 'update_agents', content: JSON.stringify(agents) });
+        break;
+      }
+      case 'delete_agent': {
+        const { id: did } = JSON.parse(content);
+        const agents = (this.context.globalState.get<any[]>('ccg.agents') ?? []).filter((a: any) => a.id !== did);
+        this.context.globalState.update('ccg.agents', agents);
+        webview.postMessage({ type: 'update_agents', content: JSON.stringify(agents) });
+        break;
+      }
+
+      // ── Codex providers ───────────────────────────────────────────────────
+      case 'get_codex_providers':
+        webview.postMessage({ type: 'update_codex_providers', content: JSON.stringify(this.context.globalState.get('ccg.codex_providers') ?? []) });
+        break;
+
+      // ── MCP servers ───────────────────────────────────────────────────────
+      case 'get_mcp_servers':
+      case 'get_codex_mcp_servers':
+        this._getMcpServers(event.startsWith('get_codex'), webview);
+        break;
+      case 'get_mcp_server_status':
+      case 'get_codex_mcp_server_status':
+        this._getMcpServerStatus(event.startsWith('get_codex'), webview);
+        break;
+
+      // ── Usage statistics ──────────────────────────────────────────────────
+      case 'get_usage_statistics':
+        this._getUsageStatistics(content, webview);
+        break;
+
+      // ── Prompts ───────────────────────────────────────────────────────────
+      case 'get_prompts':
+        webview.postMessage({ type: 'update_prompts', content: JSON.stringify([]) });
+        break;
+
+      // ── History ───────────────────────────────────────────────────────────
+      case 'load_history_data':
+        this._loadHistoryData(content, webview);
+        break;
+      case 'load_session':
+        this._loadSession(content.trim(), webview);
+        break;
+      case 'delete_history_session':
+        this._deleteHistorySession(content, webview);
+        break;
+      case 'update_history_title':
+        this._updateHistoryTitle(content, webview);
+        break;
+      case 'toggle_favorite_session':
+        this._toggleFavoriteSession(content, webview);
+        break;
+
+      // ── Skills ────────────────────────────────────────────────────────────
+      case 'get_all_skills':
+        this._getAllSkills(webview);
+        break;
+      case 'import_skill':
+        this._importSkill(content, webview);
+        break;
+      case 'delete_skill':
+        this._deleteSkill(content, webview);
+        break;
+      case 'toggle_skill':
+        this._toggleSkill(content, webview);
+        break;
+      case 'open_skill': {
+        try { const { path: skillPath } = JSON.parse(content); vscode.commands.executeCommand('vscode.open', vscode.Uri.file(skillPath)); } catch { /* ignore */ }
+        break;
+      }
+
+      // ── Settings: simple key/value stored in globalState ──────────────────
+      case 'get_streaming_enabled':
+        webview.postMessage({ type: 'update_streaming_enabled', content: JSON.stringify({ streamingEnabled: this._state('streaming_enabled', 'true') === 'true' }) });
+        break;
+      case 'get_send_shortcut':
+        webview.postMessage({ type: 'update_send_shortcut', content: JSON.stringify({ sendShortcut: this._state('send_shortcut', 'Enter').toLowerCase() === 'enter' ? 'enter' : 'cmdEnter' }) });
+        break;
+      case 'get_auto_open_file_enabled':
+        webview.postMessage({ type: 'update_auto_open_file_enabled', content: JSON.stringify({ autoOpenFileEnabled: this._state('auto_open_file', 'false') === 'true' }) });
+        break;
+      case 'get_thinking_enabled':
+        webview.postMessage({ type: 'update_thinking_enabled', content: this._state('thinking_enabled', 'false') });
+        break;
+      case 'get_mode':
+        webview.postMessage({ type: 'mode_received', content: this._state('permission_mode', 'default') });
+        break;
+      case 'set_streaming_enabled':
+        this._setState('streaming_enabled', content);
+        break;
+      case 'set_send_shortcut':
+        this._setState('send_shortcut', content);
+        break;
+      case 'set_auto_open_file_enabled':
+        this._setState('auto_open_file', content);
+        break;
+      case 'set_thinking_enabled':
+        this._setState('thinking_enabled', content);
+        break;
+      case 'set_mode':
+        this._setState('permission_mode', content);
+        webview.postMessage({ type: 'mode_received', content });
+        break;
+
+      // ── Dependency status ─────────────────────────────────────────────────
+      case 'get_dependency_status':
+        this._sendDependencyStatus(webview);
+        break;
+      case 'update_dependency':
+        // If content contains an id, treat as SDK update (reinstall)
+        if (content && content.includes('"id"')) {
+          this._installDependency(content, webview);
+        } else {
+          this._sendDependencyStatus(webview);
+        }
+        break;
+      case 'check_node_environment':
+        this._checkNodeEnvironment(webview);
+        break;
+      case 'install_dependency':
+      case 'update_dependency_sdk':
+        this._installDependency(content, webview);
+        break;
+      case 'uninstall_dependency':
+        this._uninstallDependency(content, webview);
+        break;
+
+      // ── cc-switch import ──────────────────────────────────────────────────
+      case 'open_file_chooser_for_cc_switch':
+        this._openCcSwitchFilePicker(webview);
+        break;
+      case 'preview_cc_switch_import':
+        this._openCcSwitchFilePicker(webview); // reuse same logic
+        break;
+      case 'save_imported_providers': {
+        const { providers: imported } = typeof content === 'string' ? JSON.parse(content) : content;
+        const existing = this._getProviders();
+        const merged = [...existing];
+        for (const p of imported) {
+          const idx = merged.findIndex((e: any) => e.id === p.id);
+          if (idx >= 0) merged[idx] = p; else merged.push(p);
+        }
+        this._saveProviders(merged);
+        webview.postMessage({ type: 'providers_updated', content: JSON.stringify(merged) });
+        break;
+      }
+
+      // ── Provider management (stored in globalState) ───────────────────────
+      case 'get_providers':
+        webview.postMessage({ type: 'providers_updated', content: JSON.stringify(this._getProviders()) });
+        break;
+      case 'get_active_provider':
+        webview.postMessage({ type: 'active_provider_updated', content: JSON.stringify(this._getActiveProvider()) });
+        break;
+      case 'add_provider': {
+        const p = JSON.parse(content);
+        const providers = this._getProviders();
+        providers.push(p);
+        this._saveProviders(providers);
+        webview.postMessage({ type: 'providers_updated', content: JSON.stringify(providers) });
+        break;
+      }
+      case 'update_provider': {
+        const { id, updates } = JSON.parse(content);
+        const providers = this._getProviders().map((p: any) =>
+          p.id === id ? { ...p, ...updates } : p
+        );
+        this._saveProviders(providers);
+        webview.postMessage({ type: 'providers_updated', content: JSON.stringify(providers) });
+        break;
+      }
+      case 'delete_provider': {
+        const { id: delId } = JSON.parse(content);
+        const providers = this._getProviders().filter((p: any) => p.id !== delId);
+        this._saveProviders(providers);
+        webview.postMessage({ type: 'providers_updated', content: JSON.stringify(providers) });
+        break;
+      }
+      case 'switch_provider': {
+        const { id: switchId } = JSON.parse(content);
+        const providers = this._getProviders().map((p: any) => ({
+          ...p,
+          isActive: switchId === '__disabled__' ? false : p.id === switchId,
+        }));
+        this._saveProviders(providers);
+        const active = providers.find((p: any) => p.isActive) ?? null;
+        webview.postMessage({ type: 'providers_updated', content: JSON.stringify(providers) });
+        webview.postMessage({ type: 'active_provider_updated', content: JSON.stringify(active) });
+        break;
+      }
+
+      // ── Slash commands / agents / MCP (pass to ai-bridge) ─────────────────
+      default:
+        this._sendToBridge(event, content, webview);
+    }
+  }
+
+  private _pushActiveFile(editor?: vscode.TextEditor) {
+    if (!this._webview) return;
+    if (!editor || editor.document.uri.scheme !== 'file') {
+      return;
+    }
+
+    const filePath = editor.document.uri.fsPath;
+    const sel = editor.selection;
+    const startLine = sel.start.line + 1;
+    const endLine = sel.end.line + 1;
+
+    let selectionInfo: string;
+    if (!sel.isEmpty) {
+      selectionInfo = startLine === endLine
+        ? `@${filePath}#L${startLine}`
+        : `@${filePath}#L${startLine}-${endLine}`;
+    } else {
+      selectionInfo = `@${filePath}`;
+    }
+
+    this._webview.postMessage({ type: 'add_selection_info', content: selectionInfo });
+  }
+
+  private async _openFile(pathWithLine: string) {
+    const parts = pathWithLine.split(':');
+    const filePath = parts[0];
+    const lineStr = parts[1];
+    const uri = vscode.Uri.file(filePath);
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const editor = await vscode.window.showTextDocument(doc, { preview: false });
+    if (lineStr) {
+      const line = parseInt(lineStr, 10) - 1;
+      const pos = new vscode.Position(Math.max(0, line), 0);
+      editor.selection = new vscode.Selection(pos, pos);
+      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+    }
+  }
+
+  private async _showDiff(content: string) {
+    try {
+      const data = JSON.parse(content);
+      const uri = vscode.Uri.file(data.filePath);
+      const oldContent = data.oldContent ?? '';
+      const newContent = data.newContent ?? '';
+      const title = data.title ?? path.basename(data.filePath);
+
+      const oldUri = await this._writeTempFile(data.filePath + '.ccg-old', oldContent);
+      const newUri = await this._writeTempFile(data.filePath + '.ccg-new', newContent);
+      await vscode.commands.executeCommand('vscode.diff', oldUri, newUri, title);
+    } catch { /* ignore */ }
+  }
+
+  private async _showInteractiveDiff(content: string, webview: vscode.Webview) {
+    try {
+      const data = JSON.parse(content);
+      const filePath: string = data.filePath;
+      const newContents: string = data.newFileContents ?? data.newContent ?? '';
+      const isNewFile: boolean = data.isNewFile ?? false;
+      const title = data.tabName ?? `${path.basename(filePath)} (proposed)`;
+
+      if (isNewFile) {
+        // For new files, show a preview and offer to create
+        const action = await vscode.window.showInformationMessage(
+          `Claude wants to create: ${path.basename(filePath)}`,
+          'Create File', 'Cancel'
+        );
+        if (action === 'Create File') {
+          await vscode.workspace.fs.writeFile(vscode.Uri.file(filePath), Buffer.from(newContents, 'utf8'));
+          await vscode.window.showTextDocument(vscode.Uri.file(filePath));
+          webview.postMessage({ type: 'diff_applied', content: JSON.stringify({ filePath, applied: true }) });
+        }
+        return;
+      }
+
+      // For existing files: show diff with Apply/Reject via quick pick
+      const originalContent = fs.existsSync(filePath)
+        ? fs.readFileSync(filePath, 'utf8') : '';
+
+      const oldUri = await this._writeTempFile(filePath + '.ccg-original', originalContent);
+      const newUri = await this._writeTempFile(filePath + '.ccg-proposed', newContents);
+
+      await vscode.commands.executeCommand('vscode.diff', oldUri, newUri, title);
+
+      const action = await vscode.window.showInformationMessage(
+        `Apply changes to ${path.basename(filePath)}?`,
+        'Apply', 'Reject'
+      );
+
+      // Clean up temp files
+      try {
+        await vscode.workspace.fs.delete(oldUri);
+        await vscode.workspace.fs.delete(newUri);
+      } catch { /* ignore */ }
+
+      if (action === 'Apply') {
+        await vscode.workspace.fs.writeFile(vscode.Uri.file(filePath), Buffer.from(newContents, 'utf8'));
+        webview.postMessage({ type: 'diff_applied', content: JSON.stringify({ filePath, applied: true }) });
+      } else {
+        webview.postMessage({ type: 'diff_applied', content: JSON.stringify({ filePath, applied: false }) });
+      }
+    } catch { /* ignore */ }
+  }
+
+  private async _showEditDiff(event: string, content: string) {
+    try {
+      const data = JSON.parse(content);
+      const filePath: string = data.filePath;
+      const originalContent = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+
+      let newContent = originalContent;
+      const edits: Array<{ oldString: string; newString: string; replaceAll?: boolean }> =
+        data.edits ?? (data.oldString !== undefined ? [{ oldString: data.oldString, newString: data.newString, replaceAll: data.replaceAll }] : []);
+
+      for (const edit of edits) {
+        if (edit.replaceAll) {
+          newContent = newContent.split(edit.oldString).join(edit.newString);
+        } else {
+          newContent = newContent.replace(edit.oldString, edit.newString);
+        }
+      }
+
+      const title = data.title ?? `${path.basename(filePath)} (edit preview)`;
+      const oldUri = await this._writeTempFile(filePath + '.ccg-old', originalContent);
+      const newUri = await this._writeTempFile(filePath + '.ccg-new', newContent);
+      await vscode.commands.executeCommand('vscode.diff', oldUri, newUri, title);
+    } catch { /* ignore */ }
+  }
+
+  private async _refreshFile(content: string) {
+    try {
+      const data = typeof content === 'string' && content.startsWith('{')
+        ? JSON.parse(content) : { filePath: content };
+      const uri = vscode.Uri.file(data.filePath);
+      // Trigger file system watcher by touching the document
+      const doc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === data.filePath);
+      if (doc) {
+        await vscode.commands.executeCommand('workbench.action.files.revert', uri);
+      }
+    } catch { /* ignore */ }
+  }
+
+  private async _writeTempFile(filePath: string, content: string): Promise<vscode.Uri> {
+    const uri = vscode.Uri.file(filePath);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
+    return uri;
+  }
+
+  private _lastModel = new Map<string, string>(); // id → model name
+  private _lastSessionId = new Map<string, string>(); // id → session id
+  private _lastUsage = new Map<string, any>(); // id → last usage data
+  private _lastEpoch = new Map<string, string>(); // id → runtimeSessionEpoch (tabId)
+  private _pendingWebviews = new Map<string, vscode.Webview>();
+  private _streamStarted = new Set<string>();
+  private _contentStarted = new Set<string>();
+  private _inThinking = new Set<string>();
+
+  private _emitStreamStart(id: string, webview: vscode.Webview) {
+    if (!this._streamStarted.has(id)) {
+      this._streamStarted.add(id);
+      webview.postMessage({ type: 'stream_start' });
+    }
+  }
+
+  private _emitStreamEnd(id: string, webview: vscode.Webview) {
+    this._streamStarted.delete(id);
+    this._contentStarted.delete(id);
+    this._inThinking.delete(id);
+    this._lastModel.delete(id);
+    this._lastSessionId.delete(id);
+    this._lastUsage.delete(id);
+    this._lastEpoch.delete(id);
+    this._pendingWebviews.delete(id);
+    webview.postMessage({ type: 'stream_end' });
+  }
+
+  private _sendToBridge(event: string, content: string, webview: vscode.Webview) {
+    if (!this._bridgeProcess || this._bridgeProcess.killed) {
+      this._startBridge();
+    }
+    if (!this._bridgeProcess?.stdin) return;
+
+    const id = String(++this._reqId);
+
+    // Map webview event names → daemon method names
+    const METHOD_MAP: Record<string, string> = {
+      'send_message':                  'claude.send',
+      'send_message_with_attachments': 'claude.sendWithAttachments',
+      'preconnect':                    'claude.preconnect',
+      'abort':                         'claude.abort',
+      'reset_runtime':                 'claude.resetRuntime',
+      'refresh_slash_commands':        'claude.refreshSlashCommands',
+      'get_dependency_status':         'status',
+      'heartbeat':                     'heartbeat',
+    };
+
+    const method = METHOD_MAP[event];
+    if (!method) return;
+
+    let params: any = {};
+    try { params = content ? JSON.parse(content) : {}; } catch { params = { text: content }; }
+    params.workspacePath = params.workspacePath ?? this._workspacePath;
+
+    // Fill in selectedText for openedFiles.selection if missing
+    if (params.openedFiles?.selection && !params.openedFiles.selection.selectedText && params.openedFiles.active) {
+      try {
+        const filePath = params.openedFiles.active.replace(/#L\d+(-\d+)?$/, '');
+        const { startLine, endLine } = params.openedFiles.selection;
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const lines = fileContent.split('\n');
+        const start = Math.max(0, (startLine ?? 1) - 1);
+        const end = Math.min(lines.length, (endLine ?? startLine ?? 1));
+        params.openedFiles.selection.selectedText = lines.slice(start, end).join('\n');
+      } catch { /* ignore read errors */ }
+    }
+
+    if (params.text !== undefined && params.message === undefined) {
+      params.message = params.text;
+    }
+
+    this._pendingWebviews.set(id, webview);
+    const msg = JSON.stringify({ id, method, params }) + '\n';
+    this._bridgeProcess.stdin.write(msg);
+  }
+
+  private _startBridge() {
+    if (!fs.existsSync(this._bridgePath)) return;
+    const nodePath = NodeDetector.find(this.context);
+    if (!nodePath) return;
+
+    this._bridgeProcess = cp.spawn(nodePath, [this._bridgePath], {
+      cwd: path.dirname(this._bridgePath),
+      env: { ...process.env, WORKSPACE_PATH: this._workspacePath },
+    });
+
+    this._bridgeProcess.on('error', () => { /* ignore */ });
+    this._bridgeProcess.stderr?.on('data', (d: Buffer) => this._log.appendLine(`[ERR] ${d.toString().trim().slice(0, 400)}`));
+
+    let buf = '';
+    this._bridgeProcess.stdout?.on('data', (data: Buffer) => {
+      buf += data.toString();
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        this._log.appendLine(`[D] ${line.slice(0, 400)}`);
+        try {
+          this._handleDaemonLine(JSON.parse(line));
+        } catch { /* ignore malformed */ }
+      }
+    });
+
+    this._bridgeProcess.on('exit', (code) => {
+      this._bridgeProcess = undefined;
+    });
+  }
+
+  private _handleDaemonLine(msg: any) {
+    // Daemon lifecycle events (no id)
+    if (msg.type === 'daemon') {
+      if (msg.event === 'ready') {
+        if (this._webview) this._webview.postMessage({ type: 'js_eval', content: 'window.onSdkLoaded && window.onSdkLoaded()' });
+      }
+      return;
+    }
+
+    // heartbeat response — ignore
+    if (msg.type === 'heartbeat') return;
+
+    const webview = msg.id ? this._pendingWebviews.get(msg.id) : this._webview;
+    if (!webview) return;
+
+    // Streaming line events
+    if (msg.line !== undefined) {
+      const line: string = msg.line;
+
+      if (line === '[STREAM_START]') {
+        this._emitStreamStart(msg.id, webview);
+      } else if (line === '[STREAM_END]' || line === '[MESSAGE_END]') {
+        this._emitStreamEnd(msg.id, webview);
+      } else if (line.startsWith('[CONTENT_DELTA] ')) {
+        const delta = JSON.parse(line.slice('[CONTENT_DELTA] '.length));
+        this._emitStreamStart(msg.id, webview);
+        webview.postMessage({ type: 'content_delta', content: delta });
+      } else if (line.startsWith('[CONTENT] ')) {
+        const delta = line.slice('[CONTENT] '.length);
+        this._inThinking.delete(msg.id); // switch from thinking to content
+        this._emitStreamStart(msg.id, webview);
+        if (this._contentStarted.has(msg.id)) {
+          webview.postMessage({ type: 'content_delta', content: '\n' });
+        }
+        this._contentStarted.add(msg.id);
+        webview.postMessage({ type: 'content_delta', content: delta });
+      } else if (line.startsWith('[THINKING_DELTA] ')) {
+        const delta = JSON.parse(line.slice('[THINKING_DELTA] '.length));
+        this._emitStreamStart(msg.id, webview);
+        webview.postMessage({ type: 'thinking_delta', content: delta });
+      } else if (line.startsWith('[THINKING] ')) {
+        const text = line.slice('[THINKING] '.length);
+        this._emitStreamStart(msg.id, webview);
+        this._inThinking.add(msg.id);
+        webview.postMessage({ type: 'thinking_delta', content: text });
+      } else if (line.startsWith('[SESSION_ID] ')) {
+        const sessionId = line.slice('[SESSION_ID] '.length).trim();
+        this._lastSessionId.set(msg.id, sessionId);
+        webview.postMessage({ type: 'session_id', content: sessionId });
+        // Record this session in our own index so history only shows plugin sessions
+        this._recordSessionId(sessionId);
+        // Send back the epoch (tabId) so webview can route messages to the correct tab
+        const epoch = this._lastEpoch.get(msg.id);
+        if (epoch) {
+          webview.postMessage({ type: 'js_eval', content: `window.__ccg_onSessionEpoch && window.__ccg_onSessionEpoch(${JSON.stringify(sessionId)}, ${JSON.stringify(epoch)})` });
+        }
+      } else if (line.startsWith('[MODEL] ')) {
+        const model = line.slice('[MODEL] '.length).trim();
+        if (model) this._lastModel.set(msg.id, model);
+      } else if (line.startsWith('[MESSAGE] ')) {
+        const payload = line.slice('[MESSAGE] '.length);
+        // Extract model from assistant messages
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.type === 'assistant' && parsed.message?.model) {
+            this._lastModel.set(msg.id, parsed.message.model);
+          }
+          // Also record usage from assistant messages directly (model + usage available together)
+          if (parsed.type === 'assistant' && parsed.message?.usage) {
+            const u = parsed.message.usage;
+            const inputTokens = u.input_tokens ?? 0;
+            const outputTokens = u.output_tokens ?? 0;
+            const cacheRead = u.cache_read_input_tokens ?? 0;
+            const cacheWrite = u.cache_creation_input_tokens ?? 0;
+            const model = parsed.message.model ?? this._lastModel.get(msg.id) ?? 'unknown';
+            const sessionId = this._lastSessionId.get(msg.id) ?? '';
+            const cost = _estimateCost(model, inputTokens, outputTokens, cacheRead, cacheWrite);
+            const now = Date.now();
+            const dateKey = new Date(now).toISOString().slice(0, 10);
+            const stats = this.context.globalState.get<any>('ccg.usageStats') ?? { sessions: [], dailyMap: {} };
+            if (sessionId) {
+              const existing = stats.sessions.findIndex((s: any) => s.sessionId === sessionId);
+              const entry = {
+                sessionId, timestamp: now, model,
+                usage: { inputTokens, outputTokens, cacheWriteTokens: cacheWrite, cacheReadTokens: cacheRead, totalTokens: inputTokens + outputTokens },
+                cost,
+              };
+              if (existing >= 0) stats.sessions[existing] = entry; else stats.sessions.push(entry);
+            }
+            const day = stats.dailyMap[dateKey] ?? { cost: 0, inputTokens: 0, outputTokens: 0, sessions: 0, modelsUsed: [] };
+            if (!sessionId) {
+              day.cost += cost; day.inputTokens += inputTokens; day.outputTokens += outputTokens; day.sessions++;
+            }
+            if (!day.modelsUsed.includes(model)) day.modelsUsed.push(model);
+            stats.dailyMap[dateKey] = day;
+            this.context.globalState.update('ccg.usageStats', stats);
+          }
+          // Parse result message for token usage and final content
+          if (parsed.type === 'result') {
+            const usage = parsed.usage ?? {};
+            const inputTokens = usage.input_tokens ?? 0;
+            const outputTokens = usage.output_tokens ?? 0;
+            const cacheRead = usage.cache_read_input_tokens ?? 0;
+            const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+            const cost = parsed.total_cost_usd ?? 0;
+            const model = this._lastModel.get(msg.id) ?? 'unknown';
+            const sessionId = parsed.session_id ?? '';
+            const now = Date.now();
+            const dateKey = new Date(now).toISOString().slice(0, 10);
+
+            const stats = this.context.globalState.get<any>('ccg.usageStats') ?? { sessions: [], dailyMap: {} };
+            if (sessionId) {
+              const existing = stats.sessions.findIndex((s: any) => s.sessionId === sessionId);
+              const entry = {
+                sessionId, timestamp: now, model,
+                usage: { inputTokens, outputTokens, cacheWriteTokens: cacheWrite, cacheReadTokens: cacheRead, totalTokens: inputTokens + outputTokens },
+                cost, summary: (parsed.result ?? '').slice(0, 100),
+              };
+              if (existing >= 0) stats.sessions[existing] = entry; else stats.sessions.push(entry);
+            }
+            const day = stats.dailyMap[dateKey] ?? { cost: 0, inputTokens: 0, outputTokens: 0, sessions: 0, modelsUsed: [] };
+            day.cost += cost; day.inputTokens += inputTokens; day.outputTokens += outputTokens; day.sessions++;
+            if (!day.modelsUsed.includes(model)) day.modelsUsed.push(model);
+            stats.dailyMap[dateKey] = day;
+            this.context.globalState.update('ccg.usageStats', stats);
+
+            if (parsed.result && typeof parsed.result === 'string') {
+              this._emitStreamEnd(msg.id, webview);
+              this._emitStreamStart(msg.id, webview);
+              webview.postMessage({ type: 'content_delta', content: parsed.result });
+            }
+            webview.postMessage({ type: 'usage_update', content: JSON.stringify({
+              percentage: Math.min(100, (inputTokens / 200000) * 100),
+              usedTokens: inputTokens, maxTokens: 200000,
+            })});
+          }
+        } catch { /* ignore */ }
+        webview.postMessage({ type: 'message_data', content: payload });
+      } else if (line.startsWith('[SEND_ERROR] ') || line.startsWith('[ERROR] ')) {
+        const payload = line.replace(/^\[[A-Z_]+\] /, '');
+        webview.postMessage({ type: 'send_error', content: payload });
+      } else if (line.startsWith('[USAGE] ')) {
+        const payload = line.slice('[USAGE] '.length);
+        webview.postMessage({ type: 'usage_data', content: payload });
+        // Record usage for statistics (SDK path doesn't emit [MESSAGE] result with cost)
+        try {
+          const usage = JSON.parse(payload);
+          const inputTokens: number = usage.input_tokens ?? 0;
+          const outputTokens: number = usage.output_tokens ?? 0;
+          const cacheRead: number = usage.cache_read_input_tokens ?? 0;
+          const cacheWrite: number = usage.cache_creation_input_tokens ?? 0;
+          const model = this._lastModel.get(msg.id) ?? 'unknown';
+          const sessionId = this._lastSessionId.get(msg.id) ?? '';
+
+          // Estimate cost based on model pricing (USD per 1M tokens)
+          const cost = _estimateCost(model, inputTokens, outputTokens, cacheRead, cacheWrite);
+
+          this._lastUsage.set(msg.id, { inputTokens, outputTokens, cacheRead, cacheWrite, cost, model, sessionId });
+
+          const now = Date.now();
+          const dateKey = new Date(now).toISOString().slice(0, 10);
+          const stats = this.context.globalState.get<any>('ccg.usageStats') ?? { sessions: [], dailyMap: {} };
+
+          if (sessionId) {
+            const existing = stats.sessions.findIndex((s: any) => s.sessionId === sessionId);
+            const entry = {
+              sessionId, timestamp: now, model,
+              usage: { inputTokens, outputTokens, cacheWriteTokens: cacheWrite, cacheReadTokens: cacheRead, totalTokens: inputTokens + outputTokens },
+              cost,
+            };
+            if (existing >= 0) stats.sessions[existing] = entry; else stats.sessions.push(entry);
+          }
+
+          const day = stats.dailyMap[dateKey] ?? { cost: 0, inputTokens: 0, outputTokens: 0, sessions: 0, modelsUsed: [] };
+          // Avoid double-counting: only update daily if this session isn't already recorded today
+          const alreadyToday = sessionId && stats.sessions.some((s: any) =>
+            s.sessionId === sessionId && new Date(s.timestamp).toISOString().slice(0, 10) === dateKey
+          );
+          if (!alreadyToday || !sessionId) {
+            day.cost += cost; day.inputTokens += inputTokens; day.outputTokens += outputTokens; day.sessions++;
+          } else {
+            // Update cost in place (latest usage wins)
+            day.cost = (day.cost - (stats.sessions.find((s: any) => s.sessionId === sessionId)?.cost ?? 0)) + cost;
+          }
+          if (!day.modelsUsed.includes(model)) day.modelsUsed.push(model);
+          stats.dailyMap[dateKey] = day;
+          this.context.globalState.update('ccg.usageStats', stats);
+
+          webview.postMessage({ type: 'usage_update', content: JSON.stringify({
+            percentage: Math.min(100, (inputTokens / 200000) * 100),
+            usedTokens: inputTokens, maxTokens: 200000,
+          })});
+        } catch { /* ignore */ }
+      } else if (!line.startsWith('[')) {
+        // Bare text line — route to thinking or content based on current state
+        this._emitStreamStart(msg.id, webview);
+        if (this._inThinking.has(msg.id)) {
+          webview.postMessage({ type: 'thinking_delta', content: '\n' + line });
+        } else {
+          if (this._contentStarted.has(msg.id)) {
+            webview.postMessage({ type: 'content_delta', content: '\n' });
+          }
+          this._contentStarted.add(msg.id);
+          webview.postMessage({ type: 'content_delta', content: line });
+        }
+      }
+      return;
+    }
+
+    // Request done
+    if (msg.done) {
+      if (!msg.success) {
+        webview.postMessage({ type: 'send_error', content: JSON.stringify(msg.error ?? 'Unknown error') });
+      }
+      this._emitStreamEnd(msg.id, webview);
+    }
+  }
+
+  private _checkNodeEnvironment(webview: vscode.Webview) {
+    const nodePath = NodeDetector.find(this.context);
+    webview.postMessage({
+      type: 'node_environment_status',
+      content: JSON.stringify({ available: !!nodePath, nodePath: nodePath ?? '' })
+    });
+  }
+
+  private _installDependency(content: string, webview: vscode.Webview) {
+    let sdkId = 'claude-sdk';
+    try { sdkId = JSON.parse(content).id ?? sdkId; } catch { /* use default */ }
+
+    const SDK_PKG_MAP: Record<string, string> = {
+      'claude-sdk': '@anthropic-ai/claude-agent-sdk',
+      'codex-sdk': '@openai/codex-sdk',
+    };
+    const pkg = SDK_PKG_MAP[sdkId] ?? sdkId;
+
+    const send = (log: string) =>
+      webview.postMessage({ type: 'dependency_install_progress', content: JSON.stringify({ sdkId, log }) });
+
+    send(`Installing ${pkg}...\n`);
+
+    // Use 'npm' from PATH — avoids quoting issues with spaces in bundled node paths
+    const proc = cp.spawn('npm', ['install', '-g', pkg], {
+      env: process.env,
+      shell: true,
+    });
+
+    proc.stdout?.on('data', (d: Buffer) => send(d.toString()));
+    proc.stderr?.on('data', (d: Buffer) => send(d.toString()));
+    proc.on('error', (err: Error) => {
+      send(`Error: ${err.message}\n`);
+      webview.postMessage({ type: 'dependency_install_result', content: JSON.stringify({ sdkId, success: false, error: err.message }) });
+    });
+    proc.on('close', (code: number) => {
+      webview.postMessage({ type: 'dependency_install_result', content: JSON.stringify({ sdkId, success: code === 0, error: code !== 0 ? `exit code ${code}` : undefined }) });
+      this._sendDependencyStatus(webview);
+    });
+  }
+
+  private _uninstallDependency(content: string, webview: vscode.Webview) {
+    let sdkId = 'claude-sdk';
+    try { sdkId = JSON.parse(content).id ?? sdkId; } catch { /* use default */ }
+    const SDK_PKG_MAP: Record<string, string> = {
+      'claude-sdk': '@anthropic-ai/claude-agent-sdk',
+      'codex-sdk': '@openai/codex-sdk',
+    };
+    const pkg = SDK_PKG_MAP[sdkId] ?? sdkId;
+    const proc = cp.spawn('npm', ['uninstall', '-g', pkg], { shell: true });
+    proc.on('close', (code: number) => {
+      webview.postMessage({ type: 'dependency_uninstall_result', content: JSON.stringify({ sdkId, success: code === 0 }) });
+      this._sendDependencyStatus(webview);
+    });
+  }
+
+  private async _openCcSwitchFilePicker(webview: vscode.Webview) {
+    // Try reading from cc-switch SQLite database first
+    const os = require('os') as typeof import('os');
+    const dbPath = path.join(os.homedir(), '.cc-switch', 'cc-switch.db');
+    if (fs.existsSync(dbPath)) {
+      this._previewCcSwitchFromDb(dbPath, webview);
+      return;
+    }
+    // Fallback: let user pick a JSON file
+    const uris = await vscode.window.showOpenDialog({
+      canSelectFiles: true, canSelectFolders: false, canSelectMany: false,
+      filters: { 'JSON': ['json'] }, title: 'Select cc-switch config.json',
+    });
+    if (!uris || uris.length === 0) {
+      webview.postMessage({ type: 'backend_notification', content: JSON.stringify({ type: 'info', title: '', message: 'No file selected' }) });
+      return;
+    }
+    this._previewCcSwitchImport(uris[0].fsPath, webview);
+  }
+
+  private _previewCcSwitchFromDb(dbPath: string, webview: vscode.Webview) {
+    try {
+      const rows = cp.execSync(
+        `sqlite3 "${dbPath}" "SELECT id,name,settings_config,is_current FROM providers WHERE app_type='claude';"`,
+        { encoding: 'utf8', timeout: 5000 }
+      ).trim().split('\n').filter(Boolean);
+
+      const providers = rows.map(row => {
+        const parts = row.split('|');
+        const id = parts[0], name = parts[1], settingsConfigRaw = parts[2], isCurrent = parts[3] === '1';
+        let settingsConfig: any = {};
+        try { settingsConfig = JSON.parse(settingsConfigRaw); } catch { /* ignore */ }
+        return { id, name, settingsConfig, isActive: isCurrent, source: 'cc-switch' };
+      });
+
+      webview.postMessage({ type: 'import_preview_result', content: JSON.stringify({ providers }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'backend_notification', content: JSON.stringify({ type: 'error', title: 'Import failed', message: e.message }) });
+    }
+  }
+
+  private _previewCcSwitchImport(filePath: string | null, webview: vscode.Webview) {
+    const os = require('os') as typeof import('os');
+    const target = filePath ?? path.join(os.homedir(), '.cc-switch', 'config.json');
+    try {
+      const raw = fs.readFileSync(target, 'utf8');
+      const cfg = JSON.parse(raw);
+      const providers: any[] = cfg.providers ?? cfg.configs ?? [];
+      webview.postMessage({ type: 'import_preview_result', content: JSON.stringify({ providers }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'backend_notification', content: JSON.stringify({ type: 'error', title: 'Import failed', message: e.message }) });
+    }
+  }
+
+  private _playSound(content: string) {
+    let soundId = 'default';
+    let customPath = '';
+    try { const p = JSON.parse(content); soundId = p.soundId ?? 'default'; customPath = p.path ?? ''; } catch { /* ignore */ }
+
+    // Built-in macOS system sounds
+    const SYSTEM_SOUNDS: Record<string, string> = {
+      default: '/System/Library/Sounds/Ping.aiff',
+      chime:   '/System/Library/Sounds/Glass.aiff',
+      bell:    '/System/Library/Sounds/Tink.aiff',
+      ding:    '/System/Library/Sounds/Pop.aiff',
+      success: '/System/Library/Sounds/Hero.aiff',
+    };
+
+    const soundFile = soundId === 'custom' ? customPath : (SYSTEM_SOUNDS[soundId] ?? SYSTEM_SOUNDS.default);
+    if (!soundFile) return;
+
+    // macOS: afplay, Linux: aplay/paplay, Windows: PowerShell
+    const platform = process.platform;
+    if (platform === 'darwin') {
+      cp.spawn('afplay', [soundFile], { detached: true, stdio: 'ignore' }).unref();
+    } else if (platform === 'linux') {
+      cp.spawn('paplay', [soundFile], { detached: true, stdio: 'ignore' }).unref();
+    } else if (platform === 'win32') {
+      cp.spawn('powershell', ['-c', `(New-Object Media.SoundPlayer "${soundFile}").PlaySync()`], { detached: true, stdio: 'ignore' }).unref();
+    }
+  }
+
+  // ── History helpers ───────────────────────────────────────────────────────
+
+  private _getSessionIndexFile(): string {
+    const os = require('os') as typeof import('os');
+    return path.join(os.homedir(), '.codemoss', 'vscode-session-index.json');
+  }
+
+  private _recordSessionId(sessionId: string) {
+    try {
+      const os = require('os') as typeof import('os');
+      const dir = path.join(os.homedir(), '.codemoss');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const file = this._getSessionIndexFile();
+      const index: Record<string, number> = fs.existsSync(file)
+        ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+      if (!index[sessionId]) {
+        index[sessionId] = Date.now();
+        fs.writeFileSync(file, JSON.stringify(index, null, 2), 'utf8');
+      }
+    } catch { /* ignore */ }
+  }
+
+  private _getClaudeProjectsDir(): string {
+    const os = require('os') as typeof import('os');
+    return path.join(os.homedir(), '.claude', 'projects');
+  }
+
+  private _getFavoritesKey(): string { return 'ccg.historyFavorites'; }
+
+  private _loadHistoryData(provider: string, webview: vscode.Webview) {
+    const os = require('os') as typeof import('os');
+    const projectsDir = this._getClaudeProjectsDir();
+    const favorites: Record<string, { favoritedAt: number }> =
+      this.context.globalState.get(this._getFavoritesKey()) ?? {};
+
+    // Only show sessions that were created by this plugin (from our session index)
+    let pluginSessionIds = new Set<string>();
+    try {
+      const indexFile = this._getSessionIndexFile();
+      if (fs.existsSync(indexFile)) {
+        const index: Record<string, number> = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+        pluginSessionIds = new Set(Object.keys(index));
+      }
+    } catch { /* ignore */ }
+
+    // Fallback: also include sessions from ccg.usageStats (for backward compat)
+    const usageStats = this.context.globalState.get<any>('ccg.usageStats') ?? { sessions: [] };
+    for (const s of (usageStats.sessions ?? [])) {
+      if (s.sessionId) pluginSessionIds.add(s.sessionId);
+    }
+
+    // Load custom titles from ~/.codemoss/session-titles.json (IDEA plugin format)
+    let codemossTitles: Record<string, { customTitle: string }> = {};
+    try {
+      const titlesFile = path.join(os.homedir(), '.codemoss', 'session-titles.json');
+      if (fs.existsSync(titlesFile)) {
+        codemossTitles = JSON.parse(fs.readFileSync(titlesFile, 'utf8'));
+      }
+    } catch { /* ignore */ }
+
+    const vscTitles: Record<string, string> = this.context.globalState.get('ccg.historyTitles') ?? {};
+
+    const sessions: any[] = [];
+
+    try {
+      if (!fs.existsSync(projectsDir)) {
+        webview.postMessage({ type: 'history_data', content: JSON.stringify({ success: true, sessions: [], total: 0, favorites }) });
+        return;
+      }
+
+      for (const projectDir of fs.readdirSync(projectsDir)) {
+        const projectPath = path.join(projectsDir, projectDir);
+        if (!fs.statSync(projectPath).isDirectory()) continue;
+
+        for (const file of fs.readdirSync(projectPath)) {
+          if (!file.endsWith('.jsonl')) continue;
+          const sessionId = file.replace(/\.jsonl$/, '');
+
+          // Only include sessions created by this plugin
+          if (pluginSessionIds.size > 0 && !pluginSessionIds.has(sessionId)) continue;
+
+          const filePath = path.join(projectsDir, projectDir, `${sessionId}.jsonl`);
+          try {
+            const stat = fs.statSync(filePath);
+            const lines = fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean);
+
+            let firstUserText = '';
+            let messageCount = 0;
+            let lastTimestamp = stat.mtime.toISOString();
+
+            for (const line of lines) {
+              try {
+                const msg = JSON.parse(line);
+                if (!firstUserText && msg.type === 'user') {
+                  const c = msg.message?.content;
+                  const text = typeof c === 'string' ? c : (Array.isArray(c) ? (c.find((b: any) => b.type === 'text')?.text ?? '') : '');
+                  if (text.trim()) firstUserText = text.slice(0, 80);
+                }
+                if (msg.type === 'user' || msg.type === 'assistant') messageCount++;
+                if (msg.timestamp) lastTimestamp = msg.timestamp;
+              } catch { /* skip */ }
+            }
+
+            if (messageCount === 0) continue;
+
+            // Title priority: codemoss > vsc custom > first user message > sessionId
+            const title = codemossTitles[sessionId]?.customTitle
+              || vscTitles[sessionId]
+              || firstUserText
+              || sessionId.slice(0, 8);
+
+            sessions.push({
+              sessionId, title, messageCount, lastTimestamp,
+              isFavorited: !!favorites[sessionId],
+              favoritedAt: favorites[sessionId]?.favoritedAt,
+              provider: 'claude',
+            });
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* ignore */ }
+
+    sessions.sort((a, b) => new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime());
+    webview.postMessage({ type: 'history_data', content: JSON.stringify({ success: true, sessions, total: sessions.length, favorites }) });
+  }
+
+  private _loadSession(sessionId: string, webview: vscode.Webview) {
+    const projectsDir = this._getClaudeProjectsDir();
+    try {
+      if (!fs.existsSync(projectsDir)) return;
+      for (const projectDir of fs.readdirSync(projectsDir)) {
+        const filePath = path.join(projectsDir, projectDir, `${sessionId}.jsonl`);
+        if (!fs.existsSync(filePath)) continue;
+
+        const lines = fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean);
+        const messages: any[] = [];
+
+        for (const line of lines) {
+          try {
+            const msg = JSON.parse(line);
+            if (msg.type !== 'user' && msg.type !== 'assistant') continue;
+
+            const c = msg.message?.content;
+            let text = '';
+            if (typeof c === 'string') {
+              text = c;
+            } else if (Array.isArray(c)) {
+              text = c.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
+            }
+
+            if (!text.trim()) continue;
+            if (msg.type === 'user' && (text.startsWith('You are a Claude') || text.startsWith('Hello memory agent'))) continue;
+
+            messages.push({
+              type: msg.type,
+              content: text,
+              timestamp: msg.timestamp ?? new Date().toISOString(),
+            });
+          } catch { /* skip */ }
+        }
+
+        // Release the session transition guard first, then batch-set all messages at once
+        // This avoids the addHistoryMessage guard check blocking each message
+        const messagesJson = JSON.stringify(messages);
+        webview.postMessage({
+          type: 'js_eval',
+          content: `(function(){
+            window.__sessionTransitioning = false;
+            window.__sessionTransitionToken = null;
+            var msgs = ${messagesJson};
+            if (typeof window.__setHistoryMessages === 'function') {
+              window.__setHistoryMessages(msgs);
+            } else {
+              msgs.forEach(function(m){ window.addHistoryMessage && window.addHistoryMessage(m); });
+            }
+            window.historyLoadComplete && window.historyLoadComplete();
+          })()`,
+        });
+        return;
+      }
+    } catch { /* ignore */ }
+    webview.postMessage({ type: 'js_eval', content: 'window.__sessionTransitioning=false; window.__sessionTransitionToken=null; window.historyLoadComplete && window.historyLoadComplete()' });
+  }
+
+  private _deleteHistorySession(content: string, webview: vscode.Webview) {
+    try {
+      const sessionId = typeof content === 'string' && content.startsWith('{')
+        ? JSON.parse(content).sessionId : content.trim();
+      const projectsDir = this._getClaudeProjectsDir();
+      let deleted = false;
+      if (fs.existsSync(projectsDir)) {
+        for (const projectDir of fs.readdirSync(projectsDir)) {
+          const filePath = path.join(projectsDir, projectDir, `${sessionId}.jsonl`);
+          if (fs.existsSync(filePath)) { fs.unlinkSync(filePath); deleted = true; break; }
+        }
+      }
+      webview.postMessage({ type: 'delete_history_session_result', content: JSON.stringify({ success: deleted, sessionId }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'delete_history_session_result', content: JSON.stringify({ success: false, error: e.message }) });
+    }
+  }
+
+  private _updateHistoryTitle(content: string, webview: vscode.Webview) {
+    try {
+      const { sessionId, title } = JSON.parse(content);
+      // Store custom titles in globalState
+      const titles: Record<string, string> = this.context.globalState.get('ccg.historyTitles') ?? {};
+      titles[sessionId] = title;
+      this.context.globalState.update('ccg.historyTitles', titles);
+      webview.postMessage({ type: 'update_history_title_result', content: JSON.stringify({ success: true, sessionId, title }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'update_history_title_result', content: JSON.stringify({ success: false, error: e.message }) });
+    }
+  }
+
+  private _toggleFavoriteSession(content: string, webview: vscode.Webview) {
+    try {
+      const sessionId = typeof content === 'string' && content.startsWith('{')
+        ? JSON.parse(content).sessionId : content.trim();
+      const favorites: Record<string, { favoritedAt: number }> =
+        this.context.globalState.get(this._getFavoritesKey()) ?? {};
+      if (favorites[sessionId]) {
+        delete favorites[sessionId];
+      } else {
+        favorites[sessionId] = { favoritedAt: Date.now() };
+      }
+      this.context.globalState.update(this._getFavoritesKey(), favorites);
+      webview.postMessage({ type: 'toggle_favorite_result', content: JSON.stringify({ success: true, sessionId, isFavorited: !!favorites[sessionId] }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'toggle_favorite_result', content: JSON.stringify({ success: false, error: e.message }) });
+    }
+  }
+
+  // ── Skills helpers ────────────────────────────────────────────────────────
+
+  private _readSkillsFromDir(dir: string, scope: 'global' | 'local', enabled: boolean): Record<string, any> {
+    const result: Record<string, any> = {};
+    if (!fs.existsSync(dir)) return result;
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        let name = entry.name;
+        let type: 'file' | 'directory' = 'file';
+        let description: string | undefined;
+        let stat: fs.Stats | undefined;
+        try { stat = fs.statSync(fullPath); } catch { continue; }
+
+        if (entry.isDirectory()) {
+          type = 'directory';
+          // Try case-insensitive match for SKILL.md / skill.md / Skill.md
+          const mdPath = ['SKILL.md', 'skill.md', 'Skill.md'].map(f => path.join(fullPath, f)).find(p => fs.existsSync(p));
+          if (!mdPath) continue;
+          description = this._extractSkillDescription(mdPath);
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          name = entry.name.replace(/\.md$/, '');
+          description = this._extractSkillDescription(fullPath);
+        } else {
+          continue;
+        }
+
+        const id = `${scope}-${name}${enabled ? '' : '-disabled'}`;
+        result[id] = {
+          id, name, type, scope, path: fullPath, enabled,
+          description,
+          createdAt: stat?.birthtime?.toISOString(),
+          modifiedAt: stat?.mtime?.toISOString(),
+        };
+      }
+    } catch { /* ignore */ }
+    return result;
+  }
+
+  private _extractSkillDescription(mdPath: string): string | undefined {
+    try {
+      const content = fs.readFileSync(mdPath, 'utf8');
+      const fm = content.match(/^---\s*\n([\s\S]*?)\n---/);
+      if (fm) {
+        const frontmatter = fm[1];
+        // Handle block scalar (description: |) — collect indented lines after "description: |"
+        const blockMatch = frontmatter.match(/^description:\s*\|\s*\n((?:[ \t]+.+\n?)+)/m);
+        if (blockMatch) {
+          return blockMatch[1]
+            .split('\n')
+            .map(l => l.replace(/^[ \t]{2}/, '').trimEnd())
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        }
+        // Handle inline description: value
+        const inlineMatch = frontmatter.match(/^description:\s*(.+)/m);
+        if (inlineMatch) return inlineMatch[1].trim();
+      }
+      // Fallback: first non-empty non-heading line
+      const lines = content.replace(/^---[\s\S]*?---\n?/, '').split('\n').map(l => l.trim()).filter(Boolean);
+      return lines[0]?.replace(/^#+\s*/, '').slice(0, 200);
+    } catch { return undefined; }
+  }
+
+  private _getAllSkills(webview: vscode.Webview) {
+    const os = require('os') as typeof import('os');
+    const homeDir = os.homedir();
+    const globalEnabled  = path.join(homeDir, '.claude', 'skills');
+    const globalDisabled = path.join(homeDir, '.codemoss', 'skills', 'global');
+    const localEnabled   = this._workspacePath ? path.join(this._workspacePath, '.claude', 'skills') : '';
+    const localDisabled  = this._workspacePath
+      ? path.join(homeDir, '.codemoss', 'skills', Buffer.from(this._workspacePath).toString('hex').slice(0, 16))
+      : '';
+
+    const globalSkills = {
+      ...this._readSkillsFromDir(globalEnabled,  'global', true),
+      ...this._readSkillsFromDir(globalDisabled, 'global', false),
+    };
+    const localSkills = {
+      ...this._readSkillsFromDir(localEnabled,  'local', true),
+      ...this._readSkillsFromDir(localDisabled, 'local', false),
+    };
+
+    webview.postMessage({ type: 'update_skills', content: JSON.stringify({ global: globalSkills, local: localSkills, user: {}, repo: {} }) });
+  }
+
+  private _importSkill(content: string, webview: vscode.Webview) {
+    let scope: 'global' | 'local' = 'global';
+    try { scope = JSON.parse(content).scope ?? 'global'; } catch { /* use default */ }
+    const os = require('os') as typeof import('os');
+    const targetDir = scope === 'global'
+      ? path.join(os.homedir(), '.claude', 'skills')
+      : (this._workspacePath ? path.join(this._workspacePath, '.claude', 'skills') : '');
+
+    if (!targetDir) {
+      webview.postMessage({ type: 'skill_import_result', content: JSON.stringify({ success: false, error: 'No workspace open' }) });
+      return;
+    }
+
+    vscode.window.showOpenDialog({
+      canSelectFiles: true, canSelectFolders: false, canSelectMany: true,
+      filters: { 'Markdown': ['md'] }, title: 'Import Skill(s)',
+    }).then(uris => {
+      if (!uris || uris.length === 0) {
+        webview.postMessage({ type: 'skill_import_result', content: JSON.stringify({ success: false, error: 'No file selected' }) });
+        return;
+      }
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+      let count = 0;
+      for (const uri of uris) {
+        try {
+          const dest = path.join(targetDir, path.basename(uri.fsPath));
+          fs.copyFileSync(uri.fsPath, dest);
+          count++;
+        } catch { /* ignore individual failures */ }
+      }
+      webview.postMessage({ type: 'skill_import_result', content: JSON.stringify({ success: true, count, total: uris.length }) });
+    });
+  }
+
+  private _deleteSkill(content: string, webview: vscode.Webview) {
+    try {
+      const { name, scope, enabled } = JSON.parse(content);
+      const os = require('os') as typeof import('os');
+      const baseDir = enabled
+        ? (scope === 'global' ? path.join(os.homedir(), '.claude', 'skills') : path.join(this._workspacePath, '.claude', 'skills'))
+        : (scope === 'global' ? path.join(os.homedir(), '.codemoss', 'skills', 'global') : path.join(os.homedir(), '.codemoss', 'skills', Buffer.from(this._workspacePath).toString('hex').slice(0, 16)));
+
+      // Try file first, then directory
+      const filePath = path.join(baseDir, `${name}.md`);
+      const dirPath  = path.join(baseDir, name);
+      if (fs.existsSync(filePath)) { fs.unlinkSync(filePath); }
+      else if (fs.existsSync(dirPath)) { fs.rmSync(dirPath, { recursive: true }); }
+      webview.postMessage({ type: 'skill_delete_result', content: JSON.stringify({ success: true }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'skill_delete_result', content: JSON.stringify({ success: false, error: e.message }) });
+    }
+  }
+
+  private _toggleSkill(content: string, webview: vscode.Webview) {
+    try {
+      const { name, scope, enabled } = JSON.parse(content);
+      const os = require('os') as typeof import('os');
+      const enabledDir  = scope === 'global' ? path.join(os.homedir(), '.claude', 'skills') : path.join(this._workspacePath, '.claude', 'skills');
+      const disabledDir = scope === 'global'
+        ? path.join(os.homedir(), '.codemoss', 'skills', 'global')
+        : path.join(os.homedir(), '.codemoss', 'skills', Buffer.from(this._workspacePath).toString('hex').slice(0, 16));
+
+      const srcDir = enabled ? enabledDir : disabledDir;
+      const dstDir = enabled ? disabledDir : enabledDir;
+      if (!fs.existsSync(dstDir)) fs.mkdirSync(dstDir, { recursive: true });
+
+      const srcFile = path.join(srcDir, `${name}.md`);
+      const srcDirPath = path.join(srcDir, name);
+      const dstFile = path.join(dstDir, `${name}.md`);
+      const dstDirPath = path.join(dstDir, name);
+
+      if (fs.existsSync(srcFile)) { fs.renameSync(srcFile, dstFile); }
+      else if (fs.existsSync(srcDirPath)) { fs.renameSync(srcDirPath, dstDirPath); }
+
+      webview.postMessage({ type: 'skill_toggle_result', content: JSON.stringify({ success: true, name, enabled: !enabled }) });
+    } catch (e: any) {
+      webview.postMessage({ type: 'skill_toggle_result', content: JSON.stringify({ success: false, error: e.message }) });
+    }
+  }
+
+  private _getMcpServers(isCodex: boolean, webview: vscode.Webview) {
+    const os = require('os') as typeof import('os');
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    try {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      const mcpServers: any[] = [];
+      const raw = settings.mcpServers ?? settings.mcp?.servers ?? {};
+      for (const [id, cfg] of Object.entries(raw as Record<string, any>)) {
+        mcpServers.push({ id, name: id, server: cfg, enabled: true });
+      }
+      const type = isCodex ? 'update_codex_mcp_servers' : 'update_mcp_servers';
+      webview.postMessage({ type, content: JSON.stringify(mcpServers) });
+    } catch {
+      const type = isCodex ? 'update_codex_mcp_servers' : 'update_mcp_servers';
+      webview.postMessage({ type, content: JSON.stringify([]) });
+    }
+  }
+
+  private _getMcpServerStatus(isCodex: boolean, webview: vscode.Webview) {
+    // Return empty status list — actual connectivity check not implemented
+    const type = isCodex ? 'update_codex_mcp_server_status' : 'update_mcp_server_status';
+    webview.postMessage({ type, content: JSON.stringify([]) });
+  }
+
+  private _getUsageStatistics(_content: string, webview: vscode.Webview) {
+    const os = require('os') as typeof import('os');
+    const stored = this.context.globalState.get<any>('ccg.usageStats') ?? { sessions: [], dailyMap: {} };
+
+    const sessions: any[] = stored.sessions ?? [];
+    const dailyMap: Record<string, any> = stored.dailyMap ?? {};
+
+    // Back-fill cost for old sessions that were stored with cost=0
+    let needsSave = false;
+    for (const s of sessions) {
+      if ((s.cost === 0 || s.cost == null) && s.usage && (s.usage.inputTokens > 0 || s.usage.outputTokens > 0)) {
+        s.cost = _estimateCost(
+          s.model ?? 'unknown',
+          s.usage.inputTokens ?? 0,
+          s.usage.outputTokens ?? 0,
+          s.usage.cacheReadTokens ?? 0,
+          s.usage.cacheWriteTokens ?? 0,
+        );
+        needsSave = true;
+      }
+    }
+    if (needsSave) {
+      // Rebuild dailyMap costs from sessions
+      const rebuiltDailyMap: Record<string, any> = {};
+      for (const s of sessions) {
+        const dateKey = new Date(s.timestamp).toISOString().slice(0, 10);
+        const day = rebuiltDailyMap[dateKey] ?? { cost: 0, inputTokens: 0, outputTokens: 0, sessions: 0, modelsUsed: [] };
+        day.cost += s.cost ?? 0;
+        day.inputTokens += s.usage?.inputTokens ?? 0;
+        day.outputTokens += s.usage?.outputTokens ?? 0;
+        day.sessions++;
+        if (s.model && !day.modelsUsed.includes(s.model)) day.modelsUsed.push(s.model);
+        rebuiltDailyMap[dateKey] = day;
+      }
+      // Merge: keep days that have no sessions (from dailyMap) but update days that do
+      for (const [date, day] of Object.entries(rebuiltDailyMap)) {
+        dailyMap[date] = day;
+      }
+      this.context.globalState.update('ccg.usageStats', { sessions, dailyMap });
+    }
+
+    let totalInputTokens = 0, totalOutputTokens = 0, totalCost = 0;
+    const dailyUsage = Object.entries(dailyMap).map(([date, d]: [string, any]) => {
+      totalInputTokens += d.inputTokens ?? 0;
+      totalOutputTokens += d.outputTokens ?? 0;
+      totalCost += d.cost ?? 0;
+      return {
+        date,
+        sessions: d.sessions ?? 0,
+        cost: d.cost ?? 0,
+        usage: {
+          inputTokens: d.inputTokens ?? 0,
+          outputTokens: d.outputTokens ?? 0,
+          cacheWriteTokens: 0,
+          cacheReadTokens: 0,
+          totalTokens: (d.inputTokens ?? 0) + (d.outputTokens ?? 0),
+        },
+        modelsUsed: d.modelsUsed ?? [],
+      };
+    }).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Build byModel
+    const modelMap = new Map<string, any>();
+    for (const s of sessions) {
+      const m = s.model ?? 'unknown';
+      const e = modelMap.get(m) ?? { model: m, totalCost: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, sessionCount: 0 };
+      e.totalCost += s.cost ?? 0;
+      e.inputTokens += s.usage?.inputTokens ?? 0;
+      e.outputTokens += s.usage?.outputTokens ?? 0;
+      e.totalTokens += s.usage?.totalTokens ?? 0;
+      e.sessionCount++;
+      modelMap.set(m, e);
+    }
+
+    const stats = {
+      projectPath: this._workspacePath || os.homedir(),
+      projectName: require('path').basename(this._workspacePath || os.homedir()),
+      totalSessions: sessions.length,
+      totalUsage: {
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+        totalTokens: totalInputTokens + totalOutputTokens,
+      },
+      estimatedCost: totalCost,
+      sessions: sessions.slice(-100).reverse(),
+      dailyUsage,
+      weeklyComparison: {
+        currentWeek: { sessions: 0, cost: 0, tokens: 0 },
+        lastWeek: { sessions: 0, cost: 0, tokens: 0 },
+        trends: { sessions: 0, cost: 0, tokens: 0 },
+      },
+      byModel: Array.from(modelMap.values()),
+      lastUpdated: Date.now(),
+    };
+    webview.postMessage({ type: 'update_usage_statistics', content: JSON.stringify(stats) });
+  }
+
+  dispose() {
+    this._bridgeProcess?.kill();
+  }
+
+  // ── globalState helpers ───────────────────────────────────────────────────
+  private _state(key: string, defaultVal: string): string {
+    return (this.context.globalState.get<string>(`ccg.${key}`) ?? defaultVal);
+  }
+  private _setState(key: string, value: string) {
+    this.context.globalState.update(`ccg.${key}`, value);
+  }
+  private _getProviders(): any[] {
+    const stored = this.context.globalState.get<any[]>('ccg.providers') ?? [];
+    // Ensure built-in providers always exist
+    const builtins = [
+      { id: '__local_settings_json__', name: 'Local Settings (settings.json)', isActive: false, isBuiltin: true },
+      { id: '__cli_login__', name: 'CLI Login', isActive: false, isBuiltin: true },
+    ];
+    const result = [...stored];
+    for (const b of builtins) {
+      if (!result.find((p: any) => p.id === b.id)) result.unshift(b);
+    }
+    return result;
+  }
+  private _saveProviders(providers: any[]) {
+    this.context.globalState.update('ccg.providers', providers);
+  }
+  private _getActiveProvider(): any {
+    return this._getProviders().find((p: any) => p.isActive) ?? null;
+  }
+  private _sendDependencyStatus(webview: vscode.Webview) {
+    const check = (pkg: string): { installed: boolean; version: string } => {
+      try {
+        const out = cp.execSync(`npm list -g --depth=0 --json 2>/dev/null || echo "{}"`, { shell: true, timeout: 5000 }).toString();
+        const json = JSON.parse(out);
+        const deps = json.dependencies ?? {};
+        const entry = deps[pkg];
+        if (entry) return { installed: true, version: entry.version ?? '' };
+      } catch { /* ignore */ }
+      return { installed: false, version: '' };
+    };
+
+    const claudeSdk = check('@anthropic-ai/claude-agent-sdk');
+    const codexSdk = check('@openai/codex-sdk');
+
+    const status = {
+      'claude-sdk': {
+        id: 'claude-sdk',
+        name: 'Claude Agent SDK',
+        status: claudeSdk.installed ? 'installed' : 'not_installed',
+        installedVersion: claudeSdk.version,
+      },
+      'codex-sdk': {
+        id: 'codex-sdk',
+        name: 'Codex SDK',
+        status: codexSdk.installed ? 'installed' : 'not_installed',
+        installedVersion: codexSdk.version,
+      },
+    };
+    webview.postMessage({ type: 'update_dependency_status', content: JSON.stringify(status) });
+  }
+}

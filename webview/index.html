@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- CSP: 'unsafe-inline' is required for script-src because Java/JCEF injects JS at runtime
+         (sendToJava bridge, clipboard handler, font/language/theme config, console forwarding).
+         style-src 'unsafe-inline' is needed for dynamically applied CSS variables and theme styles.
+         TODO: Migrate to nonce-based CSP for stronger XSS protection. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'none';" />
+    <title>Claude Chat Webview</title>
+    <!-- Set theme data-theme attribute immediately before React loads -->
+    <!-- Note: Background color is injected as inline style on the HTML tag by Java; only data-theme needs to be set here -->
+    <script>
+      (function() {
+        try {
+          var savedTheme = localStorage.getItem('theme');
+          var ideTheme = window.__INITIAL_IDE_THEME__;
+          var theme;
+
+          if (savedTheme === 'light' || savedTheme === 'dark') {
+            // User's explicit theme selection takes priority
+            theme = savedTheme;
+          } else if (ideTheme === 'light' || ideTheme === 'dark') {
+            // Follow IDE mode, using the theme injected by Java
+            theme = ideTheme;
+          } else {
+            // Fallback (should not happen in theory, as Java always injects the theme)
+            theme = 'dark';
+          }
+
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

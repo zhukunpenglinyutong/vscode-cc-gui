@@ -1,0 +1,115 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* IDEA 编辑器字体变量（由 Java 端动态注入） */
+:root {
+    /* 默认值，会被 Java 端的 applyIdeaFontConfig 覆盖 */
+    --idea-editor-font-family: 'JetBrains Mono', 'Consolas', monospace;
+    --idea-editor-font-size: 14px;
+    --idea-editor-line-spacing: 1.5;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-chat);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+}
+
+html {
+    overflow: hidden;
+    height: 100vh;
+}
+
+#app {
+    /* 
+     * 当使用 zoom 缩放时，容器的渲染尺寸会变大。
+     * 为了适应视口，我们需要反向调整容器的 CSS 尺寸。
+     * 例如：zoom: 1.2 (120%) 时，高度设置为 100vh / 1.2，
+     * 这样渲染出来的高度刚好是 100vh。
+     */
+    height: calc(100vh / var(--font-scale, 1));
+    width: calc(100vw / var(--font-scale, 1));
+    
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border-primary);
+    overflow: hidden;
+    /* 应用字体缩放 - 使用 zoom 属性缩放整个应用，包括所有 px 单位 */
+    zoom: var(--font-scale, 1);
+}
+
+/* Global Scrollbar Styles - Force Override */
+*::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb) !important;
+    border-radius: 5px !important;
+    border: 2px solid transparent !important;
+    background-clip: content-box !important;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover) !important;
+}
+
+*::-webkit-scrollbar-corner {
+    background: transparent !important;
+}
+
+/* 全局字体覆盖 - 让整个插件都使用 IDEA 编辑器字体 */
+* {
+    font-family: var(--idea-editor-font-family, 'JetBrains Mono', 'Consolas', monospace) !important;
+}
+
+/* 保护字体图标 - 确保 codicon 图标正常显示 */
+.codicon,
+.codicon[class*='codicon-'],
+[class*='codicon-']::before,
+[class*='codicon-']::after {
+    font-family: 'codicon' !important;
+}
+
+/* Notice Box - shared info/warning notice */
+.notice-box {
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .codicon {
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+}
+
+.notice-box--info {
+    background: var(--color-notice-info-bg, var(--vscode-inputValidation-infoBackground, rgba(0, 127, 212, 0.12)));
+    border: 1px solid var(--color-notice-info-border, var(--vscode-inputValidation-infoBorder, rgba(0, 127, 212, 0.35)));
+    color: var(--color-notice-info-text, var(--vscode-inputValidation-infoForeground, #2f6fab));
+    padding: 9px 12px;
+    margin-bottom: 12px;
+}
+
+.notice-box--warning {
+    background: var(--color-notice-warning-bg, var(--vscode-inputValidation-warningBackground, rgba(255, 193, 7, 0.12)));
+    border: 1px solid var(--color-notice-warning-border, var(--vscode-inputValidation-warningBorder, rgba(255, 193, 7, 0.38)));
+    color: var(--color-notice-warning-text, var(--vscode-inputValidation-warningForeground, #8a5200));
+    padding: 6px 10px;
+    margin-bottom: 10px;
+}
+
+/* vConsole 调试工具 - 初始位置由 main.tsx 设置，支持拖动 */
