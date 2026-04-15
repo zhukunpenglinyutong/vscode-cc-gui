@@ -318,6 +318,31 @@ export function registerMessageCallbacks(
     addToast(message, 'error');
   };
 
+  // Batch-set all history messages at once — avoids stale-ref accumulation bug
+  // when addHistoryMessage is called in a tight forEach loop (tabsRef not updated between calls).
+  window.__setHistoryMessages = (msgs: ClaudeMessage[]) => {
+    console.log('[MSG-CB] __setHistoryMessages called, count:', msgs.length, '__sessionTransitioning:', window.__sessionTransitioning);
+    if (window.__sessionTransitioning) {
+      console.warn('[MSG-CB] __setHistoryMessages blocked by __sessionTransitioning=true');
+      return;
+    }
+    setMessages(msgs);
+    console.log('[MSG-CB] setMessages called with', msgs.length, 'messages');
+  };
+
+  // Called via postMessage (type: 'session_messages') when loading a history session.
+  // This avoids the fragile js_eval/eval path used previously.
+  (window as any).onSessionMessages = (msgs: ClaudeMessage[]) => {
+    // Release transition guard so setMessages actually takes effect
+    window.__sessionTransitioning = false;
+    window.__sessionTransitionToken = null;
+    setMessages(Array.isArray(msgs) ? msgs : []);
+    // Trigger Markdown re-rendering
+    if (typeof window.historyLoadComplete === 'function') {
+      window.historyLoadComplete();
+    }
+  };
+
   window.addHistoryMessage = (message: ClaudeMessage) => {
     if (window.__sessionTransitioning) return;
     setMessages((prev) => [...prev, message]);

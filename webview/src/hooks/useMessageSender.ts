@@ -13,6 +13,8 @@ export interface UseMessageSenderOptions {
   selectedAgent: SelectedAgent | null;
   contextInfo?: { file: string; startLine?: number; endLine?: number } | null;
   streamingEnabled?: boolean;
+  /** Current session ID — passed to daemon so messages reuse the same session */
+  currentSessionId?: string | null;
   /** Tab ID used as runtimeSessionEpoch to isolate responses per tab */
   tabId?: string;
   /** Called before sending to capture the active tab as the bridge owner */
@@ -45,6 +47,7 @@ export function useMessageSender({
   selectedAgent,
   contextInfo,
   streamingEnabled = true,
+  currentSessionId,
   tabId,
   acquireBridge,
   sdkStatusLoaded,
@@ -184,6 +187,7 @@ export function useMessageSender({
       try {
         const payload = JSON.stringify({
           text,
+          sessionId: currentSessionId || undefined,
           attachments: (attachments || []).map(a => ({
             fileName: a.fileName,
             mediaType: a.mediaType,
@@ -201,6 +205,7 @@ export function useMessageSender({
         console.error('[Frontend] Failed to serialize attachments payload', error);
         const fallbackPayload = JSON.stringify({
           text,
+          sessionId: currentSessionId || undefined,
           agent: agentInfo,
           fileTags: fileTagsInfo,
           openedFiles,
@@ -213,6 +218,7 @@ export function useMessageSender({
     } else {
       const payload = JSON.stringify({
         text,
+        sessionId: currentSessionId || undefined,
         agent: agentInfo,
         fileTags: fileTagsInfo,
         openedFiles,
@@ -222,7 +228,7 @@ export function useMessageSender({
       });
       sendBridgeEvent('send_message', payload);
     }
-  }, [currentProvider, contextInfo, streamingEnabled, tabId]);
+  }, [currentProvider, contextInfo, streamingEnabled, currentSessionId, tabId]);
 
   /**
    * Execute message sending (from queue or directly)

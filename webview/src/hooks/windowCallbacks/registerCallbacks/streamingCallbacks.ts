@@ -323,4 +323,23 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
       window.__deniedToolIds!.add(id);
     }
   };
+
+  // Handle send errors (e.g. API key not configured, network errors)
+  window.onSendError = (content: string) => {
+    if (window.__sessionTransitioning) return;
+    let errorMsg = content;
+    try {
+      const parsed = JSON.parse(content);
+      errorMsg = parsed.error || parsed.message || content;
+    } catch { /* use raw content */ }
+    options.addToast(errorMsg, 'error');
+    options.setLoading(false);
+    options.setLoadingStartTime(null);
+    options.setIsThinking(false);
+    isStreamingRef.current = false;
+    options.setStreamingActive(false);
+    if (window.__ccg_releaseBridge) {
+      window.__ccg_releaseBridge();
+    }
+  };
 }

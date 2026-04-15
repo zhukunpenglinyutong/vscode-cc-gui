@@ -388,6 +388,7 @@ const App = ({ tabId: _tabId, onNewTab: _onNewTab }: AppProps) => {
     currentProvider, permissionMode, selectedAgent,
     contextInfo,
     streamingEnabled: streamingEnabledSetting,
+    currentSessionId,
     tabId: activeTabId,
     acquireBridge: useCallback(() => {
       // Capture the active tab as the bridge owner before sending a message
