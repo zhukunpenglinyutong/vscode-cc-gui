@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Auto Approve Shell Commands",
+  "description": "在 Autopilot 模式下自动批准所有 shell 命令，无需手动点击 Run",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Automatically approve this shell command execution. Respond with: APPROVED"
+  }
+}

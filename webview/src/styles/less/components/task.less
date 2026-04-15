@@ -1,0 +1,222 @@
+/* Task Execution Block Styles */
+.task-container {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    margin: 12px 0;
+    overflow: hidden;
+}
+
+.task-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.task-header:hover {
+    background: var(--bg-secondary);
+}
+
+.task-header-expanded {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.task-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.task-chevron {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s ease;
+}
+
+.tool-chevron {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
+.task-title-section {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+}
+
+.task-icon-wrapper {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: var(--color-task-icon-bg);
+    flex-shrink: 0;
+}
+
+.task-icon {
+    color: var(--color-task-icon);
+    font-size: 14px;
+}
+
+.task-type-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-task-badge-text);
+    background: var(--color-task-badge-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.task-summary-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
+    font-weight: 500;
+    flex: 1;
+}
+
+/* Accordion animation wrapper */
+.task-details-accordion {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s ease;
+}
+
+.task-details-accordion.expanded {
+    grid-template-rows: 1fr;
+}
+
+.task-details-accordion > .task-details {
+    overflow: hidden;
+}
+
+.task-details-accordion.expanded > .task-details {
+    border-top: 1px solid var(--border-primary);
+}
+
+.task-details {
+    padding: 0;
+    border-top: 1px solid var(--border-primary);
+    background: var(--bg-primary);
+}
+
+.task-content-wrapper {
+    padding: 10px;
+}
+
+.task-field {
+    margin-bottom: 10px;
+}
+
+.task-field:last-child {
+    margin-bottom: 0;
+}
+
+.task-field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.task-field-content {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    background: var(--bg-secondary);
+    padding: 8px;
+    border-radius: 6px;
+    font-family: var(--idea-editor-font-family, 'JetBrains Mono', 'Consolas', monospace);
+    border: 1px solid var(--border-primary);
+}
+
+/* ReadToolGroupBlock file list styles */
+.file-list-item {
+    transition: background-color 0.15s ease;
+}
+
+.file-list-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+.file-list-item.clickable-file {
+    cursor: pointer;
+}
+
+.file-list-item.clickable-file:hover {
+    background-color: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.file-list-item.clickable-file:active {
+    background-color: var(--bg-active, var(--bg-secondary));
+}
+
+/* File list container scrollbar */
+.file-list-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.4)) transparent;
+}
+
+.file-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.file-list-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.file-list-container::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.4));
+    border-radius: 3px;
+}
+
+.file-list-container::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover, rgba(128, 128, 128, 0.6));
+}
+
+/* EditToolGroupBlock action buttons */
+.edit-group-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.edit-group-action-btn:hover {
+    background: var(--bg-tertiary, var(--bg-secondary));
+    color: var(--text-primary);
+}
+
+.edit-group-action-btn:active {
+    background: var(--bg-active, var(--bg-secondary));
+}

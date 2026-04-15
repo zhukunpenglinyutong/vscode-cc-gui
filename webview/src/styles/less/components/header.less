@@ -1,0 +1,229 @@
+/* 导入公共 mixins */
+@import '../mixins.less';
+
+/* New Header Styles */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 8px 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    min-height: 50px;
+    flex-shrink: 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0; /* Allow flex items to shrink below their minimum content size */
+    overflow: hidden;
+    .flex-gap-horizontal(12px);
+
+    > * {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
+.new-chat-button {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    position: relative;
+    .flex-gap-horizontal(6px);
+    .tooltip-bottom-center(32px);
+}
+
+.new-chat-button:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-secondary);
+}
+
+.back-button {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    .flex-gap-horizontal(4px);
+    .tooltip-bottom-center(32px);
+}
+
+.back-button:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+.icon-button {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    .tooltip-bottom-center(32px);
+}
+
+.icon-button:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+.icon-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.icon-button .codicon {
+    font-size: 18px;
+}
+
+/* Session title: editable on hover */
+.session-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.session-title {
+    font-weight: 600;
+    font-size: 14px;
+    padding-left: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.session-title-edit-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    opacity: 0;
+    line-height: 1;
+    flex-shrink: 0;
+
+    .codicon {
+        font-size: 13px;
+    }
+
+    &:hover {
+        background-color: var(--color-button-accent-hover-bg);
+        color: var(--accent-primary);
+    }
+
+    &:active {
+        transform: scale(0.92);
+    }
+}
+
+.session-title-wrapper:hover .session-title-edit-btn {
+    opacity: 1;
+}
+
+/* Edit mode */
+.session-title-edit-mode {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    padding-left: 8px;
+}
+
+.session-title-input {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--accent-primary);
+    border-radius: 4px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    outline: none;
+    transition: border-color 0.2s;
+    max-width: 300px;
+
+    &:focus {
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 2px var(--color-button-accent-hover-bg);
+    }
+}
+
+.session-title-save-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-success);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+
+    &:hover {
+        background-color: var(--color-button-success-bg);
+    }
+
+    &:active {
+        transform: scale(0.92);
+    }
+}
+
+.session-title-cancel-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-danger);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+
+    &:hover {
+        background-color: var(--color-button-danger-hover-bg);
+    }
+
+    &:active {
+        transform: scale(0.92);
+    }
+}
