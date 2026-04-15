@@ -46,6 +46,10 @@ export class BridgeServer {
     this._log.show(true);
     this._bridgePath = path.join(context.extensionPath, 'ai-bridge', 'daemon.js');
     this._workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+    // Sync existing providers to disk so the daemon can read them on startup
+    this._syncProviderToDisk(this._getProviders());
+
     this._startBridge();
 
     // Sync active file context when editor changes
@@ -84,6 +88,9 @@ export class BridgeServer {
     const content = colonIdx >= 0 ? payload.slice(colonIdx + 1) : '';
 
     switch (event) {
+      case 'debug_log':
+        this._log.appendLine(`[WEBVIEW] ${content}`);
+        break;
       case 'open_file':
         await this._openFile(content);
         break;
@@ -114,6 +121,56 @@ export class BridgeServer {
       case 'get_active_file':
         this._pushActiveFile(vscode.window.activeTextEditor);
         break;
+      // Slash commands: read built-in + user-defined commands from .claude/commands/
+      case 'refresh_slash_commands': {
+        const cmds = this._getSlashCommands();
+        webview.postMessage({ type: 'update_slash_commands', content: JSON.stringify(cmds) });
+        break;
+      }
+
+      // File listing for @ mentions in the input box
+      case 'list_files': {
+        try {
+          const root = this._workspacePath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+          const files: Array<{ name: string; path: string; absolutePath: string; type: 'file' | 'directory'; extension: string }> = [];
+          if (root && fs.existsSync(root)) {
+            let params: any = {};
+            try { params = content ? JSON.parse(content) : {}; } catch { /* ignore */ }
+            const query: string = (params.query || '').toLowerCase();
+            const MAX = 2000;
+            const shouldIgnore = this._buildIgnoreFilter(root);
+            const walk = (dir: string, rel: string) => {
+              if (files.length >= MAX) return;
+              let entries: string[];
+              try { entries = fs.readdirSync(dir); } catch { return; }
+              for (const name of entries) {
+                if (name === '.git') continue; // always skip .git
+                const full = path.join(dir, name);
+                const relPath = rel ? `${rel}/${name}` : name;
+                try {
+                  const stat = fs.statSync(full);
+                  const isDir = stat.isDirectory();
+                  if (shouldIgnore(relPath, isDir)) continue;
+                  if (isDir) {
+                    walk(full, relPath);
+                  } else {
+                    if (query && !relPath.toLowerCase().includes(query) && !name.toLowerCase().includes(query)) continue;
+                    const ext = path.extname(name).replace('.', '');
+                    files.push({ name, path: relPath, absolutePath: full, type: 'file', extension: ext });
+                    if (files.length >= MAX) return;
+                  }
+                } catch { /* skip */ }
+              }
+            };
+            walk(root, '');
+          }
+          webview.postMessage({ type: 'file_list_result', content: JSON.stringify({ files, root }) });
+        } catch {
+          webview.postMessage({ type: 'file_list_result', content: JSON.stringify({ files: [], root: '' }) });
+        }
+        break;
+      }
+
       // Silently ignore these — handled client-side or not needed in VSCode
       case 'tab_status_changed':
       case 'set_provider':
@@ -231,12 +288,15 @@ export class BridgeServer {
       case 'load_session':
         this._loadSession(content.trim(), webview);
         break;
+      case 'delete_session':
       case 'delete_history_session':
         this._deleteHistorySession(content, webview);
         break;
+      case 'update_title':
       case 'update_history_title':
         this._updateHistoryTitle(content, webview);
         break;
+      case 'toggle_favorite':
       case 'toggle_favorite_session':
         this._toggleFavoriteSession(content, webview);
         break;
@@ -536,6 +596,7 @@ export class BridgeServer {
   private _lastSessionId = new Map<string, string>(); // id → session id
   private _lastUsage = new Map<string, any>(); // id → last usage data
   private _lastEpoch = new Map<string, string>(); // id → runtimeSessionEpoch (tabId)
+  private _reqId = 0;
   private _pendingWebviews = new Map<string, vscode.Webview>();
   private _streamStarted = new Set<string>();
   private _contentStarted = new Set<string>();
@@ -561,10 +622,15 @@ export class BridgeServer {
   }
 
   private _sendToBridge(event: string, content: string, webview: vscode.Webview) {
+    this._log.appendLine(`[BRIDGE] _sendToBridge called: event=${event}`);
     if (!this._bridgeProcess || this._bridgeProcess.killed) {
+      this._log.appendLine('[BRIDGE] Daemon not running, starting...');
       this._startBridge();
     }
-    if (!this._bridgeProcess?.stdin) return;
+    if (!this._bridgeProcess?.stdin) {
+      this._log.appendLine('[BRIDGE] ERROR: No stdin available after _startBridge');
+      return;
+    }
 
     const id = String(++this._reqId);
 
@@ -575,13 +641,15 @@ export class BridgeServer {
       'preconnect':                    'claude.preconnect',
       'abort':                         'claude.abort',
       'reset_runtime':                 'claude.resetRuntime',
-      'refresh_slash_commands':        'claude.refreshSlashCommands',
       'get_dependency_status':         'status',
       'heartbeat':                     'heartbeat',
     };
 
     const method = METHOD_MAP[event];
-    if (!method) return;
+    if (!method) {
+      this._log.appendLine(`[BRIDGE] No method mapping for event: ${event}`);
+      return;
+    }
 
     let params: any = {};
     try { params = content ? JSON.parse(content) : {}; } catch { params = { text: content }; }
@@ -606,20 +674,28 @@ export class BridgeServer {
 
     this._pendingWebviews.set(id, webview);
     const msg = JSON.stringify({ id, method, params }) + '\n';
+    this._log.appendLine(`[BRIDGE] Sending to daemon: id=${id} method=${method} msg_len=${msg.length}`);
     this._bridgeProcess.stdin.write(msg);
   }
 
   private _startBridge() {
-    if (!fs.existsSync(this._bridgePath)) return;
+    if (!fs.existsSync(this._bridgePath)) {
+      this._log.appendLine(`[BRIDGE] ERROR: daemon not found at ${this._bridgePath}`);
+      return;
+    }
     const nodePath = NodeDetector.find(this.context);
-    if (!nodePath) return;
+    if (!nodePath) {
+      this._log.appendLine('[BRIDGE] ERROR: Node.js not found');
+      return;
+    }
+    this._log.appendLine(`[BRIDGE] Starting daemon: node=${nodePath} path=${this._bridgePath}`);
 
     this._bridgeProcess = cp.spawn(nodePath, [this._bridgePath], {
       cwd: path.dirname(this._bridgePath),
       env: { ...process.env, WORKSPACE_PATH: this._workspacePath },
     });
 
-    this._bridgeProcess.on('error', () => { /* ignore */ });
+    this._bridgeProcess.on('error', (err) => { this._log.appendLine(`[BRIDGE] Spawn error: ${err.message}`); });
     this._bridgeProcess.stderr?.on('data', (d: Buffer) => this._log.appendLine(`[ERR] ${d.toString().trim().slice(0, 400)}`));
 
     let buf = '';
@@ -882,8 +958,19 @@ export class BridgeServer {
 
     send(`Installing ${pkg}...\n`);
 
-    // Use 'npm' from PATH — avoids quoting issues with spaces in bundled node paths
-    const proc = cp.spawn('npm', ['install', '-g', pkg], {
+    // Install to ~/.codemoss/dependencies/<sdkId>/ — must match ai-bridge/utils/sdk-loader.js lookup path
+    const os = require('os') as typeof import('os');
+    const sdkDir = path.join(os.homedir(), '.codemoss', 'dependencies', sdkId);
+    if (!fs.existsSync(sdkDir)) fs.mkdirSync(sdkDir, { recursive: true });
+
+    // Ensure package.json exists — npm install in a bare directory can be unreliable
+    const pkgJsonPath = path.join(sdkDir, 'package.json');
+    if (!fs.existsSync(pkgJsonPath)) {
+      fs.writeFileSync(pkgJsonPath, JSON.stringify({ name: sdkId, version: '1.0.0', private: true }, null, 2));
+    }
+
+    const proc = cp.spawn('npm', ['install', pkg], {
+      cwd: sdkDir,
       env: process.env,
       shell: true,
     });
@@ -908,7 +995,9 @@ export class BridgeServer {
       'codex-sdk': '@openai/codex-sdk',
     };
     const pkg = SDK_PKG_MAP[sdkId] ?? sdkId;
-    const proc = cp.spawn('npm', ['uninstall', '-g', pkg], { shell: true });
+    const os = require('os') as typeof import('os');
+    const sdkDir = path.join(os.homedir(), '.codemoss', 'dependencies', sdkId);
+    const proc = cp.spawn('npm', ['uninstall', pkg], { cwd: sdkDir, shell: true });
     proc.on('close', (code: number) => {
       webview.postMessage({ type: 'dependency_uninstall_result', content: JSON.stringify({ sdkId, success: code === 0 }) });
       this._sendDependencyStatus(webview);
@@ -1124,12 +1213,15 @@ export class BridgeServer {
   }
 
   private _loadSession(sessionId: string, webview: vscode.Webview) {
+    this._log.appendLine(`[BRIDGE] _loadSession called: sessionId="${sessionId}"`);
     const projectsDir = this._getClaudeProjectsDir();
+    this._log.appendLine(`[BRIDGE] _loadSession projectsDir="${projectsDir}" exists=${fs.existsSync(projectsDir)}`);
     try {
-      if (!fs.existsSync(projectsDir)) return;
+      if (!fs.existsSync(projectsDir)) { this._log.appendLine('[BRIDGE] _loadSession: projectsDir not found'); return; }
       for (const projectDir of fs.readdirSync(projectsDir)) {
         const filePath = path.join(projectsDir, projectDir, `${sessionId}.jsonl`);
         if (!fs.existsSync(filePath)) continue;
+        this._log.appendLine(`[BRIDGE] _loadSession: found file ${filePath}`);
 
         const lines = fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean);
         const messages: any[] = [];
@@ -1158,27 +1250,17 @@ export class BridgeServer {
           } catch { /* skip */ }
         }
 
-        // Release the session transition guard first, then batch-set all messages at once
-        // This avoids the addHistoryMessage guard check blocking each message
-        const messagesJson = JSON.stringify(messages);
-        webview.postMessage({
-          type: 'js_eval',
-          content: `(function(){
-            window.__sessionTransitioning = false;
-            window.__sessionTransitionToken = null;
-            var msgs = ${messagesJson};
-            if (typeof window.__setHistoryMessages === 'function') {
-              window.__setHistoryMessages(msgs);
-            } else {
-              msgs.forEach(function(m){ window.addHistoryMessage && window.addHistoryMessage(m); });
-            }
-            window.historyLoadComplete && window.historyLoadComplete();
-          })()`,
-        });
+        // Send messages via broadcast (goes through panel's onMessage → postMessage)
+        this._log.appendLine(`[BRIDGE] _loadSession: broadcasting ${messages.length} messages via session_messages`);
+        this.broadcast('session_messages', JSON.stringify(messages));
         return;
       }
-    } catch { /* ignore */ }
-    webview.postMessage({ type: 'js_eval', content: 'window.__sessionTransitioning=false; window.__sessionTransitionToken=null; window.historyLoadComplete && window.historyLoadComplete()' });
+    } catch (e: any) {
+      this._log.appendLine(`[BRIDGE] _loadSession error: ${e?.message || e}`);
+    }
+    // No messages found — send empty array to release session transition
+    this._log.appendLine(`[BRIDGE] _loadSession: no messages found, broadcasting empty`);
+    this.broadcast('session_messages', JSON.stringify([]));
   }
 
   private _deleteHistorySession(content: string, webview: vscode.Webview) {
@@ -1201,7 +1283,10 @@ export class BridgeServer {
 
   private _updateHistoryTitle(content: string, webview: vscode.Webview) {
     try {
-      const { sessionId, title } = JSON.parse(content);
+      const parsed = JSON.parse(content);
+      const sessionId: string = parsed.sessionId;
+      // Accept both `title` (bridge format) and `customTitle` (webview format)
+      const title: string = parsed.title ?? parsed.customTitle ?? '';
       // Store custom titles in globalState
       const titles: Record<string, string> = this.context.globalState.get('ccg.historyTitles') ?? {};
       titles[sessionId] = title;
@@ -1546,24 +1631,244 @@ export class BridgeServer {
   }
   private _saveProviders(providers: any[]) {
     this.context.globalState.update('ccg.providers', providers);
+    this._syncProviderToDisk(providers);
+  }
+
+  /**
+   * Sync the active provider configuration to disk so the ai-bridge daemon can read it.
+   * - ~/.codemoss/config.json: records current provider ID
+   * - ~/.claude/settings.json: writes the active provider's env (API key, base URL, etc.)
+   */
+  private _syncProviderToDisk(providers: any[]) {
+    const os = require('os') as typeof import('os');
+    const active = providers.find((p: any) => p.isActive) ?? null;
+
+    // ── 1. Write ~/.codemoss/config.json ──
+    try {
+      const codemossDir = path.join(os.homedir(), '.codemoss');
+      if (!fs.existsSync(codemossDir)) {
+        fs.mkdirSync(codemossDir, { recursive: true });
+      }
+      const configPath = path.join(codemossDir, 'config.json');
+      let codemossConfig: any = {};
+      try {
+        if (fs.existsSync(configPath)) {
+          codemossConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        }
+      } catch { /* start fresh */ }
+
+      if (!codemossConfig.claude) { codemossConfig.claude = {}; }
+      if (!codemossConfig.claude.providers) { codemossConfig.claude.providers = {}; }
+
+      if (active) {
+        codemossConfig.claude.current = active.id;
+        codemossConfig.claude.providers[active.id] = { name: active.name };
+      } else {
+        codemossConfig.claude.current = null;
+      }
+      fs.writeFileSync(configPath, JSON.stringify(codemossConfig, null, 2));
+    } catch (e: any) {
+      console.error('[bridge] Failed to write ~/.codemoss/config.json:', e.message);
+    }
+
+    // ── 2. Sync env to ~/.claude/settings.json ──
+    // Skip for local mode: the user manages settings.json themselves.
+    if (active?.id === '__local_settings_json__') { return; }
+
+    try {
+      const claudeDir = path.join(os.homedir(), '.claude');
+      if (!fs.existsSync(claudeDir)) {
+        fs.mkdirSync(claudeDir, { recursive: true });
+      }
+      const settingsPath = path.join(claudeDir, 'settings.json');
+      let settings: any = {};
+      try {
+        if (fs.existsSync(settingsPath)) {
+          settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        }
+      } catch { /* start fresh */ }
+
+      if (!settings.env) { settings.env = {}; }
+
+      // Clear all provider-managed auth/config keys before setting new ones
+      const MANAGED_ENV_KEYS = [
+        'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN',
+        'ANTHROPIC_BASE_URL', 'ANTHROPIC_API_URL',
+        'ANTHROPIC_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL',
+        'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+        'CLAUDE_CODE_USE_BEDROCK',
+        'API_TIMEOUT_MS', 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+        'CCGUI_CLI_LOGIN_AUTHORIZED',
+      ];
+      for (const key of MANAGED_ENV_KEYS) {
+        delete settings.env[key];
+      }
+
+      if (active?.id === '__cli_login__') {
+        settings.env.CCGUI_CLI_LOGIN_AUTHORIZED = '1';
+      } else if (active?.settingsConfig?.env) {
+        Object.assign(settings.env, active.settingsConfig.env);
+      }
+
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    } catch (e: any) {
+      console.error('[bridge] Failed to write ~/.claude/settings.json:', e.message);
+    }
   }
   private _getActiveProvider(): any {
     return this._getProviders().find((p: any) => p.isActive) ?? null;
   }
-  private _sendDependencyStatus(webview: vscode.Webview) {
-    const check = (pkg: string): { installed: boolean; version: string } => {
+
+  /**
+   * Return all available slash commands:
+   * - Built-in Claude Code SDK commands
+   * - User-defined: ~/.claude/commands/*.md  (global)
+   * - Project-defined: <workspace>/.claude/commands/*.md
+   */
+  private _getSlashCommands(): Array<{ name: string; description: string; source: string }> {
+    const os = require('os') as typeof import('os');
+
+    // Built-in Claude Code commands
+    const builtins: Array<{ name: string; description: string; source: string }> = [
+      { name: '/bug',        description: 'Report a bug to Anthropic',                    source: 'built-in' },
+      { name: '/clear',      description: 'Clear conversation history and start fresh',   source: 'built-in' },
+      { name: '/compact',    description: 'Compact conversation with optional focus',     source: 'built-in' },
+      { name: '/config',     description: 'Open config panel',                            source: 'built-in' },
+      { name: '/cost',       description: 'Show token usage and cost',                    source: 'built-in' },
+      { name: '/doctor',     description: 'Check Claude Code health',                     source: 'built-in' },
+      { name: '/help',       description: 'Show help and available commands',             source: 'built-in' },
+      { name: '/init',       description: 'Initialize Claude Code in this project',       source: 'built-in' },
+      { name: '/login',      description: 'Switch Claude account',                        source: 'built-in' },
+      { name: '/logout',     description: 'Sign out from Claude',                         source: 'built-in' },
+      { name: '/memory',     description: 'Edit Claude memory files (CLAUDE.md)',         source: 'built-in' },
+      { name: '/model',      description: 'Set the AI model',                             source: 'built-in' },
+      { name: '/pr-comments',description: 'Get comments from a GitHub PR',               source: 'built-in' },
+      { name: '/review',     description: 'Request code review',                          source: 'built-in' },
+      { name: '/status',     description: 'Show account and connection status',           source: 'built-in' },
+      { name: '/terminal',   description: 'Open terminal',                                source: 'built-in' },
+      { name: '/vim',        description: 'Toggle vim mode',                              source: 'built-in' },
+    ];
+
+    // Read markdown files from a commands directory, return as commands
+    const readCommandsDir = (dir: string, source: string) => {
+      const result: Array<{ name: string; description: string; source: string }> = [];
       try {
-        const out = cp.execSync(`npm list -g --depth=0 --json 2>/dev/null || echo "{}"`, { shell: true, timeout: 5000 }).toString();
-        const json = JSON.parse(out);
-        const deps = json.dependencies ?? {};
-        const entry = deps[pkg];
-        if (entry) return { installed: true, version: entry.version ?? '' };
+        if (!fs.existsSync(dir)) return result;
+        for (const file of fs.readdirSync(dir)) {
+          if (!file.endsWith('.md')) continue;
+          const cmdName = '/' + file.replace(/\.md$/, '');
+          let description = '';
+          try {
+            const firstLine = fs.readFileSync(path.join(dir, file), 'utf8').split('\n')[0] ?? '';
+            description = firstLine.replace(/^#+\s*/, '').trim();
+          } catch { /* ignore */ }
+          result.push({ name: cmdName, description, source });
+        }
       } catch { /* ignore */ }
+      return result;
+    };
+
+    const globalCmds = readCommandsDir(
+      path.join(os.homedir(), '.claude', 'commands'),
+      'global'
+    );
+    const projectCmds = this._workspacePath
+      ? readCommandsDir(path.join(this._workspacePath, '.claude', 'commands'), 'project')
+      : [];
+
+    return [...builtins, ...globalCmds, ...projectCmds];
+  }
+  /**
+   * Build an ignore-filter function from .gitignore (and .git/info/exclude) in the given root.
+   * Falls back to a small set of sensible defaults when no .gitignore exists.
+   * Returns: (relPath, isDirectory) => boolean  — true means "should be ignored"
+   */
+  private _buildIgnoreFilter(root: string): (relPath: string, isDir: boolean) => boolean {
+    const rules: Array<{ pattern: RegExp; negated: boolean; dirOnly: boolean }> = [];
+
+    const compilePattern = (raw: string) => {
+      let line = raw.trimEnd();
+      if (!line || line.startsWith('#')) return;
+
+      let negated = false;
+      let dirOnly = false;
+
+      if (line.startsWith('!')) { negated = true; line = line.slice(1); }
+      if (line.startsWith('\\')) { line = line.slice(1); } // escaped first char
+      if (line.endsWith('/')) { dirOnly = true; line = line.slice(0, -1); }
+      if (!line) return;
+
+      // A pattern is "anchored" (relative to root) if it contains a slash after stripping trailing one
+      const hasSlash = line.includes('/');
+      if (hasSlash && line.startsWith('/')) { line = line.slice(1); } // strip leading /
+
+      // Convert glob-style pattern to regex
+      const regexStr = line
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // escape regex special chars
+        .replace(/\*\*\//g, '(.*\\/)?')          // **/ = zero or more path segments
+        .replace(/\*\*/g, '.*')                  // ** = anything
+        .replace(/\*/g, '[^/]*')                 // * = any chars except /
+        .replace(/\?/g, '[^/]');                 // ? = single char except /
+
+      let regex: RegExp;
+      if (hasSlash) {
+        // Anchored to root
+        regex = new RegExp(`^${regexStr}(\\/.*)?$`);
+      } else {
+        // Matches at any depth
+        regex = new RegExp(`(^|.*\\/)${regexStr}(\\/.*)?$`);
+      }
+      rules.push({ pattern: regex, negated, dirOnly });
+    };
+
+    const parseFile = (filePath: string) => {
+      try {
+        if (!fs.existsSync(filePath)) return;
+        for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+          try { compilePattern(line); } catch { /* skip bad pattern */ }
+        }
+      } catch { /* ignore */ }
+    };
+
+    parseFile(path.join(root, '.gitignore'));
+    parseFile(path.join(root, '.git', 'info', 'exclude'));
+
+    // If no patterns loaded, use sensible defaults
+    if (rules.length === 0) {
+      for (const def of ['node_modules', 'dist', 'out', 'build', '.cache', '.next', '.nuxt']) {
+        try { compilePattern(def); } catch { /* ignore */ }
+      }
+    }
+
+    return (relPath: string, isDir: boolean): boolean => {
+      const normalized = relPath.replace(/\\/g, '/');
+      let ignored = false;
+      for (const { pattern, negated, dirOnly } of rules) {
+        if (dirOnly && !isDir) continue;
+        if (pattern.test(normalized)) {
+          ignored = !negated;
+        }
+      }
+      return ignored;
+    };
+  }
+
+  private _sendDependencyStatus(webview: vscode.Webview) {
+    const os = require('os') as typeof import('os');
+    const check = (sdkId: string, pkg: string): { installed: boolean; version: string } => {
+      // Must match ai-bridge/utils/sdk-loader.js: ~/.codemoss/dependencies/<sdkId>/node_modules/<pkg>
+      const pkgDir = path.join(os.homedir(), '.codemoss', 'dependencies', sdkId, 'node_modules', ...pkg.split('/'));
+      if (fs.existsSync(pkgDir)) {
+        try {
+          const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
+          return { installed: true, version: pkgJson.version ?? '' };
+        } catch { return { installed: true, version: '' }; }
+      }
       return { installed: false, version: '' };
     };
 
-    const claudeSdk = check('@anthropic-ai/claude-agent-sdk');
-    const codexSdk = check('@openai/codex-sdk');
+    const claudeSdk = check('claude-sdk', '@anthropic-ai/claude-agent-sdk');
+    const codexSdk = check('codex-sdk', '@openai/codex-sdk');
 
     const status = {
       'claude-sdk': {

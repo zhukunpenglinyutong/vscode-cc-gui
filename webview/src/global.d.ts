@@ -66,6 +66,8 @@ interface Window {
    * Add single history message (used for Codex session loading)
    */
   addHistoryMessage?: (message: any) => void;
+  __setHistoryMessages?: (messages: any[]) => void;
+  onSessionMessages?: (messages: any[]) => void;
 
   /**
    * History load complete callback - invoked when history messages finish loading.
@@ -486,6 +488,7 @@ interface Window {
    * Stream start callback - called when streaming begins
    */
   onStreamStart?: () => void;
+  onSendError?: (content: string) => void;
 
   /**
    * Content delta callback - called when a content delta is received

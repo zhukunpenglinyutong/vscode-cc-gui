@@ -115,7 +115,7 @@ export class ClaudeCodeGuiPanel implements vscode.WebviewViewProvider {
           'stream_end':      'onStreamEnd',
           'content_delta':   'onContentDelta',
           'thinking_delta':  'onThinkingDelta',
-          'session_id':      'onSessionId',
+          'session_id':      'setSessionId',
           'message_data':    'onMessage',
           'send_error':      'onSendError',
           'usage_data':      'onUsage',
@@ -123,6 +123,8 @@ export class ClaudeCodeGuiPanel implements vscode.WebviewViewProvider {
           // Active file context
           'add_selection_info':   'addSelectionInfo',
           'clear_selection_info': 'clearSelectionInfo',
+          // File reference
+          'file_list_result':     'onFileListResult',
           // MCP
           'update_mcp_servers':         'updateMcpServers',
           'update_mcp_server_status':   'updateMcpServerStatus',
@@ -139,8 +141,11 @@ export class ClaudeCodeGuiPanel implements vscode.WebviewViewProvider {
           'skill_import_result':        'skillImportResult',
           'skill_delete_result':        'skillDeleteResult',
           'skill_toggle_result':        'skillToggleResult',
+          // Slash commands
+          'update_slash_commands':       'updateSlashCommands',
           // History
           'history_data':               'setHistoryData',
+          'session_messages':           'onSessionMessages',
           // Sound
           'update_sound_notification_config': 'updateSoundNotificationConfig',
         };
@@ -148,7 +153,29 @@ export class ClaudeCodeGuiPanel implements vscode.WebviewViewProvider {
           const msg = event.data;
           if (!msg || !msg.type) return;
           if (msg.type === 'js_eval' && msg.content) {
-            try { eval(msg.content); } catch(e) {}
+            try { eval(msg.content); } catch(e) { console.error('[BRIDGE] js_eval error:', e); }
+            return;
+          }
+          // session_messages: load history session messages into React state
+          if (msg.type === 'session_messages') {
+            var msgs = [];
+            try { msgs = JSON.parse(msg.content); } catch(e) {}
+            vscode.postMessage({ type: 'bridge', payload: 'debug_log:session_messages received count=' + msgs.length });
+            var capturedMsgs = msgs;
+            setTimeout(function() {
+              window.__sessionTransitioning = false;
+              window.__sessionTransitionToken = null;
+              // Test 1: does addUserMessage work? (shows a visible user bubble)
+              if (typeof window.addUserMessage === 'function') {
+                window.addUserMessage('DEBUG: loading ' + capturedMsgs.length + ' history messages');
+                vscode.postMessage({ type: 'bridge', payload: 'debug_log:addUserMessage called' });
+              }
+              // Test 2: set actual history messages
+              if (typeof window.__setHistoryMessages === 'function') {
+                window.__setHistoryMessages(capturedMsgs);
+                vscode.postMessage({ type: 'bridge', payload: 'debug_log:__setHistoryMessages called' });
+              }
+            }, 300);
             return;
           }
           // Try direct window function first
