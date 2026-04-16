@@ -4,3 +4,6 @@ webview/node_modules/
 webview/dist/
 .vscode-test/
 *.vsix
+.idea
+pnpm-lock.yaml
+webview/pnpm-lock.yaml
