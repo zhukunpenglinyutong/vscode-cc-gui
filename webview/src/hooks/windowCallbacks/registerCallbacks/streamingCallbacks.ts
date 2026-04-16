@@ -35,7 +35,159 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     thinkingUpdateTimeoutRef,
     getOrCreateStreamingAssistantIndex,
     patchAssistantForStreaming,
+    currentProviderRef,
   } = options;
+
+  const extractTextFromBlocks = (blocks: any[]): string => {
+    if (!Array.isArray(blocks)) return '';
+    const parts: string[] = [];
+    for (const block of blocks) {
+      if (!block || typeof block !== 'object') continue;
+      if (block.type === 'text' && typeof block.text === 'string') {
+        parts.push(block.text);
+        continue;
+      }
+      if (block.type === 'tool_result') {
+        if (typeof block.content === 'string') {
+          parts.push(block.content);
+          continue;
+        }
+        if (Array.isArray(block.content)) {
+          const contentText = block.content
+            .map((it: any) => (typeof it?.text === 'string' ? it.text : ''))
+            .filter(Boolean)
+            .join('\n');
+          if (contentText) parts.push(contentText);
+        }
+      }
+    }
+    return parts.join('\n').trim();
+  };
+
+  const readBlocksFromRaw = (raw: unknown): any[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const rawObj = raw as Record<string, unknown>;
+    const direct = rawObj.content;
+    if (Array.isArray(direct)) return direct;
+    const nested = (rawObj.message as { content?: unknown } | undefined)?.content;
+    if (Array.isArray(nested)) return nested;
+    return [];
+  };
+
+  const mergeAssistantBlocks = (existingBlocks: any[], incomingBlocks: any[]): any[] => {
+    if (!Array.isArray(existingBlocks) || existingBlocks.length === 0) return incomingBlocks;
+    if (!Array.isArray(incomingBlocks) || incomingBlocks.length === 0) return existingBlocks;
+
+    const merged = [...existingBlocks];
+    for (const block of incomingBlocks) {
+      if (!block || typeof block !== 'object') continue;
+      const type = (block as { type?: string }).type;
+      // Streaming text/thinking is handled by onContentDelta/onThinkingDelta.
+      // Do NOT merge snapshot text/thinking from onMessage, otherwise blocks
+      // can accumulate and make content appear garbled after collapsing thinking.
+      if (type === 'text' || type === 'thinking') {
+        continue;
+      }
+
+      // Keep tool blocks, but avoid duplicate insertion.
+      if (type === 'tool_use') {
+        const id = String((block as { id?: string }).id ?? '');
+        if (id) {
+          const exists = merged.some((b) => b && typeof b === 'object' && (b as { type?: string }).type === 'tool_use' && String((b as { id?: string }).id ?? '') === id);
+          if (exists) continue;
+        }
+      }
+      if (type === 'tool_result') {
+        const toolUseId = String((block as { tool_use_id?: string }).tool_use_id ?? '');
+        if (toolUseId) {
+          const exists = merged.some((b) => b && typeof b === 'object' && (b as { type?: string }).type === 'tool_result' && String((b as { tool_use_id?: string }).tool_use_id ?? '') === toolUseId);
+          if (exists) continue;
+        }
+      }
+
+      merged.push(block);
+    }
+    return merged;
+  };
+
+  const mergeStreamingText = (existing: string, incoming: string): string => {
+    const prev = existing || '';
+    const next = incoming || '';
+    if (!next) return prev;
+    if (!prev) return next;
+    if (next === prev) return prev;
+    if (next.startsWith(prev)) return next; // backend sends full snapshot
+    if (prev.endsWith(next)) return prev;   // duplicated tail
+    const needNewline = !prev.endsWith('\n') && !next.startsWith('\n');
+    return `${prev}${needNewline ? '\n' : ''}${next}`;
+  };
+
+  window.onMessage = (payload: string) => {
+    if (window.__sessionTransitioning) return;
+    if (currentProviderRef.current !== 'codex') return;
+    let parsed: any;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      return;
+    }
+
+    const type = parsed?.type;
+    const message = parsed?.message && typeof parsed.message === 'object' ? parsed.message : parsed;
+    const blocks = Array.isArray(message?.content) ? message.content : [];
+    const text = extractTextFromBlocks(blocks);
+
+    if (type !== 'assistant' && type !== 'user') {
+      return;
+    }
+
+    setMessages((prev) => {
+      const next = [...prev];
+      const msg = {
+        type,
+        content: text,
+        raw: message,
+        timestamp: new Date().toISOString(),
+      };
+
+      // During streaming, assistant MESSAGE payload should patch the current in-flight assistant item.
+      if (type === 'assistant' && isStreamingRef.current) {
+        const idx = streamingMessageIndexRef.current;
+        if (idx >= 0 && idx < next.length && next[idx]?.type === 'assistant') {
+          const previousContent = typeof next[idx].content === 'string' ? next[idx].content : '';
+          const mergedContent = mergeStreamingText(previousContent, text);
+          streamingContentRef.current = mergedContent;
+
+          const currentRaw = (next[idx].raw && typeof next[idx].raw === 'object')
+            ? next[idx].raw as Record<string, unknown>
+            : { message: { content: [] } };
+          const existingBlocks = readBlocksFromRaw(currentRaw);
+          const incomingBlocks = Array.isArray(message?.content) ? message.content : [];
+          const mergedBlocks = mergeAssistantBlocks(existingBlocks, incomingBlocks);
+          const mergedMessage = {
+            ...((currentRaw.message && typeof currentRaw.message === 'object') ? currentRaw.message as Record<string, unknown> : {}),
+            ...(message && typeof message === 'object' ? message as Record<string, unknown> : {}),
+            content: mergedBlocks,
+          };
+
+          next[idx] = {
+            ...next[idx],
+            content: mergedContent || (next[idx].content || ''),
+            raw: {
+              ...currentRaw,
+              message: mergedMessage,
+              content: mergedBlocks,
+            },
+            isStreaming: true,
+          };
+          return next;
+        }
+      }
+
+      next.push(msg);
+      return next;
+    });
+  };
 
   window.onStreamStart = () => {
     if (window.__sessionTransitioning) return;

@@ -40,6 +40,7 @@ export class BridgeServer {
   private _workspacePath: string;
   private _webview?: vscode.Webview;
   private _log: vscode.OutputChannel;
+  private _activeProvider: 'claude' | 'codex' = 'claude';
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this._log = vscode.window.createOutputChannel('Claude Code GUI');
@@ -131,12 +132,35 @@ export class BridgeServer {
       // File listing for @ mentions in the input box
       case 'list_files': {
         try {
-          const root = this._workspacePath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+          const activeEditorPath = vscode.window.activeTextEditor?.document?.uri?.fsPath || '';
+          const activeEditorDir = activeEditorPath ? path.dirname(activeEditorPath) : '';
+          const root = this._workspacePath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || activeEditorDir || '';
           const files: Array<{ name: string; path: string; absolutePath: string; type: 'file' | 'directory'; extension: string }> = [];
           if (root && fs.existsSync(root)) {
             let params: any = {};
             try { params = content ? JSON.parse(content) : {}; } catch { /* ignore */ }
             const query: string = (params.query || '').toLowerCase();
+            const requestedPath: string = (params.currentPath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+
+            // If frontend provided a directory hint (e.g. "src/"), narrow scan to that directory.
+            let scanRoot = root;
+            let scanRootRelPrefix = '';
+            if (requestedPath) {
+              const candidate = path.resolve(root, requestedPath);
+              const normalizedRoot = path.resolve(root);
+              const insideRoot = candidate === normalizedRoot || candidate.startsWith(normalizedRoot + path.sep);
+              if (insideRoot && fs.existsSync(candidate)) {
+                try {
+                  if (fs.statSync(candidate).isDirectory()) {
+                    scanRoot = candidate;
+                    scanRootRelPrefix = requestedPath;
+                  }
+                } catch {
+                  // Ignore invalid path and keep root scan.
+                }
+              }
+            }
+
             const MAX = 2000;
             const shouldIgnore = this._buildIgnoreFilter(root);
             const walk = (dir: string, rel: string) => {
@@ -162,7 +186,7 @@ export class BridgeServer {
                 } catch { /* skip */ }
               }
             };
-            walk(root, '');
+            walk(scanRoot, scanRootRelPrefix);
           }
           webview.postMessage({ type: 'file_list_result', content: JSON.stringify({ files, root }) });
         } catch {
@@ -171,9 +195,15 @@ export class BridgeServer {
         break;
       }
 
+      case 'set_provider': {
+        const provider = (content || '').trim();
+        if (provider === 'codex' || provider === 'claude') {
+          this._activeProvider = provider;
+        }
+        break;
+      }
       // Silently ignore these — handled client-side or not needed in VSCode
       case 'tab_status_changed':
-      case 'set_provider':
       case 'set_model':
       case 'get_selected_agent':
       case 'sort_providers':
@@ -258,8 +288,78 @@ export class BridgeServer {
 
       // ── Codex providers ───────────────────────────────────────────────────
       case 'get_codex_providers':
-        webview.postMessage({ type: 'update_codex_providers', content: JSON.stringify(this.context.globalState.get('ccg.codex_providers') ?? []) });
+        this._postCodexProviders(webview);
         break;
+      case 'add_codex_provider': {
+        const incoming = JSON.parse(content || '{}');
+        const providers = this._getCodexProviders();
+        const provider = {
+          ...incoming,
+          id: incoming.id ?? Date.now().toString(),
+          createdAt: incoming.createdAt ?? Date.now(),
+          isActive: providers.length === 0 ? true : !!incoming.isActive,
+        };
+        providers.push(provider);
+        this._saveCodexProviders(providers);
+        this._postCodexProviders(webview);
+        break;
+      }
+      case 'update_codex_provider': {
+        const { id, updates } = JSON.parse(content || '{}');
+        if (!id || !updates || typeof updates !== 'object') {
+          this._postCodexProviders(webview);
+          break;
+        }
+        const providers = this._getCodexProviders().map((p: any) =>
+          p.id === id ? { ...p, ...updates } : p
+        );
+        this._saveCodexProviders(providers);
+        this._postCodexProviders(webview);
+        break;
+      }
+      case 'delete_codex_provider': {
+        const { id } = JSON.parse(content || '{}');
+        let providers = this._getCodexProviders();
+        const deleting = providers.find((p: any) => p.id === id);
+        providers = providers.filter((p: any) => p.id !== id);
+        if (deleting?.isActive && providers.length > 0 && !providers.some((p: any) => p.isActive)) {
+          providers = providers.map((p: any, idx: number) => ({ ...p, isActive: idx === 0 }));
+        }
+        this._saveCodexProviders(providers);
+        this._postCodexProviders(webview);
+        break;
+      }
+      case 'switch_codex_provider': {
+        const { id } = JSON.parse(content || '{}');
+        const providers = this._getCodexProviders().map((p: any) => ({
+          ...p,
+          isActive: p.id === id,
+        }));
+        this._saveCodexProviders(providers);
+        this._postCodexProviders(webview);
+        break;
+      }
+      case 'sort_codex_providers': {
+        const { orderedIds } = JSON.parse(content || '{}');
+        const providers = this._getCodexProviders();
+        if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+          this._postCodexProviders(webview);
+          break;
+        }
+        const byId = new Map(providers.map((p: any) => [p.id, p]));
+        const ordered: any[] = [];
+        for (const id of orderedIds) {
+          const item = byId.get(id);
+          if (item) {
+            ordered.push(item);
+            byId.delete(id);
+          }
+        }
+        ordered.push(...Array.from(byId.values()));
+        this._saveCodexProviders(ordered);
+        this._postCodexProviders(webview);
+        break;
+      }
 
       // ── MCP servers ───────────────────────────────────────────────────────
       case 'get_mcp_servers':
@@ -277,9 +377,243 @@ export class BridgeServer {
         break;
 
       // ── Prompts ───────────────────────────────────────────────────────────
-      case 'get_prompts':
-        webview.postMessage({ type: 'update_prompts', content: JSON.stringify([]) });
+      case 'get_project_info': {
+        const info = this._getPromptProjectInfo();
+        webview.postMessage({
+          type: 'js_eval',
+          content: `window.updateProjectInfo && window.updateProjectInfo(${JSON.stringify(JSON.stringify(info))})`,
+        });
         break;
+      }
+      case 'get_prompts': {
+        let scope: 'global' | 'project' = 'global';
+        try { scope = (JSON.parse(content || '{}').scope ?? 'global') === 'project' ? 'project' : 'global'; } catch { /* ignore */ }
+        this._postPrompts(scope, webview);
+        break;
+      }
+      case 'add_prompt': {
+        try {
+          const payload = JSON.parse(content || '{}');
+          const scope: 'global' | 'project' = payload?.scope === 'project' ? 'project' : 'global';
+          const prompt = payload?.prompt && typeof payload.prompt === 'object' ? payload.prompt : null;
+          if (!prompt?.id || !prompt?.name) throw new Error('Invalid prompt payload');
+          const list = this._getPrompts(scope);
+          list.push({
+            id: String(prompt.id),
+            name: String(prompt.name),
+            content: String(prompt.content ?? ''),
+            createdAt: Number(prompt.createdAt ?? Date.now()),
+            updatedAt: Number(prompt.updatedAt ?? Date.now()),
+          });
+          await this._savePrompts(scope, list);
+          this._postPrompts(scope, webview, list);
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptOperationResult && window.promptOperationResult(${JSON.stringify(JSON.stringify({ success: true, operation: 'add' }))})`,
+          });
+        } catch (e: any) {
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptOperationResult && window.promptOperationResult(${JSON.stringify(JSON.stringify({ success: false, operation: 'add', error: String(e?.message || 'Add failed') }))})`,
+          });
+        }
+        break;
+      }
+      case 'update_prompt': {
+        try {
+          const payload = JSON.parse(content || '{}');
+          const scope: 'global' | 'project' = payload?.scope === 'project' ? 'project' : 'global';
+          const id = String(payload?.id ?? '');
+          const updates = payload?.updates && typeof payload.updates === 'object' ? payload.updates : {};
+          if (!id) throw new Error('Invalid prompt id');
+          const list = this._getPrompts(scope).map((item: any) =>
+            item.id === id ? { ...item, ...updates, id } : item
+          );
+          await this._savePrompts(scope, list);
+          this._postPrompts(scope, webview, list);
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptOperationResult && window.promptOperationResult(${JSON.stringify(JSON.stringify({ success: true, operation: 'update' }))})`,
+          });
+        } catch (e: any) {
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptOperationResult && window.promptOperationResult(${JSON.stringify(JSON.stringify({ success: false, operation: 'update', error: String(e?.message || 'Update failed') }))})`,
+          });
+        }
+        break;
+      }
+      case 'delete_prompt': {
+        try {
+          const payload = JSON.parse(content || '{}');
+          const scope: 'global' | 'project' = payload?.scope === 'project' ? 'project' : 'global';
+          const id = String(payload?.id ?? '');
+          const list = this._getPrompts(scope).filter((item: any) => item.id !== id);
+          await this._savePrompts(scope, list);
+          this._postPrompts(scope, webview, list);
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptOperationResult && window.promptOperationResult(${JSON.stringify(JSON.stringify({ success: true, operation: 'delete' }))})`,
+          });
+        } catch (e: any) {
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptOperationResult && window.promptOperationResult(${JSON.stringify(JSON.stringify({ success: false, operation: 'delete', error: String(e?.message || 'Delete failed') }))})`,
+          });
+        }
+        break;
+      }
+      case 'export_prompts': {
+        try {
+          const payload = JSON.parse(content || '{}');
+          const scope: 'global' | 'project' = payload?.scope === 'project' ? 'project' : 'global';
+          const selectedIds = Array.isArray(payload?.promptIds) ? new Set(payload.promptIds.map((id: unknown) => String(id))) : null;
+          const all = this._getPrompts(scope);
+          const items = selectedIds ? all.filter((p: any) => selectedIds.has(String(p.id))) : all;
+
+          vscode.window.showSaveDialog({
+            title: 'Export Prompts',
+            filters: { JSON: ['json'] },
+            defaultUri: vscode.Uri.file(path.join(this._workspacePath || require('os').homedir(), `prompts-${scope}.json`)),
+          }).then((uri) => {
+            if (!uri) return;
+            try {
+              fs.writeFileSync(uri.fsPath, JSON.stringify({ scope, prompts: items }, null, 2), 'utf8');
+              webview.postMessage({
+                type: 'js_eval',
+                content: `window.addToast && window.addToast('提示词导出成功', 'success')`,
+              });
+            } catch (err: any) {
+              webview.postMessage({
+                type: 'js_eval',
+                content: `window.addToast && window.addToast(${JSON.stringify(String(err?.message || '导出失败'))}, 'error')`,
+              });
+            }
+          });
+        } catch { /* ignore */ }
+        break;
+      }
+      case 'import_prompts_file': {
+        let scope: 'global' | 'project' = 'global';
+        try { scope = (JSON.parse(content || '{}').scope ?? 'global') === 'project' ? 'project' : 'global'; } catch { /* ignore */ }
+        vscode.window.showOpenDialog({
+          canSelectFiles: true, canSelectFolders: false, canSelectMany: false,
+          filters: { JSON: ['json'] }, title: 'Import Prompts',
+        }).then((uris) => {
+          if (!uris || uris.length === 0) return;
+          try {
+            const raw = fs.readFileSync(uris[0].fsPath, 'utf8');
+            const parsed = JSON.parse(raw);
+            const imported = Array.isArray(parsed?.prompts) ? parsed.prompts : Array.isArray(parsed) ? parsed : [];
+            const existing = this._getPrompts(scope);
+            const existingIds = new Set(existing.map((p: any) => String(p.id)));
+            const items = imported
+              .filter((p: any) => p && typeof p === 'object' && p.id && p.name)
+              .map((p: any) => {
+                const id = String(p.id);
+                const conflict = existingIds.has(id);
+                return {
+                  data: {
+                    id,
+                    name: String(p.name),
+                    content: String(p.content ?? ''),
+                    createdAt: Number(p.createdAt ?? Date.now()),
+                    updatedAt: Number(p.updatedAt ?? Date.now()),
+                  },
+                  status: conflict ? 'update' : 'new',
+                  conflict,
+                };
+              });
+            const preview = {
+              items,
+              summary: {
+                total: items.length,
+                newCount: items.filter((i: any) => i.status === 'new').length,
+                updateCount: items.filter((i: any) => i.status === 'update').length,
+              },
+            };
+            webview.postMessage({
+              type: 'js_eval',
+              content: `window.promptImportPreviewResult && window.promptImportPreviewResult(${JSON.stringify(JSON.stringify(preview))})`,
+            });
+          } catch (e: any) {
+            webview.postMessage({
+              type: 'js_eval',
+              content: `window.addToast && window.addToast(${JSON.stringify(String(e?.message || '导入失败'))}, 'error')`,
+            });
+          }
+        });
+        break;
+      }
+      case 'save_imported_prompts': {
+        try {
+          const payload = JSON.parse(content || '{}');
+          const scope: 'global' | 'project' = payload?.scope === 'project' ? 'project' : 'global';
+          const strategy: 'skip' | 'overwrite' | 'duplicate' = payload?.strategy === 'overwrite' || payload?.strategy === 'duplicate' ? payload.strategy : 'skip';
+          const incoming = Array.isArray(payload?.prompts) ? payload.prompts : [];
+          const list = this._getPrompts(scope);
+          const byId = new Map(list.map((item: any) => [String(item.id), item]));
+          let imported = 0;
+          let updated = 0;
+          let skipped = 0;
+
+          for (const rawPrompt of incoming) {
+            if (!rawPrompt || typeof rawPrompt !== 'object' || !rawPrompt.id || !rawPrompt.name) {
+              skipped += 1;
+              continue;
+            }
+            const id = String(rawPrompt.id);
+            const exists = byId.has(id);
+            const base = {
+              id,
+              name: String(rawPrompt.name),
+              content: String(rawPrompt.content ?? ''),
+              createdAt: Number(rawPrompt.createdAt ?? Date.now()),
+              updatedAt: Number(rawPrompt.updatedAt ?? Date.now()),
+            };
+
+            if (!exists) {
+              list.push(base);
+              byId.set(id, base);
+              imported += 1;
+              continue;
+            }
+
+            if (strategy === 'skip') {
+              skipped += 1;
+              continue;
+            }
+            if (strategy === 'overwrite') {
+              const idx = list.findIndex((item: any) => String(item.id) === id);
+              if (idx >= 0) list[idx] = { ...list[idx], ...base };
+              byId.set(id, list[idx]);
+              updated += 1;
+              continue;
+            }
+
+            const newId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(16).slice(2)}`);
+            const dup = { ...base, id: newId };
+            list.push(dup);
+            byId.set(String(dup.id), dup);
+            imported += 1;
+          }
+
+          await this._savePrompts(scope, list);
+          this._postPrompts(scope, webview, list);
+          const result = { success: true, imported, updated, skipped, scope };
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptImportResult && window.promptImportResult(${JSON.stringify(JSON.stringify(result))})`,
+          });
+        } catch (e: any) {
+          const result = { success: false, imported: 0, updated: 0, skipped: 0, scope: 'global', error: String(e?.message || 'Import failed') };
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.promptImportResult && window.promptImportResult(${JSON.stringify(JSON.stringify(result))})`,
+          });
+        }
+        break;
+      }
 
       // ── History ───────────────────────────────────────────────────────────
       case 'load_history_data':
@@ -622,7 +956,10 @@ export class BridgeServer {
   }
 
   private _sendToBridge(event: string, content: string, webview: vscode.Webview) {
-    this._log.appendLine(`[BRIDGE] _sendToBridge called: event=${event}`);
+    const isHeartbeat = event === 'heartbeat';
+    if (!isHeartbeat) {
+      this._log.appendLine(`[BRIDGE] _sendToBridge called: event=${event}`);
+    }
     if (!this._bridgeProcess || this._bridgeProcess.killed) {
       this._log.appendLine('[BRIDGE] Daemon not running, starting...');
       this._startBridge();
@@ -634,10 +971,20 @@ export class BridgeServer {
 
     const id = String(++this._reqId);
 
+    let params: any = {};
+    try { params = content ? JSON.parse(content) : {}; } catch { params = { text: content }; }
+    params.workspacePath = params.workspacePath ?? this._workspacePath;
+
+    const providerFromPayload = params?.provider;
+    const activeProvider: 'claude' | 'codex' =
+      providerFromPayload === 'codex' || providerFromPayload === 'claude'
+        ? providerFromPayload
+        : this._activeProvider;
+
     // Map webview event names → daemon method names
     const METHOD_MAP: Record<string, string> = {
-      'send_message':                  'claude.send',
-      'send_message_with_attachments': 'claude.sendWithAttachments',
+      'send_message':                  `${activeProvider}.send`,
+      'send_message_with_attachments': activeProvider === 'codex' ? 'codex.send' : 'claude.sendWithAttachments',
       'preconnect':                    'claude.preconnect',
       'abort':                         'claude.abort',
       'reset_runtime':                 'claude.resetRuntime',
@@ -650,10 +997,6 @@ export class BridgeServer {
       this._log.appendLine(`[BRIDGE] No method mapping for event: ${event}`);
       return;
     }
-
-    let params: any = {};
-    try { params = content ? JSON.parse(content) : {}; } catch { params = { text: content }; }
-    params.workspacePath = params.workspacePath ?? this._workspacePath;
 
     // Fill in selectedText for openedFiles.selection if missing
     if (params.openedFiles?.selection && !params.openedFiles.selection.selectedText && params.openedFiles.active) {
@@ -674,8 +1017,10 @@ export class BridgeServer {
 
     this._pendingWebviews.set(id, webview);
     const msg = JSON.stringify({ id, method, params }) + '\n';
-    this._log.appendLine(`[BRIDGE] Sending to daemon: id=${id} method=${method} msg_len=${msg.length}`);
-    this._bridgeProcess.stdin.write(msg);
+      if (!isHeartbeat) {
+        this._log.appendLine(`[BRIDGE] Sending to daemon: id=${id} method=${method} msg_len=${msg.length}`);
+      }
+      this._bridgeProcess.stdin.write(msg);
   }
 
   private _startBridge() {
@@ -705,9 +1050,14 @@ export class BridgeServer {
       buf = lines.pop() ?? '';
       for (const line of lines) {
         if (!line.trim()) continue;
-        this._log.appendLine(`[D] ${line.slice(0, 400)}`);
+        let parsed: any | null = null;
         try {
-          this._handleDaemonLine(JSON.parse(line));
+          parsed = JSON.parse(line);
+          // Keep heartbeat alive, but avoid flooding output channel with repetitive noise.
+          if (parsed?.type !== 'heartbeat') {
+            this._log.appendLine(`[D] ${line.slice(0, 400)}`);
+          }
+          this._handleDaemonLine(parsed);
         } catch { /* ignore malformed */ }
       }
     });
@@ -762,6 +1112,14 @@ export class BridgeServer {
         this._emitStreamStart(msg.id, webview);
         this._inThinking.add(msg.id);
         webview.postMessage({ type: 'thinking_delta', content: text });
+      } else if (line.startsWith('[THINKING_HINT] ')) {
+        const hint = line.slice('[THINKING_HINT] '.length).trim();
+        if (hint) {
+          webview.postMessage({
+            type: 'js_eval',
+            content: `window.addToast && window.addToast(${JSON.stringify(hint)}, 'info')`,
+          });
+        }
       } else if (line.startsWith('[SESSION_ID] ')) {
         const sessionId = line.slice('[SESSION_ID] '.length).trim();
         this._lastSessionId.set(msg.id, sessionId);
@@ -773,6 +1131,16 @@ export class BridgeServer {
         if (epoch) {
           webview.postMessage({ type: 'js_eval', content: `window.__ccg_onSessionEpoch && window.__ccg_onSessionEpoch(${JSON.stringify(sessionId)}, ${JSON.stringify(epoch)})` });
         }
+      } else if (line.startsWith('[THREAD_ID] ')) {
+        // Codex runtime emits thread IDs; treat them as session IDs for UI/history compatibility.
+        const threadId = line.slice('[THREAD_ID] '.length).trim();
+        this._lastSessionId.set(msg.id, threadId);
+        webview.postMessage({ type: 'session_id', content: threadId });
+        this._recordSessionId(threadId);
+        const epoch = this._lastEpoch.get(msg.id);
+        if (epoch) {
+          webview.postMessage({ type: 'js_eval', content: `window.__ccg_onSessionEpoch && window.__ccg_onSessionEpoch(${JSON.stringify(threadId)}, ${JSON.stringify(epoch)})` });
+        }
       } else if (line.startsWith('[MODEL] ')) {
         const model = line.slice('[MODEL] '.length).trim();
         if (model) this._lastModel.set(msg.id, model);
@@ -781,6 +1149,24 @@ export class BridgeServer {
         // Extract model from assistant messages
         try {
           const parsed = JSON.parse(payload);
+          if ((parsed.type === 'assistant' || parsed.type === 'user') && parsed.message?.content) {
+            const sid = this._lastSessionId.get(msg.id) ?? '';
+            const text = this._extractCodexTextFromContent(parsed.message.content);
+            if (parsed.type === 'assistant' && text.trim()) {
+              // Mark that assistant textual content has already streamed for this turn.
+              this._contentStarted.add(msg.id);
+            }
+            if (sid) {
+              if (text) {
+                this._appendCodexHistoryMessage(
+                  sid,
+                  parsed.type === 'assistant' ? 'assistant' : 'user',
+                  text,
+                  new Date().toISOString(),
+                );
+              }
+            }
+          }
           if (parsed.type === 'assistant' && parsed.message?.model) {
             this._lastModel.set(msg.id, parsed.message.model);
           }
@@ -844,9 +1230,12 @@ export class BridgeServer {
             this.context.globalState.update('ccg.usageStats', stats);
 
             if (parsed.result && typeof parsed.result === 'string') {
-              this._emitStreamEnd(msg.id, webview);
-              this._emitStreamStart(msg.id, webview);
-              webview.postMessage({ type: 'content_delta', content: parsed.result });
+              // Fallback only: if no assistant text streamed this turn, emit final result once.
+              if (!this._contentStarted.has(msg.id)) {
+                this._emitStreamStart(msg.id, webview);
+                this._contentStarted.add(msg.id);
+                webview.postMessage({ type: 'content_delta', content: parsed.result });
+              }
             }
             webview.postMessage({ type: 'usage_update', content: JSON.stringify({
               percentage: Math.min(100, (inputTokens / 200000) * 100),
@@ -1112,10 +1501,53 @@ export class BridgeServer {
     const os = require('os') as typeof import('os');
     return path.join(os.homedir(), '.claude', 'projects');
   }
+  private _getCodexArchivedDir(): string {
+    const os = require('os') as typeof import('os');
+    return path.join(os.homedir(), '.codex', 'archived_sessions');
+  }
+  private _extractCodexTextFromContent(content: any): string {
+    if (typeof content === 'string') return content;
+    if (!Array.isArray(content)) return '';
+    const parts: string[] = [];
+    for (const block of content) {
+      if (!block || typeof block !== 'object') continue;
+      if ((block.type === 'text' || block.type === 'output_text' || block.type === 'input_text') && typeof block.text === 'string') {
+        parts.push(block.text);
+      }
+    }
+    return parts.join('\n').trim();
+  }
+  private _appendCodexHistoryMessage(sessionId: string, role: 'user' | 'assistant', content: string, timestamp?: string) {
+    if (!sessionId || !content.trim()) return;
+    try {
+      const key = 'ccg.codexHistoryCache';
+      const cache = this.context.globalState.get<Record<string, { messages: any[]; updatedAt: string }>>(key) ?? {};
+      const existing = cache[sessionId] ?? { messages: [], updatedAt: new Date().toISOString() };
+      const nextMessages = [...existing.messages, {
+        type: role,
+        content,
+        timestamp: timestamp ?? new Date().toISOString(),
+      }];
+      existing.messages = nextMessages.slice(-400);
+      existing.updatedAt = timestamp ?? new Date().toISOString();
+      cache[sessionId] = existing;
+
+      const entries = Object.entries(cache)
+        .sort((a, b) => new Date(b[1].updatedAt).getTime() - new Date(a[1].updatedAt).getTime())
+        .slice(0, 200);
+      const trimmed: Record<string, { messages: any[]; updatedAt: string }> = {};
+      for (const [sid, data] of entries) trimmed[sid] = data;
+      this.context.globalState.update(key, trimmed);
+    } catch { /* ignore */ }
+  }
 
   private _getFavoritesKey(): string { return 'ccg.historyFavorites'; }
 
   private _loadHistoryData(provider: string, webview: vscode.Webview) {
+    if (provider === 'codex') {
+      this._loadCodexHistoryData(webview);
+      return;
+    }
     const os = require('os') as typeof import('os');
     const projectsDir = this._getClaudeProjectsDir();
     const favorites: Record<string, { favoritedAt: number }> =
@@ -1212,6 +1644,81 @@ export class BridgeServer {
     webview.postMessage({ type: 'history_data', content: JSON.stringify({ success: true, sessions, total: sessions.length, favorites }) });
   }
 
+  private _loadCodexHistoryData(webview: vscode.Webview) {
+    const favorites: Record<string, { favoritedAt: number }> =
+      this.context.globalState.get(this._getFavoritesKey()) ?? {};
+    const vscTitles: Record<string, string> = this.context.globalState.get('ccg.historyTitles') ?? {};
+    const cache = this.context.globalState.get<Record<string, { messages: any[]; updatedAt: string }>>('ccg.codexHistoryCache') ?? {};
+    const sessions: any[] = [];
+
+    for (const [sessionId, data] of Object.entries(cache)) {
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+      if (messages.length === 0) continue;
+      const firstUser = messages.find((m: any) => m?.type === 'user' && typeof m?.content === 'string' && m.content.trim().length > 0);
+      const title = vscTitles[sessionId] || (firstUser?.content ? String(firstUser.content).slice(0, 80) : sessionId.slice(0, 8));
+      const lastTimestamp = data.updatedAt || messages[messages.length - 1]?.timestamp || new Date().toISOString();
+      sessions.push({
+        sessionId,
+        title,
+        messageCount: messages.length,
+        lastTimestamp,
+        isFavorited: !!favorites[sessionId],
+        favoritedAt: favorites[sessionId]?.favoritedAt,
+        provider: 'codex',
+      });
+    }
+
+    try {
+      const archivedDir = this._getCodexArchivedDir();
+      if (fs.existsSync(archivedDir)) {
+        for (const file of fs.readdirSync(archivedDir)) {
+          if (!file.endsWith('.jsonl')) continue;
+          const filePath = path.join(archivedDir, file);
+          const lines = fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean);
+          let sessionId = '';
+          let firstUserText = '';
+          let messageCount = 0;
+          let lastTimestamp = fs.statSync(filePath).mtime.toISOString();
+          for (const line of lines) {
+            try {
+              const row = JSON.parse(line);
+              if (row?.timestamp) lastTimestamp = row.timestamp;
+              if (row?.type === 'session_meta' && row?.payload?.id) {
+                sessionId = String(row.payload.id);
+              }
+              if (row?.type === 'response_item' && row?.payload?.type === 'message') {
+                const role = row.payload.role;
+                if (role !== 'user' && role !== 'assistant') continue;
+                const text = this._extractCodexTextFromContent(row.payload.content);
+                if (!text) continue;
+                if (!firstUserText && role === 'user') firstUserText = text.slice(0, 80);
+                messageCount += 1;
+              }
+            } catch { /* skip */ }
+          }
+          if (!sessionId) {
+            const match = file.match(/([0-9a-f]{8,}-[0-9a-f-]{8,})\.jsonl$/i);
+            sessionId = match ? match[1] : file.replace(/\.jsonl$/, '');
+          }
+          if (!sessionId || messageCount === 0) continue;
+          if (sessions.some(s => s.sessionId === sessionId)) continue;
+          sessions.push({
+            sessionId,
+            title: vscTitles[sessionId] || firstUserText || sessionId.slice(0, 8),
+            messageCount,
+            lastTimestamp,
+            isFavorited: !!favorites[sessionId],
+            favoritedAt: favorites[sessionId]?.favoritedAt,
+            provider: 'codex',
+          });
+        }
+      }
+    } catch { /* ignore */ }
+
+    sessions.sort((a, b) => new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime());
+    webview.postMessage({ type: 'history_data', content: JSON.stringify({ success: true, sessions, total: sessions.length, favorites }) });
+  }
+
   private _loadSession(sessionId: string, webview: vscode.Webview) {
     this._log.appendLine(`[BRIDGE] _loadSession called: sessionId="${sessionId}"`);
     const projectsDir = this._getClaudeProjectsDir();
@@ -1258,6 +1765,54 @@ export class BridgeServer {
     } catch (e: any) {
       this._log.appendLine(`[BRIDGE] _loadSession error: ${e?.message || e}`);
     }
+
+    // Codex cache fallback
+    try {
+      const cache = this.context.globalState.get<Record<string, { messages: any[]; updatedAt: string }>>('ccg.codexHistoryCache') ?? {};
+      const entry = cache[sessionId];
+      if (entry?.messages?.length) {
+        const messages = entry.messages.filter((m: any) => m?.type === 'user' || m?.type === 'assistant');
+        this._log.appendLine(`[BRIDGE] _loadSession: loaded ${messages.length} messages from codex cache`);
+        this.broadcast('session_messages', JSON.stringify(messages));
+        return;
+      }
+    } catch { /* ignore */ }
+
+    // Codex archived file fallback
+    try {
+      const archivedDir = this._getCodexArchivedDir();
+      if (fs.existsSync(archivedDir)) {
+        for (const file of fs.readdirSync(archivedDir)) {
+          if (!file.endsWith('.jsonl')) continue;
+          const filePath = path.join(archivedDir, file);
+          const raw = fs.readFileSync(filePath, 'utf8');
+          if (!raw.includes(sessionId)) continue;
+          const lines = raw.split('\n').filter(Boolean);
+          const messages: any[] = [];
+          for (const line of lines) {
+            try {
+              const row = JSON.parse(line);
+              if (row?.type !== 'response_item' || row?.payload?.type !== 'message') continue;
+              const role = row.payload.role;
+              if (role !== 'user' && role !== 'assistant') continue;
+              const text = this._extractCodexTextFromContent(row.payload.content);
+              if (!text.trim()) continue;
+              messages.push({
+                type: role,
+                content: text,
+                timestamp: row.timestamp ?? new Date().toISOString(),
+              });
+            } catch { /* skip */ }
+          }
+          if (messages.length > 0) {
+            this._log.appendLine(`[BRIDGE] _loadSession: loaded ${messages.length} messages from codex archived file`);
+            this.broadcast('session_messages', JSON.stringify(messages));
+            return;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+
     // No messages found — send empty array to release session transition
     this._log.appendLine(`[BRIDGE] _loadSession: no messages found, broadcasting empty`);
     this.broadcast('session_messages', JSON.stringify([]));
@@ -1632,6 +2187,53 @@ export class BridgeServer {
   private _saveProviders(providers: any[]) {
     this.context.globalState.update('ccg.providers', providers);
     this._syncProviderToDisk(providers);
+  }
+  private _getCodexProviders(): any[] {
+    return this.context.globalState.get<any[]>('ccg.codex_providers') ?? [];
+  }
+  private _saveCodexProviders(providers: any[]) {
+    this.context.globalState.update('ccg.codex_providers', providers);
+  }
+  private _postCodexProviders(webview: vscode.Webview) {
+    webview.postMessage({ type: 'update_codex_providers', content: JSON.stringify(this._getCodexProviders()) });
+  }
+  private _getPromptProjectInfo(): { name: string; path: string; available: boolean } {
+    const workspacePath = this._workspacePath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+    return {
+      name: workspacePath ? path.basename(workspacePath) : '',
+      path: workspacePath,
+      available: !!workspacePath,
+    };
+  }
+  private _promptProjectKey(): string {
+    const info = this._getPromptProjectInfo();
+    return info.path || '__NO_PROJECT__';
+  }
+  private _getPrompts(scope: 'global' | 'project'): any[] {
+    if (scope === 'global') {
+      return this.context.globalState.get<any[]>('ccg.prompts.global') ?? [];
+    }
+    const map = this.context.globalState.get<Record<string, any[]>>('ccg.prompts.projectMap') ?? {};
+    return map[this._promptProjectKey()] ?? [];
+  }
+  private async _savePrompts(scope: 'global' | 'project', prompts: any[]): Promise<void> {
+    if (scope === 'global') {
+      await this.context.globalState.update('ccg.prompts.global', prompts);
+      return;
+    }
+    const map = this.context.globalState.get<Record<string, any[]>>('ccg.prompts.projectMap') ?? {};
+    map[this._promptProjectKey()] = prompts;
+    await this.context.globalState.update('ccg.prompts.projectMap', map);
+  }
+  private _postPrompts(scope: 'global' | 'project', webview: vscode.Webview, prompts?: any[]) {
+    const payload = JSON.stringify(Array.isArray(prompts) ? prompts : this._getPrompts(scope));
+    const callbackName = scope === 'project' ? 'updateProjectPrompts' : 'updateGlobalPrompts';
+    webview.postMessage({
+      type: 'js_eval',
+      content: `window.${callbackName} && window.${callbackName}(${JSON.stringify(payload)})`,
+    });
+    // Legacy callback compatibility
+    webview.postMessage({ type: 'update_prompts', content: payload });
   }
 
   /**
