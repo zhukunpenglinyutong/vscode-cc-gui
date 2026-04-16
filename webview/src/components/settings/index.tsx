@@ -37,6 +37,7 @@ interface SettingsViewProps {
   onClose: () => void;
   initialTab?: SettingsTab;
   currentProvider: 'claude' | 'codex' | string;
+  onCurrentProviderChange?: (providerId: 'claude' | 'codex') => void;
   // Streaming configuration (passed from App.tsx for state sync)
   streamingEnabled?: boolean;
   onStreamingEnabledChange?: (enabled: boolean) => void;
@@ -52,6 +53,7 @@ const SettingsView = ({
   onClose,
   initialTab,
   currentProvider,
+  onCurrentProviderChange,
   streamingEnabled: streamingEnabledProp,
   onStreamingEnabledChange: onStreamingEnabledChangeProp,
   sendShortcut: sendShortcutProp,
@@ -428,6 +430,7 @@ const SettingsView = ({
           <div style={{ display: currentTab === 'providers' ? 'block' : 'none' }}>
             <ProviderTabSection
               currentProvider={currentProvider}
+              onCurrentProviderChange={onCurrentProviderChange}
               providers={providers}
               loading={loading}
               onAddProvider={handleAddProvider}

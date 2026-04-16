@@ -503,6 +503,11 @@ interface Window {
   onThinkingDelta?: (delta: string) => void;
 
   /**
+   * Message callback - receives structured message_data payload from bridge
+   */
+  onMessage?: (payload: string) => void;
+
+  /**
    * Stream end callback - called when streaming ends
    */
   onStreamEnd?: () => void;

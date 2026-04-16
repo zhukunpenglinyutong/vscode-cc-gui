@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ProviderConfig, CodexProviderConfig } from '../../../types/provider';
 import { STORAGE_KEYS } from '../../../types/provider';
@@ -10,6 +10,7 @@ import styles from './style.module.less';
 
 interface ProviderTabSectionProps {
   currentProvider: 'claude' | 'codex' | string;
+  onCurrentProviderChange?: (providerId: 'claude' | 'codex') => void;
   // Claude provider props
   providers: ProviderConfig[];
   loading: boolean;
@@ -30,6 +31,7 @@ interface ProviderTabSectionProps {
 
 const ProviderTabSection = ({
   currentProvider,
+  onCurrentProviderChange,
   providers,
   loading,
   onAddProvider,
@@ -49,6 +51,10 @@ const ProviderTabSection = ({
   const [activeTab, setActiveTab] = useState<'claude' | 'codex'>(
     () => currentProvider === 'codex' ? 'codex' : 'claude'
   );
+
+  useEffect(() => {
+    setActiveTab(currentProvider === 'codex' ? 'codex' : 'claude');
+  }, [currentProvider]);
 
   // Plugin-level custom model management
   const claudeModels = usePluginModels(STORAGE_KEYS.CLAUDE_CUSTOM_MODELS);
@@ -73,6 +79,21 @@ const ProviderTabSection = ({
 
   const activeModels = dialogTarget === 'claude' ? claudeModels : codexModels;
 
+  const handleTabSwitch = useCallback((tab: 'claude' | 'codex') => {
+    setActiveTab(tab);
+    onCurrentProviderChange?.(tab);
+  }, [onCurrentProviderChange]);
+
+  const handleSwitchClaudeProvider = useCallback((id: string) => {
+    onSwitchProvider(id);
+    onCurrentProviderChange?.('claude');
+  }, [onSwitchProvider, onCurrentProviderChange]);
+
+  const handleSwitchCodexProvider = useCallback((id: string) => {
+    onSwitchCodexProvider(id);
+    onCurrentProviderChange?.('codex');
+  }, [onSwitchCodexProvider, onCurrentProviderChange]);
+
   return (
     <div className={styles.providerTabSection}>
       <h3 className={styles.sectionTitle}>{t('settings.providers')}</h3>
@@ -84,7 +105,7 @@ const ProviderTabSection = ({
           aria-selected={activeTab === 'claude'}
           aria-controls="panel-claude-providers"
           className={`${styles.tabBtn} ${activeTab === 'claude' ? styles.active : ''}`}
-          onClick={() => setActiveTab('claude')}
+          onClick={() => handleTabSwitch('claude')}
         >
           <span className="codicon codicon-vm-connect" aria-hidden="true" />
           {t('settings.providerTab.claude')}
@@ -94,7 +115,7 @@ const ProviderTabSection = ({
           aria-selected={activeTab === 'codex'}
           aria-controls="panel-codex-providers"
           className={`${styles.tabBtn} ${activeTab === 'codex' ? styles.active : ''}`}
-          onClick={() => setActiveTab('codex')}
+          onClick={() => handleTabSwitch('codex')}
         >
           <span className="codicon codicon-terminal" aria-hidden="true" />
           {t('settings.providerTab.codex')}
@@ -131,7 +152,7 @@ const ProviderTabSection = ({
           onAddProvider={onAddProvider}
           onEditProvider={onEditProvider}
           onDeleteProvider={onDeleteProvider}
-          onSwitchProvider={onSwitchProvider}
+          onSwitchProvider={handleSwitchClaudeProvider}
           addToast={addToast}
           showHeader={false}
         />
@@ -166,7 +187,7 @@ const ProviderTabSection = ({
           onAddCodexProvider={onAddCodexProvider}
           onEditCodexProvider={onEditCodexProvider}
           onDeleteCodexProvider={onDeleteCodexProvider}
-          onSwitchCodexProvider={onSwitchCodexProvider}
+          onSwitchCodexProvider={handleSwitchCodexProvider}
           showHeader={false}
         />
       </div>

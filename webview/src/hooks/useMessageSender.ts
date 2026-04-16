@@ -186,6 +186,7 @@ export function useMessageSender({
     if (hasAttachments) {
       try {
         const payload = JSON.stringify({
+          provider: currentProvider,
           text,
           sessionId: currentSessionId || undefined,
           attachments: (attachments || []).map(a => ({
@@ -204,6 +205,7 @@ export function useMessageSender({
       } catch (error) {
         console.error('[Frontend] Failed to serialize attachments payload', error);
         const fallbackPayload = JSON.stringify({
+          provider: currentProvider,
           text,
           sessionId: currentSessionId || undefined,
           agent: agentInfo,
@@ -217,6 +219,7 @@ export function useMessageSender({
       }
     } else {
       const payload = JSON.stringify({
+        provider: currentProvider,
         text,
         sessionId: currentSessionId || undefined,
         agent: agentInfo,

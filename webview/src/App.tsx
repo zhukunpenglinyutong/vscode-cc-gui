@@ -610,6 +610,7 @@ const App = ({ tabId: _tabId, onNewTab: _onNewTab }: AppProps) => {
           onClose={() => setCurrentView('chat')}
           initialTab={settingsInitialTab}
           currentProvider={currentProvider}
+          onCurrentProviderChange={handleProviderSelect as (providerId: 'claude' | 'codex') => void}
           streamingEnabled={streamingEnabledSetting}
           onStreamingEnabledChange={handleStreamingEnabledChange}
           sendShortcut={sendShortcut}
