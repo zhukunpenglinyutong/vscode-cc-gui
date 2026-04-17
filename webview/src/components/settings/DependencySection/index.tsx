@@ -8,7 +8,14 @@ import type {
   UninstallResult,
   NodeEnvironmentStatus,
   UpdateCheckResult,
+  DependencyVersionInfo,
+  DependencyVersionResult,
 } from '../../../types/dependency';
+import {
+  buildVersionOptions,
+  getRequestedVersion,
+  getVersionAction,
+} from './versioning';
 import styles from './style.module.less';
 
 interface DependencySectionProps {
@@ -73,8 +80,15 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
   const [installLogs, setInstallLogs] = useState<string>('');
   const [showLogs, setShowLogs] = useState(false);
   const [nodeAvailable, setNodeAvailable] = useState<boolean | null>(null);
+  const [sdkVersions, setSdkVersions] = useState<Record<SdkId, DependencyVersionInfo>>({} as Record<SdkId, DependencyVersionInfo>);
+  const [selectedVersions, setSelectedVersions] = useState<Record<SdkId, string>>({} as Record<SdkId, string>);
+  const [loadingVersions, setLoadingVersions] = useState<Record<SdkId, boolean>>({
+    'claude-sdk': false,
+    'codex-sdk': false,
+  });
   const logContainerRef = useRef<HTMLDivElement>(null);
   const isNodePathReadyRef = useRef(false);
+  const sdkStatusRef = useRef<Record<SdkId, SdkStatus>>({} as Record<SdkId, SdkStatus>);
 
   // Use refs to store the latest callback and t function to avoid useEffect re-runs
   const addToastRef = useRef(addToast);
@@ -85,6 +99,10 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
     addToastRef.current = addToast;
     tRef.current = t;
   }, [addToast, t]);
+
+  useEffect(() => {
+    sdkStatusRef.current = sdkStatus;
+  }, [sdkStatus]);
 
   // Auto-scroll logs to bottom
   useEffect(() => {
@@ -107,6 +125,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
     const savedDependencyInstallResult = window.dependencyInstallResult;
     const savedDependencyUninstallResult = window.dependencyUninstallResult;
     const savedDependencyUpdateAvailable = window.dependencyUpdateAvailable;
+    const savedDependencyVersionsLoaded = window.dependencyVersionsLoaded;
     const savedNodeEnvironmentStatus = window.nodeEnvironmentStatus;
     const savedCheckNodeEnvironment = window.checkNodeEnvironment;
     const savedRunNodeEnvironmentStressTest = window.runNodeEnvironmentStressTest;
@@ -115,6 +134,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
       try {
         const status = JSON.parse(jsonStr);
         setSdkStatus(status);
+        sdkStatusRef.current = status;
         setLoading(false);
       } catch (error) {
         console.error('[DependencySection] Failed to parse dependency status:', error);
@@ -156,6 +176,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
           addToastRef.current?.(tRef.current(msgKey, { name: sdkName }), 'success');
           sendToJava('get_dependency_status:');
           sendToJava(`check_dependency_updates:${JSON.stringify({ id: result.sdkId })}`);
+          sendToJava(`get_dependency_versions:${JSON.stringify({ id: result.sdkId })}`);
         } else if (result.error === 'node_not_configured') {
           addToastRef.current?.(tRef.current('settings.dependency.nodeNotConfigured'), 'warning');
         } else {
@@ -193,6 +214,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
               errorMessage: undefined,
             },
           }));
+          sendToJava(`get_dependency_versions:${JSON.stringify({ id: result.sdkId })}`);
         } else {
           addToastRef.current?.(tRef.current('settings.dependency.uninstallFailed', { error: result.error }), 'error');
         }
@@ -217,6 +239,47 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
       if (typeof savedDependencyUpdateAvailable === 'function') {
         try { savedDependencyUpdateAvailable(jsonStr); } catch (e) {
           console.error('[DependencySection] Error in chained dependencyUpdateAvailable:', e);
+        }
+      }
+    };
+
+    window.dependencyVersionsLoaded = (jsonStr: string) => {
+      try {
+        const versionsPayload: DependencyVersionResult = JSON.parse(jsonStr);
+        setSdkVersions((prev) => ({ ...prev, ...versionsPayload }));
+        setLoadingVersions((prev) => {
+          const next = { ...prev };
+          Object.keys(versionsPayload).forEach((sdkId) => {
+            next[sdkId as SdkId] = false;
+          });
+          return next;
+        });
+        setSelectedVersions((prev) => {
+          const next = { ...prev };
+
+          Object.entries(versionsPayload).forEach(([sdkId, versionInfo]) => {
+            const typedSdkId = sdkId as SdkId;
+            const installedVersion = sdkStatusRef.current[typedSdkId]?.installedVersion;
+            const options = buildVersionOptions({
+              availableVersions: versionInfo.versions,
+              fallbackVersions: versionInfo.fallbackVersions,
+              installedVersion,
+            });
+            const preferred = installedVersion ?? versionInfo.latestVersion ?? options[0];
+            const current = getRequestedVersion(next[typedSdkId]);
+            if (!current || !options.includes(current)) {
+              next[typedSdkId] = preferred ?? '';
+            }
+          });
+
+          return next;
+        });
+      } catch (error) {
+        console.error('[DependencySection] Failed to parse dependency versions result:', error);
+      }
+      if (typeof savedDependencyVersionsLoaded === 'function') {
+        try { savedDependencyVersionsLoaded(jsonStr); } catch (e) {
+          console.error('[DependencySection] Error in chained dependencyVersionsLoaded:', e);
         }
       }
     };
@@ -251,6 +314,10 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
       window.dependencyUpdateAvailable(window.__pendingDependencyUpdates);
       window.__pendingDependencyUpdates = undefined;
     }
+    if (window.__pendingDependencyVersions) {
+      window.dependencyVersionsLoaded(window.__pendingDependencyVersions);
+      window.__pendingDependencyVersions = undefined;
+    }
 
     const handleNodePathReady = () => {
       isNodePathReadyRef.current = true;
@@ -266,6 +333,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
       window.dependencyInstallResult = savedDependencyInstallResult;
       window.dependencyUninstallResult = savedDependencyUninstallResult;
       window.dependencyUpdateAvailable = savedDependencyUpdateAvailable;
+      window.dependencyVersionsLoaded = savedDependencyVersionsLoaded;
       window.nodeEnvironmentStatus = savedNodeEnvironmentStatus;
       window.checkNodeEnvironment = savedCheckNodeEnvironment;
       window.runNodeEnvironmentStressTest = savedRunNodeEnvironmentStressTest;
@@ -279,8 +347,13 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
     if (!isActive) {
       return;
     }
+    setLoadingVersions({
+      'claude-sdk': true,
+      'codex-sdk': true,
+    });
     sendToJava('get_dependency_status:');
     sendToJava('check_dependency_updates:');
+    sendToJava('get_dependency_versions:');
     if (isNodePathReadyRef.current) {
       sendToJava('check_node_environment:');
     }
@@ -295,7 +368,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
     setInstallingSdk(sdkId);
     setInstallLogs('');
     setShowLogs(true);
-    sendToJava(`install_dependency:${JSON.stringify({ id: sdkId })}`);
+    sendToJava(`install_dependency:${JSON.stringify({ id: sdkId, version: getRequestedVersion(selectedVersions[sdkId]) })}`);
   };
 
   const handleUninstall = (sdkId: SdkId) => {
@@ -313,7 +386,7 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
     updatingSdkRef.current = sdkId;
     setInstallLogs('');
     setShowLogs(true);
-    sendToJava(`update_dependency:${JSON.stringify({ id: sdkId })}`);
+    sendToJava(`update_dependency:${JSON.stringify({ id: sdkId, version: getRequestedVersion(selectedVersions[sdkId]) })}`);
   };
 
   const getSdkInfo = (sdkId: SdkId): SdkStatus | undefined => {
@@ -323,6 +396,36 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
   const isInstalled = (sdkId: SdkId): boolean => {
     const info = getSdkInfo(sdkId);
     return info?.status === 'installed';
+  };
+
+  const getVersionInfo = (sdkId: SdkId): DependencyVersionInfo | undefined => sdkVersions[sdkId];
+
+  const getTargetVersion = (sdkId: SdkId): string | undefined =>
+    getRequestedVersion(selectedVersions[sdkId]);
+
+  const getActionLabel = (sdkId: SdkId, installed: boolean, installedVersion?: string) => {
+    const targetVersion = getTargetVersion(sdkId);
+    const action = getVersionAction({
+      installed,
+      installedVersion,
+      requestedVersion: targetVersion,
+    });
+
+    if (!installed) {
+      return targetVersion
+        ? t('settings.dependency.installVersion', { version: `v${targetVersion}` })
+        : t('settings.dependency.install');
+    }
+
+    if (!targetVersion || action === 'current') {
+      return t('settings.dependency.currentVersionAction');
+    }
+
+    if (action === 'rollback') {
+      return t('settings.dependency.rollbackToVersion', { version: `v${targetVersion}` });
+    }
+
+    return t('settings.dependency.updateToVersion', { version: `v${targetVersion}` });
   };
 
   return (
@@ -359,93 +462,185 @@ const DependencySection = ({ addToast, isActive }: DependencySectionProps) => {
             const isUninstalling = uninstallingSdk === sdk.id;
             const isUpdating = updatingSdk === sdk.id;
             const hasUpdate = info?.hasUpdate;
+            const versionInfo = getVersionInfo(sdk.id);
+            const versionOptions = buildVersionOptions({
+              availableVersions: versionInfo?.versions,
+              fallbackVersions: versionInfo?.fallbackVersions,
+              installedVersion: info?.installedVersion,
+            });
+            const isVersionLoading = loadingVersions[sdk.id];
+            const targetVersion = getTargetVersion(sdk.id);
+            const action = getVersionAction({
+              installed,
+              installedVersion: info?.installedVersion,
+              requestedVersion: targetVersion,
+            });
             // Only allow one operation at a time (install, uninstall, or update)
             const isAnyOperationInProgress = installingSdk !== null || uninstallingSdk !== null || updatingSdk !== null;
-            const updateDisabled = isAnyOperationInProgress || nodeAvailable === false || !hasUpdate;
+            const updateDisabled = isAnyOperationInProgress || nodeAvailable === false || action === 'current';
+
+            const updateIconClass = (() => {
+              if (isUpdating) {
+                return 'codicon codicon-loading codicon-modifier-spin';
+              }
+              if (action === 'current') {
+                return 'codicon codicon-check';
+              }
+              if (action === 'rollback') {
+                return 'codicon codicon-history';
+              }
+              return 'codicon codicon-cloud-upload';
+            })();
+
+            const updateBtnClass = [
+              styles.updateBtn,
+              !isUpdating && action === 'current' ? styles.updateBtnIdle : '',
+              !isUpdating && action === 'rollback' ? styles.updateBtnRollback : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
 
             return (
               <div key={sdk.id} className={styles.sdkCard}>
-                <div className={styles.sdkHeader}>
-                  <div className={styles.sdkInfo}>
-                    <div className={styles.sdkName}>
-                      <span className={`codicon ${installed ? 'codicon-check' : 'codicon-package'}`} />
-                      <span>{t(sdk.nameKey)}</span>
-                      {installed && info?.installedVersion && (
-                        <span className={styles.versionBadge}>v{info.installedVersion}</span>
-                      )}
-                      {installed && hasUpdate && info?.latestVersion && (
-                        <span className={styles.versionBadge}>→ v{info.latestVersion}</span>
-                      )}
-                      {hasUpdate && (
-                        <span className={styles.updateBadge}>
-                          {t('settings.dependency.updateAvailable')}
-                        </span>
-                      )}
-                    </div>
-                    <div className={styles.sdkDescription}>{t(sdk.description)}</div>
+                <div className={styles.cardHeader}>
+                  <div
+                    className={`${styles.sdkIconWrap} ${installed ? styles.sdkIconWrapInstalled : styles.sdkIconWrapPending}`}
+                    aria-hidden
+                  >
+                    <span className={`codicon ${installed ? 'codicon-check' : 'codicon-package'}`} />
                   </div>
-
-                  <div className={styles.sdkActions}>
-                    {!installed ? (
-                      <button
-                        className={`${styles.installBtn} ${isInstalling ? styles.installing : ''}`}
-                        onClick={() => handleInstall(sdk.id)}
-                        disabled={isAnyOperationInProgress || nodeAvailable === false}
-                      >
-                        {isInstalling ? (
-                          <>
-                            <span className="codicon codicon-loading codicon-modifier-spin" />
-                            <span>{t('settings.dependency.installing')}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="codicon codicon-cloud-download" />
-                            <span>{t('settings.dependency.install')}</span>
-                          </>
+                  <div className={styles.cardHeaderText}>
+                    <div className={styles.sdkTitleRow}>
+                      <span className={styles.sdkTitle}>{t(sdk.nameKey)}</span>
+                      <div className={styles.sdkTitleBadges}>
+                        {installed && info?.installedVersion && (
+                          <span className={styles.versionBadge}>v{info.installedVersion}</span>
                         )}
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          className={styles.updateBtn}
-                          onClick={() => handleUpdate(sdk.id)}
-                          disabled={updateDisabled}
-                        >
-                          {isUpdating ? (
-                            <>
-                              <span className="codicon codicon-loading codicon-modifier-spin" />
-                              <span>{t('settings.dependency.updating')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="codicon codicon-sync" />
-                              <span>{t('settings.dependency.update')}</span>
-                            </>
-                          )}
-                        </button>
-                        <button
-                          className={styles.uninstallBtn}
-                          onClick={() => handleUninstall(sdk.id)}
-                          disabled={isAnyOperationInProgress}
-                        >
-                          {isUninstalling ? (
-                            <>
-                              <span className="codicon codicon-loading codicon-modifier-spin" />
-                              <span>{t('settings.dependency.uninstalling')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="codicon codicon-trash" />
-                              <span>{t('settings.dependency.uninstall')}</span>
-                            </>
-                          )}
-                        </button>
-                      </>
-                    )}
+                        {installed && hasUpdate && info?.latestVersion && (
+                          <span className={styles.versionBadgeMuted}>→ v{info.latestVersion}</span>
+                        )}
+                        {hasUpdate && (
+                          <span className={styles.updateBadge}>
+                            {t('settings.dependency.updateAvailable')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className={styles.sdkDescription}>{t(sdk.description)}</p>
                   </div>
                 </div>
 
-                {/* Install path info */}
+                <div className={styles.versionPanel}>
+                  <div className={styles.versionPanelGrid}>
+                    <div className={styles.versionPick}>
+                      <label className={styles.versionFieldLabel} htmlFor={`sdk-version-${sdk.id}`}>
+                        {t('settings.dependency.targetVersion')}
+                      </label>
+                      <select
+                        id={`sdk-version-${sdk.id}`}
+                        className={styles.versionSelect}
+                        value={selectedVersions[sdk.id] ?? ''}
+                        onChange={(event) => {
+                          const nextVersion = event.target.value;
+                          setSelectedVersions((prev) => ({ ...prev, [sdk.id]: nextVersion }));
+                        }}
+                        disabled={isAnyOperationInProgress || isVersionLoading || versionOptions.length === 0}
+                      >
+                        {versionOptions.map((version) => (
+                          <option key={version} value={version}>
+                            {`v${version}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.actionCluster}>
+                      {!installed ? (
+                        <button
+                          type="button"
+                          className={`${styles.installBtn} ${isInstalling ? styles.installing : ''}`}
+                          onClick={() => handleInstall(sdk.id)}
+                          disabled={isAnyOperationInProgress || nodeAvailable === false}
+                        >
+                          {isInstalling ? (
+                            <>
+                              <span className="codicon codicon-loading codicon-modifier-spin" />
+                              <span>{t('settings.dependency.installing')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="codicon codicon-cloud-download" />
+                              <span>{getActionLabel(sdk.id, installed, info?.installedVersion)}</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={updateBtnClass}
+                            onClick={() => handleUpdate(sdk.id)}
+                            disabled={updateDisabled}
+                          >
+                            <span className={updateIconClass} />
+                            <span>
+                              {isUpdating
+                                ? t('settings.dependency.updating')
+                                : getActionLabel(sdk.id, installed, info?.installedVersion)}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.uninstallBtn}
+                            onClick={() => handleUninstall(sdk.id)}
+                            disabled={isAnyOperationInProgress}
+                          >
+                            {isUninstalling ? (
+                              <>
+                                <span className="codicon codicon-loading codicon-modifier-spin" />
+                                <span>{t('settings.dependency.uninstalling')}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="codicon codicon-trash" />
+                                <span>{t('settings.dependency.uninstall')}</span>
+                              </>
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {isVersionLoading && (
+                    <div className={styles.versionLoadingHint}>
+                      <span className="codicon codicon-loading codicon-modifier-spin" />
+                      <span>{t('settings.dependency.loadingVersions')}</span>
+                    </div>
+                  )}
+
+                  {(info?.installedVersion || versionInfo?.latestVersion) && (
+                    <div className={styles.versionMetaRow}>
+                      {info?.installedVersion && (
+                        <span className={styles.metaChip}>
+                          {t('settings.dependency.installedVersion', { version: `v${info.installedVersion}` })}
+                        </span>
+                      )}
+                      {versionInfo?.latestVersion && (
+                        <span className={`${styles.metaChip} ${styles.metaChipAccent}`}>
+                          {t('settings.dependency.latestStableVersion', { version: `v${versionInfo.latestVersion}` })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {versionInfo?.source === 'fallback' && (
+                    <div className={styles.versionHint}>{t('settings.dependency.versionSourceFallback')}</div>
+                  )}
+                  {installed && action === 'rollback' && (
+                    <div className={styles.rollbackHint}>{t('settings.dependency.rollbackWarning')}</div>
+                  )}
+                </div>
+
                 {installed && info?.installPath && (
                   <div className={styles.installPath}>
                     <span className="codicon codicon-folder" />

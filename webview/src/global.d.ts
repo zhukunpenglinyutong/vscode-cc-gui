@@ -18,9 +18,9 @@ interface Window {
   handleFilePathFromJava?: (filePathInput: string | string[]) => void;
 
   /**
-   * Update messages from backend
+   * Update messages from backend (optionally with sequence number for ordering)
    */
-  updateMessages?: (json: string) => void;
+  updateMessages?: (json: string, sequenceArg?: string | number) => void;
 
   /**
    * Patch a single message UUID without re-sending the full message list.
@@ -691,4 +691,34 @@ interface Window {
    * Clipboard read callback for paste from IDEA shortcut
    */
   onClipboardRead?: (text: string) => void;
+
+  // ============================================================================
+  // Streaming stall watchdog (migrated from JetBrains)
+  // ============================================================================
+  __stallWatchdogInterval?: ReturnType<typeof setInterval> | null;
+  __lastStreamActivityAt?: number;
+  onStreamingHeartbeat?: () => void;
+
+  // ============================================================================
+  // RAF-buffered updateMessages (migrated from JetBrains)
+  // ============================================================================
+  __pendingUpdateRaf?: number | null;
+  __pendingUpdateJson?: string | null;
+  __pendingUpdateSequence?: number | null;
+  __cancelPendingUpdateMessages?: () => void;
+  __minAcceptedUpdateSequence?: number;
+
+  // ============================================================================
+  // Dependency version selection
+  // ============================================================================
+  dependencyVersionsLoaded?: (json: string) => void;
+  __pendingDependencyVersions?: string;
+
+  // ============================================================================
+  // JetBrains-origin window properties
+  // ============================================================================
+  __INITIAL_IDE_THEME__?: 'light' | 'dark' | null | undefined;
+  __turnStartedAt?: number;
+  __pendingUpdateMessages?: string;
+  showSummary?: (summary: any) => void;
 }

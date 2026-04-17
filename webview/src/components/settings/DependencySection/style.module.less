@@ -78,7 +78,7 @@
 .sdkList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   margin-bottom: 24px;
 }
 
@@ -98,77 +98,200 @@
 .sdkCard {
   background: var(--bg-secondary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
-  padding: 16px;
-  transition: all 0.2s;
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
 
   &:hover {
     border-color: var(--border-hover);
   }
 }
 
-.sdkHeader {
+.cardHeader {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 14px;
+  padding: 18px 18px 14px;
 }
 
-.sdkInfo {
+.sdkIconWrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-secondary);
+
+  .codicon {
+    font-size: 22px;
+  }
+}
+
+.sdkIconWrapInstalled {
+  background: rgba(76, 175, 80, 0.12);
+  border-color: rgba(76, 175, 80, 0.35);
+  color: #66bb6a;
+
+  .codicon {
+    color: inherit;
+  }
+}
+
+.sdkIconWrapPending {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+.cardHeaderText {
   flex: 1;
   min-width: 0;
 }
 
-.sdkName {
+.sdkTitleRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
+  gap: 8px 12px;
+  margin-bottom: 6px;
+}
+
+.sdkTitle {
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
 
-  .codicon {
-    font-size: 16px;
-
-    &.codicon-check {
-      color: #4caf50;
-    }
-
-    &.codicon-package {
-      color: var(--text-tertiary);
-    }
-  }
+.sdkTitleBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .versionBadge {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
   background: var(--bg-tertiary);
-  border-radius: 4px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 999px;
   color: var(--text-secondary);
+}
+
+.versionBadgeMuted {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid rgba(33, 150, 243, 0.22);
+  color: #64b5f6;
 }
 
 .updateBadge {
   font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  background: rgba(33, 150, 243, 0.15);
-  border-radius: 4px;
-  color: #2196f3;
+  font-weight: 600;
+  padding: 3px 9px;
+  background: rgba(33, 150, 243, 0.16);
+  border-radius: 999px;
+  color: #42a5f5;
+  border: 1px solid rgba(33, 150, 243, 0.28);
 }
 
 .sdkDescription {
+  margin: 0;
   font-size: 13px;
   color: var(--text-tertiary);
-  line-height: 1.5;
+  line-height: 1.55;
+  max-width: 52rem;
 }
 
-.sdkActions {
+/* 版本选择 + 操作区 */
+.versionPanel {
+  margin: 0 18px 18px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+}
+
+.versionPanelGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) 1fr;
+  gap: 16px 20px;
+  align-items: end;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+.versionPick {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0;
+}
+
+.versionFieldLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.versionSelect {
+  width: 100%;
+  max-width: 280px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--border-hover);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 560px) {
+    max-width: none;
+  }
+}
+
+.actionCluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+
+  @media (max-width: 560px) {
+    justify-content: flex-start;
+  }
 }
 
 .installBtn,
@@ -210,38 +333,138 @@
 }
 
 .updateBtn {
-  background: rgba(33, 150, 243, 0.15);
-  color: #2196f3;
+  background: rgba(33, 150, 243, 0.12);
+  color: #42a5f5;
+  border: 1px solid rgba(33, 150, 243, 0.35);
 
   &:hover:not(:disabled) {
-    background: rgba(33, 150, 243, 0.25);
+    background: rgba(33, 150, 243, 0.2);
+    border-color: rgba(33, 150, 243, 0.5);
+  }
+}
+
+.updateBtnIdle {
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
+  border-color: var(--border-secondary);
+
+  .codicon {
+    color: #81c784;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+  }
+}
+
+.updateBtnRollback {
+  background: rgba(255, 152, 0, 0.08);
+  color: #ffb74d;
+  border-color: rgba(255, 152, 0, 0.45);
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 152, 0, 0.14);
+  }
+
+  .codicon {
+    color: #ffb74d;
   }
 }
 
 .uninstallBtn {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
+  background: rgba(244, 67, 54, 0.08);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
 
   &:hover:not(:disabled) {
-    background: rgba(244, 67, 54, 0.2);
+    background: rgba(244, 67, 54, 0.16);
+    border-color: rgba(244, 67, 54, 0.42);
   }
+}
+
+.versionLoadingHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-secondary);
+  font-size: 12px;
+  color: var(--text-tertiary);
+
+  .codicon {
+    font-size: 14px;
+  }
+}
+
+.versionMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+.metaChipAccent {
+  border-color: rgba(33, 150, 243, 0.35);
+  background: rgba(33, 150, 243, 0.06);
+  color: #90caf9;
+}
+
+.versionHint,
+.rollbackHint {
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 6px;
+}
+
+.versionHint {
+  background: rgba(255, 152, 0, 0.08);
+  border: 1px solid rgba(255, 152, 0, 0.22);
+  color: #ffcc80;
+}
+
+.rollbackHint {
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  color: #ffcc80;
 }
 
 .installPath {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-secondary);
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 18px 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   font-size: 12px;
   color: var(--text-tertiary);
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   word-break: break-all;
 
   .codicon {
     font-size: 14px;
     flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--text-tertiary);
   }
 }
 
@@ -308,5 +531,28 @@
     pre {
       color: #333333;
     }
+  }
+
+  .sdkCard {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  .sdkIconWrapInstalled {
+    background: rgba(76, 175, 80, 0.2);
+    color: #2e7d32;
+    border-color: rgba(46, 125, 50, 0.35);
+  }
+
+  .metaChipAccent {
+    color: #1565c0;
+  }
+
+  .versionBadgeMuted {
+    color: #1565c0;
+  }
+
+  .versionHint,
+  .rollbackHint {
+    color: #e65100;
   }
 }

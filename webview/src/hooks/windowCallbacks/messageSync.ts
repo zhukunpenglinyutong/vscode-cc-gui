@@ -7,7 +7,7 @@
  */
 
 import type { MutableRefObject } from 'react';
-import type { ClaudeMessage, ClaudeRawMessage } from '../../types';
+import type { ClaudeContentOrResultBlock, ClaudeMessage, ClaudeRawMessage } from '../../types';
 
 /** Time window (ms) for matching optimistic messages with backend messages. */
 export const OPTIMISTIC_MESSAGE_TIME_WINDOW = 5000;
@@ -204,6 +204,121 @@ export const preserveStreamingAssistantContent = (
   return copy;
 };
 
+const getMessageContentArray = (message: ClaudeMessage): ClaudeContentOrResultBlock[] => {
+  const raw = message.raw;
+  if (!raw || typeof raw !== 'object') return [];
+
+  const content = Array.isArray(raw.message?.content)
+    ? raw.message.content
+    : Array.isArray(raw.content)
+      ? raw.content
+      : [];
+
+  return content.filter((entry): entry is ClaudeContentOrResultBlock => Boolean(entry) && typeof entry === 'object');
+};
+
+const getToolEventKey = (block: ClaudeContentOrResultBlock): string | null => {
+  if (block.type === 'tool_use' && typeof block.id === 'string' && block.id) {
+    return `tool_use:${block.id}`;
+  }
+  if (block.type === 'tool_result' && typeof block.tool_use_id === 'string' && block.tool_use_id) {
+    return `tool_result:${block.tool_use_id}`;
+  }
+  return null;
+};
+
+const getMessageToolEventKeys = (message: ClaudeMessage): string[] => {
+  const keys = new Set<string>();
+  for (const block of getMessageContentArray(message)) {
+    const key = getToolEventKey(block);
+    if (key) {
+      keys.add(key);
+    }
+  }
+  return [...keys];
+};
+
+const isToolOnlyMessage = (message: ClaudeMessage): boolean => {
+  if (typeof message.content === 'string' && message.content.trim()) {
+    return false;
+  }
+  const blocks = getMessageContentArray(message);
+  return blocks.length > 0 && blocks.every((block) => block.type === 'tool_use' || block.type === 'tool_result');
+};
+
+export const stripDuplicateTrailingToolMessages = (
+  nextList: ClaudeMessage[],
+  provider: string,
+): ClaudeMessage[] => {
+  if (provider !== 'codex') return nextList;
+  if (nextList.length === 0) return nextList;
+
+  // Pre-compute keys per message once, then use a reference-count map so we
+  // can walk backwards from the tail in O(n) total instead of rebuilding a
+  // Set on every iteration.
+  const allKeys = nextList.map((msg) => getMessageToolEventKeys(msg));
+  const keyCounts = new Map<string, number>();
+  for (const keys of allKeys) {
+    for (const key of keys) {
+      keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  let endIndex = nextList.length;
+  while (endIndex > 0) {
+    const lastMessage = nextList[endIndex - 1];
+    if (!isToolOnlyMessage(lastMessage)) break;
+
+    const candidateKeys = allKeys[endIndex - 1];
+    if (candidateKeys.length === 0) break;
+
+    // A key is duplicated if it appears more than once across all remaining messages.
+    if (!candidateKeys.every((key) => (keyCounts.get(key) ?? 0) > 1)) {
+      break;
+    }
+
+    // Decrement counts for the removed message's keys.
+    for (const key of candidateKeys) {
+      const count = keyCounts.get(key) ?? 0;
+      if (count <= 1) {
+        keyCounts.delete(key);
+      } else {
+        keyCounts.set(key, count - 1);
+      }
+    }
+
+    endIndex--;
+  }
+
+  return endIndex === nextList.length ? nextList : nextList.slice(0, endIndex);
+};
+
+/**
+ * When Codex compacts or summarizes a long conversation, backend snapshots can
+ * briefly shrink and omit the newest in-memory turn. Preserve that trailing
+ * turn locally until the backend catches up, instead of wiping it from the UI.
+ */
+export const preserveLatestMessagesOnShrink = (
+  prevList: ClaudeMessage[],
+  nextList: ClaudeMessage[],
+  provider: string,
+): ClaudeMessage[] => {
+  if (provider !== 'codex') return nextList;
+  if (nextList.length >= prevList.length) return nextList;
+  if (prevList.length === 0 || nextList.length === 0) return nextList;
+
+  const preservedTail = prevList.slice(nextList.length);
+  if (preservedTail.length === 0) return nextList;
+
+  const hasStreamingTail = preservedTail.some((msg) => msg.type === 'assistant' && (msg.isStreaming || !!msg.__turnId));
+  const hasRecentUserTail = preservedTail.some((msg) => msg.type === 'user');
+  if (!hasStreamingTail && !hasRecentUserTail) {
+    return nextList;
+  }
+
+  return [...nextList, ...preservedTail];
+};
+
 // ---------------------------------------------------------------------------
 // Streaming assistant preservation
 // ---------------------------------------------------------------------------
@@ -254,10 +369,16 @@ export const ensureStreamingAssistantInList = (
   for (let i = prevList.length - 1; i >= 0; i--) {
     const msg = prevList[i];
     if (msg.type === 'assistant' && msg.isStreaming && msg.__turnId && msg.__turnId > 0) {
-      const alreadyPresent = resultList.some(
-        (m) => m.type === 'assistant' && m.__turnId === msg.__turnId,
-      );
-      if (!alreadyPresent) {
+      const alreadyPresent = resultList.some((m) => {
+        if (m.type !== 'assistant') return false;
+        if (m.__turnId === msg.__turnId) return true;
+        if (msg.timestamp && m.timestamp === msg.timestamp) return true;
+        return false;
+      });
+      const assistantAlreadyAtOrAfterPosition =
+        i < resultList.length && resultList.slice(i).some((m) => m.type === 'assistant');
+
+      if (!alreadyPresent && !assistantAlreadyAtOrAfterPosition) {
         const result = [...resultList, msg];
         return { list: result, streamingIndex: result.length - 1 };
       }

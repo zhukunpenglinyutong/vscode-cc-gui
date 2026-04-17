@@ -41,6 +41,7 @@ export class BridgeServer {
   private _webview?: vscode.Webview;
   private _log: vscode.OutputChannel;
   private _activeProvider: 'claude' | 'codex' = 'claude';
+  private _selectedModel: string = '';
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this._log = vscode.window.createOutputChannel('Claude Code GUI');
@@ -202,9 +203,12 @@ export class BridgeServer {
         }
         break;
       }
+      case 'set_model':
+        this._selectedModel = content || '';
+        this._log.appendLine(`[BRIDGE] Model set to: ${this._selectedModel}`);
+        break;
       // Silently ignore these — handled client-side or not needed in VSCode
       case 'tab_status_changed':
-      case 'set_model':
       case 'get_selected_agent':
       case 'sort_providers':
       case 'get_node_path':
@@ -369,6 +373,26 @@ export class BridgeServer {
       case 'get_mcp_server_status':
       case 'get_codex_mcp_server_status':
         this._getMcpServerStatus(event.startsWith('get_codex'), webview);
+        break;
+      case 'add_mcp_server':
+      case 'add_codex_mcp_server':
+        this._addMcpServer(event.startsWith('add_codex'), content, webview);
+        break;
+      case 'update_mcp_server':
+      case 'update_codex_mcp_server':
+        this._updateMcpServer(event.startsWith('update_codex'), content, webview);
+        break;
+      case 'delete_mcp_server':
+      case 'delete_codex_mcp_server':
+        this._deleteMcpServer(event.startsWith('delete_codex'), content, webview);
+        break;
+      case 'toggle_mcp_server':
+      case 'toggle_codex_mcp_server':
+        this._toggleMcpServer(event.startsWith('toggle_codex'), content, webview);
+        break;
+      case 'get_mcp_server_tools':
+      case 'get_codex_mcp_server_tools':
+        this._getMcpServerTools(content, webview);
         break;
 
       // ── Usage statistics ──────────────────────────────────────────────────
@@ -708,6 +732,11 @@ export class BridgeServer {
       case 'uninstall_dependency':
         this._uninstallDependency(content, webview);
         break;
+      case 'get_dependency_versions': {
+        const { id: depsId } = content ? JSON.parse(content) : { id: '' };
+        this._getDependencyVersions(depsId, webview);
+        break;
+      }
 
       // ── cc-switch import ──────────────────────────────────────────────────
       case 'open_file_chooser_for_cc_switch':
@@ -1013,6 +1042,11 @@ export class BridgeServer {
 
     if (params.text !== undefined && params.message === undefined) {
       params.message = params.text;
+    }
+
+    // Inject the selected model if not already set in params
+    if (!params.model && this._selectedModel) {
+      params.model = this._selectedModel;
     }
 
     this._pendingWebviews.set(id, webview);
@@ -2059,6 +2093,161 @@ export class BridgeServer {
     // Return empty status list — actual connectivity check not implemented
     const type = isCodex ? 'update_codex_mcp_server_status' : 'update_mcp_server_status';
     webview.postMessage({ type, content: JSON.stringify([]) });
+  }
+
+  private _readMcpSettings(): any {
+    const os = require('os') as typeof import('os');
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    try {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    } catch {
+      return {};
+    }
+  }
+
+  private _writeMcpSettings(settings: any): void {
+    const os = require('os') as typeof import('os');
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    const dir = path.dirname(settingsPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+  }
+
+  private _addMcpServer(isCodex: boolean, content: string, webview: vscode.Webview) {
+    try {
+      const server = JSON.parse(content || '{}');
+      const settings = this._readMcpSettings();
+      if (!settings.mcpServers) settings.mcpServers = {};
+      const serverId = server.id || server.name || `mcp-${Date.now()}`;
+      settings.mcpServers[serverId] = server.server || {
+        command: server.command,
+        args: server.args || [],
+        env: server.env || {},
+      };
+      this._writeMcpSettings(settings);
+      this._getMcpServers(isCodex, webview);
+    } catch (e: any) {
+      this._log.appendLine(`[MCP] add error: ${e.message}`);
+    }
+  }
+
+  private _updateMcpServer(isCodex: boolean, content: string, webview: vscode.Webview) {
+    try {
+      const server = JSON.parse(content || '{}');
+      const settings = this._readMcpSettings();
+      if (!settings.mcpServers) settings.mcpServers = {};
+      const serverId = server.id || server.name;
+      if (serverId && settings.mcpServers[serverId]) {
+        settings.mcpServers[serverId] = server.server || {
+          command: server.command,
+          args: server.args || [],
+          env: server.env || {},
+        };
+        this._writeMcpSettings(settings);
+      }
+      this._getMcpServers(isCodex, webview);
+    } catch (e: any) {
+      this._log.appendLine(`[MCP] update error: ${e.message}`);
+    }
+  }
+
+  private _deleteMcpServer(isCodex: boolean, content: string, webview: vscode.Webview) {
+    try {
+      const { id } = JSON.parse(content || '{}');
+      const settings = this._readMcpSettings();
+      if (settings.mcpServers && id) {
+        delete settings.mcpServers[id];
+        this._writeMcpSettings(settings);
+      }
+      this._getMcpServers(isCodex, webview);
+    } catch (e: any) {
+      this._log.appendLine(`[MCP] delete error: ${e.message}`);
+    }
+  }
+
+  private _toggleMcpServer(isCodex: boolean, content: string, webview: vscode.Webview) {
+    try {
+      const server = JSON.parse(content || '{}');
+      const settings = this._readMcpSettings();
+      if (!settings.mcpServers) settings.mcpServers = {};
+      const serverId = server.id || server.name;
+      if (serverId) {
+        if (server.enabled === false) {
+          // Disable: move to disabled list
+          if (!settings.disabledMcpServers) settings.disabledMcpServers = {};
+          if (settings.mcpServers[serverId]) {
+            settings.disabledMcpServers[serverId] = settings.mcpServers[serverId];
+            delete settings.mcpServers[serverId];
+          }
+        } else {
+          // Enable: move back from disabled list
+          if (settings.disabledMcpServers?.[serverId]) {
+            settings.mcpServers[serverId] = settings.disabledMcpServers[serverId];
+            delete settings.disabledMcpServers[serverId];
+          }
+        }
+        this._writeMcpSettings(settings);
+      }
+      this._getMcpServers(isCodex, webview);
+    } catch (e: any) {
+      this._log.appendLine(`[MCP] toggle error: ${e.message}`);
+    }
+  }
+
+  private _getMcpServerTools(content: string, webview: vscode.Webview) {
+    // Tools discovery requires MCP server connection — return empty for now
+    try {
+      const { serverId } = JSON.parse(content || '{}');
+      webview.postMessage({
+        type: 'js_eval',
+        content: `window.updateMcpServerTools && window.updateMcpServerTools(${JSON.stringify(JSON.stringify({ serverId, tools: [] }))})`,
+      });
+    } catch { /* ignore */ }
+  }
+
+  private _getDependencyVersions(sdkId: string, webview: vscode.Webview) {
+    // Map SDK IDs to npm package names
+    const pkgMap: Record<string, string> = {
+      'claude-sdk': '@anthropic-ai/claude-code',
+      'codex-sdk': 'openai',
+    };
+    // Empty id (e.g. `get_dependency_versions:` from settings) means load all SDKs.
+    // Must return one entry per SDK so the webview can clear per-SDK loading spinners.
+    const ids = !sdkId ? Object.keys(pkgMap) : pkgMap[sdkId] ? [sdkId] : [];
+    if (ids.length === 0) {
+      webview.postMessage({
+        type: 'js_eval',
+        content: `window.dependencyVersionsLoaded && window.dependencyVersionsLoaded(${JSON.stringify(JSON.stringify({}))})`,
+      });
+      return;
+    }
+
+    const nodePath = NodeDetector.find(this.context);
+    const npmPath = nodePath ? path.join(path.dirname(nodePath), 'npm') : 'npm';
+
+    const fetchOne = (id: string): Promise<[string, { versions: string[]; latestVersion: string; fallbackVersions: [] }]> =>
+      new Promise((resolve) => {
+        const pkg = pkgMap[id];
+        cp.exec(`"${npmPath}" view ${pkg} versions --json`, { timeout: 30000 }, (err, stdout) => {
+          try {
+            const allVersions: string[] = err ? [] : JSON.parse(stdout.trim());
+            // Return last 20 versions (most recent)
+            const versions = allVersions.slice(-20).reverse();
+            const latestVersion = versions[0] ?? '';
+            resolve([id, { versions, latestVersion, fallbackVersions: [] }]);
+          } catch {
+            resolve([id, { versions: [], latestVersion: '', fallbackVersions: [] }]);
+          }
+        });
+      });
+
+    Promise.all(ids.map(fetchOne)).then((entries) => {
+      const result = Object.fromEntries(entries) as Record<string, any>;
+      webview.postMessage({
+        type: 'js_eval',
+        content: `window.dependencyVersionsLoaded && window.dependencyVersionsLoaded(${JSON.stringify(JSON.stringify(result))})`,
+      });
+    });
   }
 
   private _getUsageStatistics(_content: string, webview: vscode.Webview) {

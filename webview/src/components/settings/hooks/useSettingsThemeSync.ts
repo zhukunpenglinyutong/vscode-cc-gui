@@ -1,12 +1,7 @@
 // hooks/useSettingsThemeSync.ts
 import { useState, useEffect } from 'react';
 
-// Extend window type for IDE theme injection
-declare global {
-  interface Window {
-    __INITIAL_IDE_THEME__?: 'light' | 'dark';
-  }
-}
+// __INITIAL_IDE_THEME__ is declared in global.d.ts
 
 export interface UseSettingsThemeSyncReturn {
   themePreference: 'light' | 'dark' | 'system';

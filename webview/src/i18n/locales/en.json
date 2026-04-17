@@ -244,7 +244,18 @@
       "uninstallSuccess": "{{name}} has been uninstalled",
       "uninstallFailed": "Uninstall failed: {{error}}",
       "updating": "Updating...",
-      "updateSuccess": "{{name}} updated successfully"
+      "updateSuccess": "{{name}} updated successfully",
+      "installVersion": "Install {{version}}",
+      "updateToVersion": "Update to {{version}}",
+      "rollbackToVersion": "Rollback to {{version}}",
+      "currentVersionAction": "Current version",
+      "targetVersion": "Target version",
+      "loadingVersions": "Version list loading...",
+      "installedVersion": "Installed {{version}}",
+      "latestStableVersion": "Latest stable {{version}}",
+      "targetVersionValue": "Target {{version}}",
+      "versionSourceFallback": "Remote versions could not be loaded. Showing the built-in recommended versions instead.",
+      "rollbackWarning": "This is a rollback operation. Re-check the related AI features after switching versions."
     },
     "usage": "Usage Statistics",
     "usageDesc": "View your Token consumption, cost statistics and usage trend analysis",
@@ -1075,7 +1086,6 @@
     "bashGroupCompleted": "completed",
     "bashGroupAllCompleted": "All Completed",
     "bashGroupFailed": "failed",
-    "promptLabel": "Prompt",
     "updatePlan": "Update Plan",
     "applyPatch": "Apply Patch"
   },

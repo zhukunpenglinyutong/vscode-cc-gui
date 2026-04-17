@@ -392,6 +392,59 @@ export function mergeConsecutiveAssistantMessages(
     return `${message.type}-${index}`;
   };
 
+  const getAssistantBlockSummary = (message: ClaudeMessage): { hasToolUse: boolean; hasText: boolean } => {
+    const blocks = normalizeBlocksFn(message.raw) || [];
+    return {
+      hasToolUse: blocks.some((block) => block.type === 'tool_use'),
+      hasText: blocks.some((block) => block.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0)
+        || Boolean(message.content && message.content.trim()),
+    };
+  };
+
+  const shouldMergeAssistantMessage = (previous: ClaudeMessage, next: ClaudeMessage): boolean => {
+    // Distinct streaming turns must stay visually separated even when the
+    // backend emits adjacent assistant fragments during synchronization.
+    if (
+      previous.__turnId !== undefined &&
+      next.__turnId !== undefined &&
+      previous.__turnId !== next.__turnId
+    ) {
+      return false;
+    }
+
+    const previousSummary = getAssistantBlockSummary(previous);
+    const nextSummary = getAssistantBlockSummary(next);
+
+    // Keep tool-execution assistant messages separated from the final answer.
+    if (previousSummary.hasToolUse !== nextSummary.hasToolUse) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const isToolResultOnlyUserMessage = (message: ClaudeMessage): boolean => {
+    if (message.type !== 'user') {
+      return false;
+    }
+
+    if ((message.content ?? '').trim() === '[tool_result]') {
+      return true;
+    }
+
+    const raw = message.raw;
+    if (!raw || typeof raw === 'string') {
+      return false;
+    }
+
+    const content = raw.content ?? raw.message?.content;
+    if (!Array.isArray(content) || content.length === 0) {
+      return false;
+    }
+
+    return content.every((block) => block && block.type === 'tool_result');
+  };
+
   const buildMergedAssistantMessage = (group: ClaudeMessage[]): ClaudeMessage => {
     const first = group[0];
 
@@ -440,19 +493,35 @@ export function mergeConsecutiveAssistantMessages(
       continue;
     }
 
+    const assistantGroup: ClaudeMessage[] = [msg];
     let j = i + 1;
-    while (j < messages.length && messages[j].type === 'assistant') {
-      j += 1;
+    let previousAssistant = msg;
+
+    while (j < messages.length) {
+      const candidate = messages[j];
+
+      if (isToolResultOnlyUserMessage(candidate)) {
+        j += 1;
+        continue;
+      }
+
+      if (candidate.type === 'assistant' && shouldMergeAssistantMessage(previousAssistant, candidate)) {
+        assistantGroup.push(candidate);
+        previousAssistant = candidate;
+        j += 1;
+        continue;
+      }
+
+      break;
     }
 
-    const groupLength = j - i;
-    if (groupLength <= 1) {
+    const group = messages.slice(i, j);
+    if (assistantGroup.length <= 1) {
       result.push(msg);
       i = j;
       continue;
     }
 
-    const group = messages.slice(i, j);
     const groupKey = `${getStableId(group[0], i)}..${getStableId(group[group.length - 1], j - 1)}#${group.length}`;
 
     if (cache) {
@@ -468,7 +537,7 @@ export function mergeConsecutiveAssistantMessages(
       }
     }
 
-    const merged = buildMergedAssistantMessage(group);
+    const merged = buildMergedAssistantMessage(assistantGroup);
     if (cache) {
       cache.set(groupKey, { source: group, merged });
       if (cache.size > MESSAGE_MERGE_CACHE_LIMIT) {

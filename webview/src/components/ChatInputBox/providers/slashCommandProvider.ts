@@ -22,13 +22,38 @@ const HIDDEN_COMMANDS = new Set([
  */
 const NEW_SESSION_COMMAND_ALIASES = new Set(['/clear', '/new', '/reset']);
 
+/**
+ * Local navigation/mode commands handled entirely on the frontend
+ */
+const LOCAL_COMMAND_ALIASES = new Set(['/resume', '/continue', '/plan']);
+
 function getLocalNewSessionCommands(): CommandItem[] {
-  return [{
-    id: 'clear',
-    label: '/clear',
-    description: i18n.t('chat.clearCommandDescription'),
-    category: 'system',
-  }];
+  return [
+    {
+      id: 'clear',
+      label: '/clear',
+      description: i18n.t('chat.clearCommandDescription', { defaultValue: 'Clear the current conversation and start a new session' }),
+      category: 'system',
+    },
+    {
+      id: 'resume',
+      label: '/resume',
+      description: i18n.t('chat.resumeCommandDescription', { defaultValue: 'Open conversation history' }),
+      category: 'system',
+    },
+    {
+      id: 'continue',
+      label: '/continue',
+      description: i18n.t('chat.continueCommandDescription', { defaultValue: 'Open conversation history' }),
+      category: 'system',
+    },
+    {
+      id: 'plan',
+      label: '/plan',
+      description: i18n.t('chat.planCommandDescription', { defaultValue: 'Switch to plan mode (Claude only)' }),
+      category: 'system',
+    },
+  ];
 }
 
 // ============================================================================
@@ -219,10 +244,11 @@ function requestRefresh(): boolean {
 function isHiddenCommand(name: string): boolean {
   const normalized = name.startsWith('/') ? name : `/${name}`;
   if (HIDDEN_COMMANDS.has(normalized)) return true;
-  // Hide SDK-returned /clear (use local version instead)
+  // Hide SDK-returned versions — use local versions instead
   if (NEW_SESSION_COMMAND_ALIASES.has(normalized)) return true;
+  if (LOCAL_COMMAND_ALIASES.has(normalized)) return true;
   const baseName = normalized.split(' ')[0];
-  return HIDDEN_COMMANDS.has(baseName) || NEW_SESSION_COMMAND_ALIASES.has(baseName);
+  return HIDDEN_COMMANDS.has(baseName) || NEW_SESSION_COMMAND_ALIASES.has(baseName) || LOCAL_COMMAND_ALIASES.has(baseName);
 }
 
 function getCategoryFromCommand(name: string): string {
