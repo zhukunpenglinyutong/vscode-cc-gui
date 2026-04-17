@@ -363,6 +363,35 @@ export function getContentBlocks(
     if (!hasTextBlock && message.content && message.content.trim()) {
       return [...rawBlocks, { type: 'text', text: localizeMessage(message.content) }];
     }
+    // Assistant streaming/sync: top-level `content` is the live buffer and can run ahead of
+    // `raw.message.content` (normalize cache, merge timing, or block rebuild). If it is longer,
+    // prefer it so the UI does not freeze on a stale first chunk (e.g. "我是 **").
+    if (message.type === 'assistant' && typeof message.content === 'string') {
+      const topRaw = message.content;
+      const textFromRaw = rawBlocks
+        .filter((b) => b.type === 'text')
+        .map((b) => String((b as { text?: string }).text ?? ''))
+        .join('');
+      if (topRaw.trim() && topRaw.length > textFromRaw.length) {
+        const mergedText = localizeMessage(topRaw);
+        let replacedFirst = false;
+        const merged: ClaudeContentBlock[] = [];
+        for (const b of rawBlocks) {
+          if (b.type !== 'text') {
+            merged.push(b);
+            continue;
+          }
+          if (!replacedFirst) {
+            merged.push({ type: 'text', text: mergedText });
+            replacedFirst = true;
+          }
+        }
+        if (!replacedFirst) {
+          merged.push({ type: 'text', text: mergedText });
+        }
+        return merged;
+      }
+    }
     return rawBlocks;
   }
   if (message.content && message.content.trim()) {

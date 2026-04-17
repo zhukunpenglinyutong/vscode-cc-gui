@@ -193,6 +193,16 @@ function renderStreamingContent(content: string): string {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 
+      // Odd count of `**` means an unclosed bold marker while streaming — treat the last `**`
+      // as literal so the rest of the line still renders (avoids "stuck" partial bold).
+      const starPairs = html.match(/\*\*/g);
+      if (starPairs && starPairs.length % 2 === 1) {
+        const last = html.lastIndexOf('**');
+        if (last >= 0) {
+          html = `${html.slice(0, last)}&#42;&#42;${html.slice(last + 2)}`;
+        }
+      }
+
       // Inline code
       html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
       // Bold
