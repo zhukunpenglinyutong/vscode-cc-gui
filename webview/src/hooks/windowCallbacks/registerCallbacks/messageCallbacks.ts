@@ -577,6 +577,36 @@ export function registerMessageCallbacks(
     });
   };
 
+  // History session load — only process when a session transition is active.
+  // The guard ensures this is ignored during normal chat flow if the daemon
+  // also emits session_messages at the end of a turn.
+  window.onSessionMessages = (json: string) => {
+    const expecting = window.__expectingSessionMessages;
+    if (!expecting) {
+      return;
+    }
+    window.__expectingSessionMessages = false;
+    try {
+      const messages = typeof json === 'string' ? JSON.parse(json) : json;
+      // Use setTimeout(0) so this runs after any in-flight React batched updates
+      // (e.g. beginSessionTransition's setMessages([])) have been flushed first.
+      setTimeout(() => {
+        setMessages(messages as ClaudeMessage[]);
+        releaseSessionTransition();
+      }, 0);
+    } catch (e) {
+      console.error('[onSessionMessages] parse error:', e);
+      releaseSessionTransition();
+    }
+  };
+
+  // Drain buffered session_messages (arrived before this handler was registered)
+  const pendingSession = (window as any).__pendingSessionMessages;
+  if (pendingSession) {
+    delete (window as any).__pendingSessionMessages;
+    window.onSessionMessages?.(pendingSession);
+  }
+
   window.addUserMessage = (content: string) => {
     if (window.__sessionTransitioning) return;
     const userMessage: ClaudeMessage = {

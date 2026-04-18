@@ -67,7 +67,7 @@ interface Window {
    */
   addHistoryMessage?: (message: any) => void;
   __setHistoryMessages?: (messages: any[]) => void;
-  onSessionMessages?: (messages: any[]) => void;
+  onSessionMessages?: (json: string) => void;
 
   /**
    * History load complete callback - invoked when history messages finish loading.
@@ -529,6 +529,7 @@ interface Window {
    * Set to true during new session creation to prevent stale callbacks from writing old messages via updateMessages.
    */
   __sessionTransitioning?: boolean;
+  __expectingSessionMessages?: boolean;
 
   /**
    * Session transition token (debug/logging only).

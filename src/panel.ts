@@ -156,30 +156,19 @@ export class ClaudeCodeGuiPanel implements vscode.WebviewViewProvider {
             try { eval(msg.content); } catch(e) { console.error('[BRIDGE] js_eval error:', e); }
             return;
           }
-          // session_messages: load history session messages into React state
-          if (msg.type === 'session_messages') {
-            var msgs = [];
-            try { msgs = JSON.parse(msg.content); } catch(e) {}
-            vscode.postMessage({ type: 'bridge', payload: 'debug_log:session_messages received count=' + msgs.length });
-            var capturedMsgs = msgs;
-            setTimeout(function() {
-              window.__sessionTransitioning = false;
-              window.__sessionTransitionToken = null;
-              // Test 1: does addUserMessage work? (shows a visible user bubble)
-              if (typeof window.addUserMessage === 'function') {
-                window.addUserMessage('DEBUG: loading ' + capturedMsgs.length + ' history messages');
-                vscode.postMessage({ type: 'bridge', payload: 'debug_log:addUserMessage called' });
-              }
-              // Test 2: set actual history messages
-              if (typeof window.__setHistoryMessages === 'function') {
-                window.__setHistoryMessages(capturedMsgs);
-                vscode.postMessage({ type: 'bridge', payload: 'debug_log:__setHistoryMessages called' });
-              }
-            }, 300);
-            return;
-          }
           // Try direct window function first
           const fnName = TYPE_TO_FN[msg.type];
+          // session_messages: buffer if handler not ready yet
+          if (msg.type === 'session_messages') {
+            var smFnExists = typeof window[fnName] === 'function';
+            if (smFnExists) {
+              window[fnName](msg.content);
+            } else {
+              console.log('[PANEL] session_messages: handler not ready, buffering');
+              window.__pendingSessionMessages = msg.content;
+            }
+            return;
+          }
           if (fnName) {
             // import_preview_result and backend_notification use CustomEvent dispatch
             if (msg.type === 'import_preview_result' || msg.type === 'backend_notification') {

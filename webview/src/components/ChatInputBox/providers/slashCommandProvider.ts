@@ -30,6 +30,12 @@ const LOCAL_COMMAND_ALIASES = new Set(['/resume', '/continue', '/plan']);
 function getLocalNewSessionCommands(): CommandItem[] {
   return [
     {
+      id: 'new',
+      label: '/new',
+      description: i18n.t('chat.newCommandDescription', { defaultValue: 'Create a new session and clear messages' }),
+      category: 'system',
+    },
+    {
       id: 'clear',
       label: '/clear',
       description: i18n.t('chat.clearCommandDescription', { defaultValue: 'Clear the current conversation and start a new session' }),
@@ -162,55 +168,7 @@ export function setupSlashCommandsCallback() {
   }
 }
 
-function waitForSlashCommands(signal: AbortSignal, timeoutMs: number): Promise<void> {
-  if (loadingState === 'success') return Promise.resolve();
 
-  return new Promise<void>((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException('Aborted', 'AbortError'));
-      return;
-    }
-
-    const waiter = { resolve: () => {}, reject: (_error: unknown) => {} } as {
-      resolve: () => void;
-      reject: (error: unknown) => void;
-    };
-
-    const cleanup = () => {
-      pendingWaiters = pendingWaiters.filter(w => w !== waiter);
-      clearTimeout(timeoutId);
-      signal.removeEventListener('abort', onAbort);
-    };
-
-    const onAbort = () => {
-      cleanup();
-      reject(new DOMException('Aborted', 'AbortError'));
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('Slash commands loading timeout'));
-    }, timeoutMs);
-
-    signal.addEventListener('abort', onAbort, { once: true });
-
-    waiter.resolve = () => {
-      cleanup();
-      resolve();
-    };
-    waiter.reject = (error: unknown) => {
-      cleanup();
-      reject(error);
-    };
-
-    pendingWaiters.push(waiter);
-    if (loadingState === 'success') {
-      waiter.resolve();
-    } else if (loadingState === 'failed') {
-      waiter.reject(new Error('Slash commands loading failed'));
-    }
-  });
-}
 
 function requestRefresh(): boolean {
   const now = Date.now();
@@ -303,29 +261,20 @@ export async function slashCommandProvider(
     requestRefresh();
   }
 
-  if (loadingState !== 'success') {
-    await waitForSlashCommands(signal, LOADING_TIMEOUT).catch(() => {});
-  }
-
+  // Always return local commands immediately — don't wait for SDK
   if (loadingState === 'success') {
     return filterCommands(cachedSdkCommands, query);
   }
 
-  if (retryCount >= MAX_RETRY_COUNT) {
-    return [{
-      id: '__error__',
-      label: i18n.t('chat.loadingFailed'),
-      description: i18n.t('chat.pleaseCloseAndReopen'),
-      category: 'system',
-    }];
-  }
-
-  return [{
-    id: '__loading__',
-    label: i18n.t('chat.loadingSlashCommands'),
-    description: retryCount > 0 ? i18n.t('chat.retrying', { count: retryCount, max: MAX_RETRY_COUNT }) : i18n.t('chat.pleaseWait'),
-    category: 'system',
-  }];
+  // SDK still loading/idle: return local commands immediately
+  const localCommands = getLocalNewSessionCommands();
+  const lowerQuery = query.toLowerCase();
+  if (!query) return localCommands;
+  return localCommands.filter(cmd =>
+    cmd.label.toLowerCase().includes(lowerQuery) ||
+    cmd.description?.toLowerCase().includes(lowerQuery) ||
+    cmd.id.toLowerCase().includes(lowerQuery)
+  );
 }
 
 export function commandToDropdownItem(command: CommandItem): DropdownItemData {

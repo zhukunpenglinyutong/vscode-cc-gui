@@ -1125,7 +1125,20 @@ export class BridgeServer {
       } else if (line === '[STREAM_END]' || line === '[MESSAGE_END]') {
         this._emitStreamEnd(msg.id, webview);
       } else if (line.startsWith('[CONTENT_DELTA] ')) {
-        const delta = JSON.parse(line.slice('[CONTENT_DELTA] '.length));
+        let delta: string;
+        const rawDelta = line.slice('[CONTENT_DELTA] '.length);
+        try {
+          delta = JSON.parse(rawDelta);
+        } catch {
+          // Malformed JSON: daemon appends an extra trailing `"` in some versions.
+          // Strip the trailing `"` and retry parse (e.g. `"3""` → `"3"` → `3`).
+          try {
+            delta = JSON.parse(rawDelta.trimEnd().replace(/"$/, ''));
+          } catch {
+            // Last resort: strip all surrounding quotes
+            delta = rawDelta.trim().replace(/^"|"$/g, '');
+          }
+        }
         this._emitStreamStart(msg.id, webview);
         webview.postMessage({ type: 'content_delta', content: delta });
       } else if (line.startsWith('[CONTENT] ')) {
@@ -2080,6 +2093,10 @@ export class BridgeServer {
       const raw = settings.mcpServers ?? settings.mcp?.servers ?? {};
       for (const [id, cfg] of Object.entries(raw as Record<string, any>)) {
         mcpServers.push({ id, name: id, server: cfg, enabled: true });
+      }
+      const disabled = settings.disabledMcpServers ?? {};
+      for (const [id, cfg] of Object.entries(disabled as Record<string, any>)) {
+        mcpServers.push({ id, name: id, server: cfg, enabled: false });
       }
       const type = isCodex ? 'update_codex_mcp_servers' : 'update_mcp_servers';
       webview.postMessage({ type, content: JSON.stringify(mcpServers) });

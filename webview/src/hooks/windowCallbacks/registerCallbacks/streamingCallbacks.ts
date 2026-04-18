@@ -8,6 +8,7 @@
 import type { UseWindowCallbacksOptions } from '../../useWindowCallbacks';
 import { sendBridgeEvent } from '../../../utils/bridge';
 import { THROTTLE_INTERVAL } from '../../useStreamingMessages';
+import { releaseSessionTransition } from '../sessionTransition';
 
 /**
  * Timeout (ms) for detecting a stalled stream.  If no content/thinking delta
@@ -159,8 +160,11 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     if (!next) return prev;
     if (!prev) return next;
     if (next === prev) return prev;
+    if (next.trim() === prev.trim()) return prev; // same content, ignore whitespace diff
     if (next.startsWith(prev)) return next; // backend sends full snapshot
+    if (next.trimStart().startsWith(prev.trimEnd())) return next; // snapshot with whitespace
     if (prev.endsWith(next)) return prev;   // duplicated tail
+    if (prev.trimEnd().endsWith(next.trimStart())) return prev; // dup tail with whitespace
     const needNewline = !prev.endsWith('\n') && !next.startsWith('\n');
     return `${prev}${needNewline ? '\n' : ''}${next}`;
   };
@@ -473,6 +477,12 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     setLoading(false);
     setLoadingStartTime(null);
     setIsThinking(false);
+
+    // Safety net: if __sessionTransitioning was stuck (e.g. setSessionId never fired),
+    // release it now so updateMessages and future content deltas are not blocked.
+    if (window.__sessionTransitioning) {
+      releaseSessionTransition();
+    }
   };
 
   // Permission denied callback — marks incomplete tool calls as "interrupted"
