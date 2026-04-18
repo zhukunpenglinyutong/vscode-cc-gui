@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ClaudeMessage } from '../types';
-import { getMessageKey, mergeConsecutiveAssistantMessages } from './messageUtils';
+import { getContentBlocks, getMessageKey, mergeConsecutiveAssistantMessages } from './messageUtils';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,6 +49,39 @@ describe('getMessageKey', () => {
   it('falls back to type-index when no uuid, __turnId, or timestamp', () => {
     const msg: ClaudeMessage = { type: 'assistant', content: 'hi' };
     expect(getMessageKey(msg, 7)).toBe('assistant-7');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getContentBlocks — prefer longer assistant `content` over stale raw text
+// ---------------------------------------------------------------------------
+
+describe('getContentBlocks', () => {
+  const localize = (s: string) => s;
+
+  const normalizeBlocks = (raw: unknown): any[] | null => {
+    if (!raw || typeof raw !== 'object') return null;
+    const r = raw as any;
+    const blocks = r.content ?? r.message?.content;
+    return Array.isArray(blocks) ? blocks : null;
+  };
+
+  it('uses top-level content when longer than text extracted from raw', () => {
+    const full = '我是 **Claude Opus 4.6**, 由 Anthropic 开发。';
+    const msg = makeMsg('assistant', full, {
+      raw: {
+        message: {
+          content: [
+            { type: 'thinking', thinking: '…' },
+            { type: 'text', text: '我是 **' },
+          ],
+        },
+      } as any,
+    });
+    const blocks = getContentBlocks(msg, normalizeBlocks, localize);
+    const textBlocks = blocks.filter((b) => b.type === 'text');
+    expect(textBlocks).toHaveLength(1);
+    expect((textBlocks[0] as any).text).toBe(full);
   });
 });
 

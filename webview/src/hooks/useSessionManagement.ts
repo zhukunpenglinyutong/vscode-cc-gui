@@ -75,6 +75,7 @@ export function useSessionManagement({
 }: UseSessionManagementOptions): UseSessionManagementReturn {
   const [showNewSessionConfirm, setShowNewSessionConfirm] = useState(false);
   const [showInterruptConfirm, setShowInterruptConfirm] = useState(false);
+  const loadingSessionIdRef = useRef<string | null>(null);
   const pendingActionRef = useRef<'newSession' | null>(null);
   const suppressNextStatusToastRef = useRef(false);
   const historyDataRef = useRef(historyData);
@@ -173,7 +174,12 @@ export function useSessionManagement({
     }
 
     const session = historyDataRef.current?.sessions?.find(s => s.sessionId === sessionId);
+    if (loadingSessionIdRef.current === sessionId) return;
+    loadingSessionIdRef.current = sessionId;
+    setTimeout(() => { loadingSessionIdRef.current = null; }, 3000);
+
     beginSessionTransition(sessionId, session?.title ?? null);
+    window.__expectingSessionMessages = true;
     sendBridgeEvent('load_session', sessionId);
     setCurrentView('chat');
   }, [beginSessionTransition, loading, setCurrentView]);

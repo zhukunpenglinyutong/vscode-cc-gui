@@ -26,9 +26,24 @@ export const FILE_MODIFY_TOOL_NAMES = new Set([
   'create_file',
 ]);
 
+export function normalizeToolName(toolName: string): string {
+  const lower = toolName.toLowerCase();
+  const mcpMatch = /^mcp__[^_]+__(.+)$/.exec(lower);
+  return mcpMatch ? mcpMatch[1] : lower;
+}
+
 /**
  * Check if a tool name matches a set of tool names (case-insensitive)
  */
 export function isToolName(toolName: string | undefined, toolSet: Set<string>): boolean {
-  return toolName !== undefined && toolSet.has(toolName.toLowerCase());
+  return toolName !== undefined && toolSet.has(normalizeToolName(toolName));
+}
+
+/** Transient internal tools that should be hidden from the UI */
+const TRANSIENT_INTERNAL_TOOL_NAMES = new Set(['todowrite', 'taskwrite', 'update_plan']);
+
+export function isTransientInternalToolName(toolName: string | undefined): boolean {
+  if (!toolName) return false;
+  const lower = toolName.toLowerCase();
+  return TRANSIENT_INTERNAL_TOOL_NAMES.has(lower) || TRANSIENT_INTERNAL_TOOL_NAMES.has(normalizeToolName(lower));
 }

@@ -8,6 +8,15 @@
 import type { UseWindowCallbacksOptions } from '../../useWindowCallbacks';
 import { sendBridgeEvent } from '../../../utils/bridge';
 import { THROTTLE_INTERVAL } from '../../useStreamingMessages';
+import { releaseSessionTransition } from '../sessionTransition';
+
+/**
+ * Timeout (ms) for detecting a stalled stream.  If no content/thinking delta
+ * arrives for this duration while isStreamingRef is still true, the frontend
+ * auto-recovers by forcing the stream-end cleanup.
+ */
+const STREAM_STALL_TIMEOUT_MS = 60_000;
+const STREAM_STALL_CHECK_INTERVAL_MS = 5_000;
 
 export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): void {
   const {
@@ -37,6 +46,41 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     patchAssistantForStreaming,
     currentProviderRef,
   } = options;
+
+  // ── Stream stall watchdog ──
+  if (window.__stallWatchdogInterval != null) {
+    clearInterval(window.__stallWatchdogInterval);
+    window.__stallWatchdogInterval = null;
+  }
+  window.__lastStreamActivityAt = 0;
+
+  const clearStallWatchdog = () => {
+    if (window.__stallWatchdogInterval != null) {
+      clearInterval(window.__stallWatchdogInterval);
+      window.__stallWatchdogInterval = null;
+    }
+  };
+
+  const startStallWatchdog = () => {
+    clearStallWatchdog();
+    window.__lastStreamActivityAt = Date.now();
+    window.__stallWatchdogInterval = setInterval(() => {
+      if (!isStreamingRef.current) {
+        clearStallWatchdog();
+        return;
+      }
+      const elapsed = Date.now() - (window.__lastStreamActivityAt ?? 0);
+      if (elapsed >= STREAM_STALL_TIMEOUT_MS) {
+        console.warn(
+          `[StreamWatchdog] Stream stalled for ${elapsed}ms — forcing stream-end recovery`,
+        );
+        clearStallWatchdog();
+        if (typeof window.onStreamEnd === 'function') {
+          window.onStreamEnd();
+        }
+      }
+    }, STREAM_STALL_CHECK_INTERVAL_MS);
+  };
 
   const extractTextFromBlocks = (blocks: any[]): string => {
     if (!Array.isArray(blocks)) return '';
@@ -116,8 +160,11 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     if (!next) return prev;
     if (!prev) return next;
     if (next === prev) return prev;
+    if (next.trim() === prev.trim()) return prev; // same content, ignore whitespace diff
     if (next.startsWith(prev)) return next; // backend sends full snapshot
+    if (next.trimStart().startsWith(prev.trimEnd())) return next; // snapshot with whitespace
     if (prev.endsWith(next)) return prev;   // duplicated tail
+    if (prev.trimEnd().endsWith(next.trimStart())) return prev; // dup tail with whitespace
     const needNewline = !prev.endsWith('\n') && !next.startsWith('\n');
     return `${prev}${needNewline ? '\n' : ''}${next}`;
   };
@@ -193,6 +240,7 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     if (window.__sessionTransitioning) return;
     streamingContentRef.current = '';
     isStreamingRef.current = true;
+    startStallWatchdog();
     useBackendStreamingRenderRef.current = false;
     autoExpandedThinkingKeysRef.current.clear();
     setStreamingActive(true);
@@ -231,6 +279,7 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
   window.onContentDelta = (delta: string) => {
     if (window.__sessionTransitioning) return;
     if (!isStreamingRef.current) return;
+    window.__lastStreamActivityAt = Date.now();
     streamingContentRef.current += delta;
     activeThinkingSegmentIndexRef.current = -1;
 
@@ -282,9 +331,15 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     }
   };
 
+  // Heartbeat callback — keeps the stall watchdog alive during long tool execution
+  window.onStreamingHeartbeat = () => {
+    window.__lastStreamActivityAt = Date.now();
+  };
+
   window.onThinkingDelta = (delta: string) => {
     if (window.__sessionTransitioning) return;
     if (!isStreamingRef.current) return;
+    window.__lastStreamActivityAt = Date.now();
     activeTextSegmentIndexRef.current = -1;
 
     let forceUpdate = false;
@@ -404,6 +459,16 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     // React state (not ref) — React batches this with setMessages automatically
     setStreamingActive(false);
 
+    // Clear stall watchdog and cancel any pending RAF update
+    clearStallWatchdog();
+    if (typeof window.__cancelPendingUpdateMessages === 'function') {
+      window.__cancelPendingUpdateMessages();
+    }
+    // Release bridge ownership
+    if (typeof window.__ccg_releaseBridge === 'function') {
+      window.__ccg_releaseBridge();
+    }
+
     // FIX: onStreamEnd is the authoritative signal that streaming has ended.
     // Reset loading state here to prevent race conditions where showLoading("false")
     // arrives before onStreamEnd and gets ignored by the isStreamingRef guard,
@@ -412,6 +477,12 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     setLoading(false);
     setLoadingStartTime(null);
     setIsThinking(false);
+
+    // Safety net: if __sessionTransitioning was stuck (e.g. setSessionId never fired),
+    // release it now so updateMessages and future content deltas are not blocked.
+    if (window.__sessionTransitioning) {
+      releaseSessionTransition();
+    }
   };
 
   // Permission denied callback — marks incomplete tool calls as "interrupted"

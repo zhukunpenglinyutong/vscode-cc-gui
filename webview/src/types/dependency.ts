@@ -117,6 +117,21 @@ export interface UpdateCheckResult {
   [key: string]: UpdateInfo;
 }
 
+export type DependencyVersionSource = 'remote' | 'fallback';
+
+export interface DependencyVersionInfo {
+  sdkId: SdkId;
+  versions: string[];
+  fallbackVersions?: string[];
+  source?: DependencyVersionSource;
+  latestVersion?: string;
+  error?: string;
+}
+
+export interface DependencyVersionResult {
+  [key: string]: DependencyVersionInfo;
+}
+
 /**
  * Node.js environment status
  */
