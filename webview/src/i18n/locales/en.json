@@ -1,0 +1,2113 @@
+{
+  "common": {
+    "ready": "Ready",
+    "loading": "Loading",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "backToLiveSession": "Back to conversation",
+    "close": "Close",
+    "newSession": "New Session",
+    "newTab": "New Tab",
+    "dontAskAgain": "Don't ask again",
+    "history": "History",
+    "settings": "Settings",
+    "thinking": "Thinking",
+    "thinkingProcess": "Thinking Process",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Info",
+    "seconds": "s",
+    "minutes": "m",
+    "optional": "Optional",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "gotIt": "Got it"
+  },
+  "chat": {
+    "sendMessage": "Send message to {{provider}}",
+    "createNewSession": "Create New Session",
+    "confirmNewSession": "Current session has messages. Are you sure you want to create a new session?",
+    "confirmInterrupt": "A conversation is in progress. Creating a new session will interrupt it. Continue?",
+    "requestInterrupted": "Request interrupted by user",
+    "uploadedFiles": "Uploaded files: {{files}}",
+    "emptyMessage": "Empty message",
+    "clickToPreview": "Click to preview",
+    "userUploadedImage": "User uploaded image",
+    "inputPlaceholder": "@reference files, #invoke agents, !insert prompts, Enter to send",
+    "inputPlaceholderEnter": "@reference files, #invoke agents, !insert prompts, Enter to send",
+    "inputPlaceholderCmdEnter": "@reference files, #invoke agents, !insert prompts, ⌘Enter to send",
+    "noThinkingContent": "No thinking content",
+    "parseError": "Failed to parse content",
+    "sendMessageEnter": "Send message (Enter)",
+    "currentMode": "Current mode: {{mode}}",
+    "currentModel": "Current model: {{model}}",
+    "removeAttachment": "Remove attachment",
+    "closePreview": "Close preview",
+    "loadingDropdown": "Loading...",
+    "addAttachment": "Add attachment",
+    "stopGeneration": "Stop generation",
+    "generatingResponse": "Generating response",
+    "elapsedTime": "Elapsed {{time}}",
+    "minutesAndSeconds": "{{minutes}}m {{seconds}}s",
+    "imagePreview": "Preview",
+    "context": "Context",
+    "usage": "Usage",
+    "usagePercentage": "Usage: {{percentage}}",
+    "noMatchingFiles": "No matching files",
+    "noMatchingCommands": "No matching commands",
+    "noMatchingHistory": "No matching history",
+    "noAvailableAgents": "No available agents",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "backToTop": "Back to top",
+    "backToBottom": "Back to bottom",
+    "refresh": "Refresh",
+    "clickToDisable": "Click to disable",
+    "clickToEnable": "Click to enable",
+    "copyHomepageLink": "Copy homepage link",
+    "copyDocsLink": "Copy docs link",
+    "copyConfig": "Copy config",
+    "editConfig": "Edit config",
+    "deleteServer": "Delete server",
+    "loadingFailed": "Loading failed",
+    "pleaseCloseAndReopen": "Please close and reopen",
+    "loadingSlashCommands": "Loading slash commands...",
+    "pleaseWait": "Please wait...",
+    "retrying": "Retrying ({{count}}/{{max}})...",
+    "global": "Global",
+    "localProject": "Local",
+    "disabled": "Disabled",
+    "sdkNotInstalled": "{{provider}} SDK is not installed. Please install the SDK to start chatting.",
+    "sdkStatusLoading": "Checking SDK status...",
+    "openSourceBanner": "This project is guaranteed to be 100% open source and free (beware of pirated projects)",
+    "goInstallSdk": "Go to Install",
+    "commandNotImplemented": "`{{command}}` feature is not yet implemented.",
+    "clearCommandDescription": "Clear conversation history and start a new session",
+    "attachmentFile": "[Attachment: {{fileName}}]",
+    "unknownFile": "Unknown file",
+    "attachmentsUploaded": "[Attachments Uploaded]",
+    "streamingConnected": "AI connected, understanding your question",
+    "streamStallTimeout": "No model response for {{seconds}} second(s). This turn was ended automatically. You can change “Stream stall timeout” under Settings → Behavior.",
+    "showEarlierMessages": "Show {{count}} earlier messages",
+    "totalDuration": "This reply took",
+    "tokenUsage": "{{input}} in / {{output}} out",
+    "tokenUsageDetail": "Turn total — input {{input}} · cache write {{cacheWrite}} · cache read {{cacheRead}} · output {{output}}",
+    "search": {
+      "ariaLabel": "Search in conversation",
+      "placeholder": "Search in conversation…",
+      "next": "Next match (Enter)",
+      "previous": "Previous match (Shift+Enter)",
+      "close": "Close (Esc)",
+      "counter": "{{current}}/{{total}}",
+      "noResults": "No results",
+      "searching": "Searching…",
+      "expandedHint": "Expanded {{count}} earlier messages",
+      "matchCase": "Match Case (Alt+C)",
+      "wholeWord": "Match Whole Word (Alt+W)",
+      "regex": "Use Regular Expression (Alt+R)",
+      "invalidRegex": "Invalid regex",
+      "openTooltip": "Search in conversation (Cmd/Ctrl+F)"
+    },
+    "compactSummary": {
+      "summarizedConversation": "Summarized conversation",
+      "compactSummary": "Compact summary",
+      "messagesUpTo": "Summarized {{count}} messages up to this point",
+      "messagesFrom": "Summarized {{count}} messages from this point",
+      "userContext": "Context: \"{{context}}\"",
+      "expand": "Expand summary",
+      "collapse": "Collapse summary"
+    },
+    "openSourceBannerStar": "Star",
+    "openSourceBannerStarToast": "Repo link copied to clipboard — paste it in your browser to visit ⭐",
+    "openSourceBannerStarAria": "Copy repository link and star on GitHub",
+    "streamingWorking": "{{provider}} is working — thinking or running tools…",
+    "cacheHitsWithRatio": "(cache hits {{tokens}}, {{ratio}})",
+    "planModeEnabled": "Plan mode enabled",
+    "commandProviderOnly": "{{command}} is only available for {{provider}}",
+    "bridgeUnavailable": "Bridge is not available right now"
+  },
+  "settings": {
+    "title": "Settings",
+    "basic": {
+      "title": "Basic Configuration",
+      "description": "Configure page theme, language and Node.js environment",
+      "tabs": {
+        "appearance": "Appearance",
+        "behavior": "Behavior",
+        "environment": "Environment"
+      },
+      "theme": {
+        "label": "Theme",
+        "system": "Follow IDE",
+        "systemDesc": "Automatically follow IDE theme",
+        "light": "Light",
+        "lightDesc": "Fresh and bright, suitable for daytime use",
+        "dark": "Dark",
+        "darkDesc": "Eye-friendly, suitable for nighttime use"
+      },
+      "language": {
+        "label": "Language",
+        "followIde": "Follow IDE",
+        "simplifiedChinese": "简体中文",
+        "traditionalChinese": "繁體中文",
+        "english": "English",
+        "hindi": "हिन्दी",
+        "spanish": "Español",
+        "french": "Français",
+        "japanese": "日本語",
+        "russian": "Русский",
+        "korean": "한국어",
+        "portuguese": "Português (Brasil)"
+      },
+      "nodePath": {
+        "label": "Node.js path for CC GUI only",
+        "placeholder": "Windows: C:\\Program Files\\nodejs\\node.exe | macOS/Linux: /usr/local/bin/node",
+        "hint": "Install Node.js v{{minVersion}}+ separately (no need to change your project default). In that Node's terminal, run",
+        "hintCommand": "node -p \"process.execPath\"",
+        "hintText": "and paste the full path above, then save. Affects CC GUI only, not your project shell. On Windows, point to node.exe.",
+        "blockTitle": "Unsupported Node.js version",
+        "versionTooLow": "Current Node is {{currentVersion}}, which is too old for CC GUI. Install Node.js v{{minVersion}}+ independently and enter its executable path below (your project can keep an older Node).",
+        "notFound": "Node.js was not found. Install Node.js v{{minVersion}}+, enter the full path below, and save.",
+        "currentVersionLabel": "Current version",
+        "minVersionLabel": "Minimum required",
+        "detectedPathLabel": "Detected path",
+        "howToFix": "How to fix:",
+        "stepInstall": "Install Node.js v{{minVersion}}+ separately (installer / nvm / etc.; no need to change your project default)",
+        "stepGetPath": "In that Node environment, run:",
+        "stepPaste": "Paste the full path into the field below and click Save",
+        "invalidPath": "Invalid path: {{reason}}",
+        "pathNotFound": "File does not exist, please check the path",
+        "invalidFileName": "Path must end with node.exe on Windows, or node on macOS/Linux",
+        "cannotExecute": "File exists but cannot be executed, please check file permissions"
+      },
+      "claudeCliPath": {
+        "label": "Claude CLI Path (override)",
+        "placeholder": "e.g. /usr/local/bin/claude — leave empty to use the bundled SDK",
+        "hint": "Optional. When set, the plugin spawns this binary instead of the bundled @anthropic-ai/claude-agent-sdk. Daemon restarts on save."
+      },
+      "workingDirectory": {
+        "label": "Working Directory",
+        "placeholder": "e.g. project1 or leave empty to use project root",
+        "hint": "Specify the directory where Claude works. Can use relative path (relative to project root) or absolute path. Leave empty to use project root."
+      },
+      "fontSize": {
+        "label": "Font Size",
+        "level1": "Small (80%)",
+        "level2": "Smaller (90%)",
+        "level3": "Standard (100%)",
+        "level4": "Larger (110%)",
+        "level5": "Large (120%)",
+        "level6": "Largest (140%)"
+      },
+      "editorFont": {
+        "label": "UI Font",
+        "hint": "This controls the plugin UI font only. Code can use a separate code font.",
+        "followOption": "Follow IDEA UI font ({{font}})",
+        "customOption": "Custom UI font file",
+        "customPathLabel": "UI font file path",
+        "customPathPlaceholder": "Choose or enter a .ttf / .otf UI font file path",
+        "browse": "Browse",
+        "warningUnavailable": "UI font unavailable, currently using IDEA UI font",
+        "statusFollowEditor": "Currently following IDEA UI font: {{font}}",
+        "statusCustom": "Currently using custom UI font: {{font}}"
+      },
+      "codeFont": {
+        "label": "Code Font",
+        "hint": "Markdown code and command blocks use this font.",
+        "followOption": "Follow editor font ({{font}})",
+        "customOption": "Custom code font file",
+        "customPathLabel": "Code font file path",
+        "customPathPlaceholder": "Choose or enter a .ttf / .otf code font file path",
+        "browse": "Browse",
+        "warningUnavailable": "Code font unavailable, currently using editor font",
+        "statusFollowEditor": "Currently following editor font: {{font}}",
+        "statusCustom": "Currently using custom code font: {{font}}"
+      },
+      "streaming": {
+        "label": "Streaming",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, AI responses will appear character by character in real-time, instead of waiting for the complete response. May consume more resources."
+      },
+      "autoOpenFile": {
+        "label": "Send Opened File Path",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, selecting a file in the project tree will automatically send its file path to AI (note: only the file path is sent, not the file content). When disabled, manual action is required."
+      },
+      "promptEnhancer": {
+        "label": "Prompt Enhancer",
+        "modelLabel": "Enhancer Model",
+        "resetToDefault": "Restore Default",
+        "providerAvailable": "Available",
+        "providerUnavailable": "Currently unavailable",
+        "provider": {
+          "claude": "Claude Code",
+          "codex": "Codex"
+        },
+        "currentProviderAuto": "Currently using automatic selection: {{provider}}",
+        "currentProviderManual": "Currently using manually selected provider: {{provider}}",
+        "currentProviderUnavailable": "The selected provider is currently unavailable: {{provider}}"
+      },
+      "diffExpanded": {
+        "label": "Expand Diffs by Default",
+        "enabled": "Expanded",
+        "disabled": "Collapsed",
+        "hint": "When enabled, code diffs in chat will be expanded by default. When disabled, diffs start collapsed and can be expanded by clicking."
+      },
+      "commitGeneration": {
+        "label": "AI Commit Message Generation",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, shows the 'AI Generate Commit Message' button in the commit dialog. When disabled, the button is hidden."
+      },
+      "statusBarWidget": {
+        "label": "Status Bar Info Display",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, shows current model and mode info in the IDE status bar (e.g. GUI [Opus] {Auto}). When disabled, the widget is hidden."
+      },
+      "debugLog": {
+        "label": "Debug Log",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, writes debug logs to the Output panel channel “CC GUI”. Off by default."
+      },
+      "taskCompletionNotification": {
+        "label": "Task Completion Notification",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, shows an in-panel toast when an AI task completes. When disabled, no toast appears."
+      },
+      "sendShortcut": {
+        "label": "Send Shortcut",
+        "enter": "Enter to Send",
+        "enterDesc": "Press Enter to send message, Shift+Enter for new line",
+        "cmdEnter": "⌘/Ctrl+Enter to Send",
+        "cmdEnterDesc": "Press ⌘/Ctrl+Enter to send message, Enter for new line"
+      },
+      "permissionDialogTimeout": {
+        "label": "Permission & Question Dialog Timeout",
+        "unit": "seconds",
+        "hint": "Set the timeout for AI question dialogs and permission request dialogs (30~3600 seconds). After timeout, the dialog will close automatically and AI will continue."
+      },
+      "streamStallTimeout": {
+        "label": "Stream stall timeout",
+        "unit": "seconds",
+        "hint": "If no model output (text/thinking) arrives for this many seconds, the turn ends automatically with a toast. Default 180 seconds (minimum 1s for testing). Increase for long tool-only phases."
+      },
+      "chatBgColor": {
+        "label": "Chat Background",
+        "custom": "Custom",
+        "reset": "Reset",
+        "hint": "Customize the chat area background color. Leave empty to follow the theme default."
+      },
+      "diffTheme": {
+        "label": "Diff Theme",
+        "follow": "Follow UI",
+        "followDesc": "Match the current chat UI light or dark theme",
+        "editor": "Follow Editor",
+        "editorDesc": "Stay closer to the IDE editor diff atmosphere",
+        "light": "Light",
+        "lightDesc": "Cleaner and better integrated with the settings page",
+        "softDark": "Soft Dark",
+        "softDarkDesc": "Keep code contrast without the harsh black background"
+      },
+      "soundNotification": {
+        "label": "Task Completion Sound",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, a notification sound will play when AI completes a task, so you'll know even when away from the screen.",
+        "onlyWhenUnfocused": "Play only when IDE is not focused",
+        "onlyWhenUnfocusedHint": "When enabled, the sound will only play when the IDE window is not in focus.",
+        "selectSound": "Notification Sound",
+        "soundDefault": "Default",
+        "soundChime": "Chime",
+        "soundBell": "Bell",
+        "soundDing": "Ding",
+        "soundSuccess": "Success",
+        "soundCustom": "Custom...",
+        "customSound": "Custom Sound File",
+        "customSoundPlaceholder": "Select or enter audio file path",
+        "customSoundHint": "Supports WAV, MP3, AIFF formats",
+        "testSound": "Test",
+        "browse": "Browse",
+        "useDefault": "Use Default",
+        "customSoundSaved": "Custom sound saved"
+      },
+      "userMsgColor": {
+        "label": "User Message Color",
+        "custom": "Custom",
+        "reset": "Reset",
+        "hint": "Customize the background color of your messages. Leave empty to follow the theme default."
+      },
+      "newSessionConfirm": {
+        "label": "New Session Confirmation",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When disabled, creating a new session in a conversation with existing messages will skip the confirmation dialog."
+      },
+      "detailedOutput": {
+        "label": "Detailed Output Information",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, message footers show estimated turn cost when available and include cache hits inside the input token summary. Token usage remains visible either way."
+      },
+      "askUserQuestionNotification": {
+        "label": "Ask User Question Notification",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, shows a system notification when AI asks you a question, so you won't miss it. When disabled, no notification appears."
+      },
+      "chatBarColor": {
+        "label": "Chat bar color",
+        "custom": "Custom",
+        "reset": "Reset",
+        "hint": "Applies to the chat header and status bar. Leave empty to follow the theme default."
+      }
+    },
+    "providers": "Provider Management",
+    "providersDesc": "Manage Claude and Codex API provider configurations and switch between different API service providers",
+    "promptEnhancer": {
+      "title": "Prompt Enhancer",
+      "description": "Choose which provider and model should be used when enhancing prompts before sending them."
+    },
+    "providerTab": {
+      "claude": "Claude Code",
+      "codex": "Codex",
+      "cli": "CLI"
+    },
+    "pluginModels": {
+      "title": "Custom Models",
+      "description": "Custom models added here will be visible under all providers, shown at the top of the model selector",
+      "dialogTitle": "Manage Custom Models",
+      "manage": "Manage Models",
+      "pricing": {
+        "title": "Pricing (USD per 1M tokens)",
+        "hint": "Optional. Leave a field empty to use the default rate for that token type.",
+        "inputLabel": "Input",
+        "outputLabel": "Output",
+        "cacheWriteLabel": "Cache write",
+        "cacheReadLabel": "Cache read",
+        "inputShort": "In",
+        "outputShort": "Out",
+        "cacheWriteShort": "Cache write",
+        "cacheReadShort": "Cache read",
+        "invalidValue": "Pricing must be a non-negative number",
+        "defaultPricing": "Using default pricing",
+        "optionalLabel": "Optional"
+      },
+      "configuredSectionTitle": "Configured Claude models",
+      "configuredSectionDesc": "Models from the active Claude provider/settings.json are already in the selector. Only pricing can be changed here.",
+      "configuredEditHint": "This model is managed by the active Claude provider/settings.json. Only pricing can be changed here.",
+      "customSectionTitle": "Custom models",
+      "editPricing": "Edit pricing",
+      "contextWindow": {
+        "label": "Context window (K tokens)",
+        "placeholder": "e.g. 200 for 200K",
+        "hint": "Optional. Enter thousands of tokens (200 = 200,000). Codex only.",
+        "invalidValue": "Maximum context must be a positive integer in K units",
+        "summary": "Context: {{value}} tokens"
+      }
+    },
+    "dependencies": "SDK Dependencies",
+    "dependenciesDesc": "Manage AI SDK dependency installations and updates",
+    "dependency": {
+      "title": "SDK Dependency Management",
+      "description": "Manage AI SDK dependencies. Install the required SDK before first use.",
+      "installPolicyTip": "Installation issues? Copy the error to a terminal CLI AI to resolve",
+      "claudeSdkName": "Claude Code SDK",
+      "claudeSdkDescription": "Required for Claude AI features. Includes Claude Code SDK and related dependencies.",
+      "codexSdkName": "Codex SDK",
+      "codexSdkDescription": "Required for Codex AI features. Includes OpenAI Codex SDK.",
+      "loading": "Loading dependency status...",
+      "install": "Install",
+      "installing": "Installing...",
+      "uninstall": "Uninstall",
+      "uninstalling": "Uninstalling...",
+      "update": "Update",
+      "installVersion": "Install {{version}}",
+      "updateToVersion": "Update to {{version}}",
+      "rollbackToVersion": "Rollback to {{version}}",
+      "currentVersionAction": "Current version",
+      "updateAvailable": "Update available",
+      "installLogs": "Install Logs",
+      "waitingForLogs": "Waiting for log output...",
+      "targetVersion": "Target version",
+      "loadingVersions": "Version list loading",
+      "installedVersion": "Installed {{version}}",
+      "latestStableVersion": "Latest stable {{version}}",
+      "targetVersionValue": "Target {{version}}",
+      "versionSourceFallback": "Remote versions could not be loaded. Showing the built-in recommended versions instead. You can still enter a version manually.",
+      "rollbackWarning": "This is a rollback operation. Re-check the related AI features after switching versions.",
+      "nodeNotConfigured": "Node.js is not ready (missing or below v20). Set a Node.js v20+ path under Basic → Environment (can be separate from your project Node).",
+      "installSuccess": "{{name}} installed successfully",
+      "installFailed": "Installation failed: {{error}}",
+      "uninstallSuccess": "{{name}} has been uninstalled",
+      "uninstallFailed": "Uninstall failed: {{error}}",
+      "updating": "Updating...",
+      "updateSuccess": "{{name}} updated successfully"
+    },
+    "usage": "Usage Statistics",
+    "usageDesc": "View your Token consumption, cost statistics and usage trend analysis",
+    "mcp": "MCP Servers",
+    "mcpDesc": "Configure and manage Model Context Protocol servers",
+    "permissions": "Permissions",
+    "permissionsDesc": "Manage Claude Code file access and operation permissions",
+    "codexPermissionsDesc": "Manage Codex permissions and sandbox policies",
+    "permissionsPanel": {
+      "codexSandboxTitle": "Codex Sandbox Mode",
+      "codexSandboxDesc": "Control system access boundaries when Codex executes commands. Defaults to danger-full-access. Switch to workspace-write for stricter sandboxing.",
+      "workspaceWriteTitle": "workspace-write",
+      "workspaceWriteDesc": "Read/write is limited to the workspace. System-level operations are restricted for safety.",
+      "fullAccessTitle": "danger-full-access",
+      "fullAccessDesc": "Allows higher system access, suitable for commands like adb or docker that require extra permissions.",
+      "hint": "This setting only affects Codex process sandboxing and does not change Claude Code permission behavior.",
+      "claudeTip": "Claude Code approval mode is configured from the chat input mode selector."
+    },
+    "commit": {
+      "title": "Commit AI",
+      "description": "Configure AI-generated Git commit message behavior",
+      "providerModel": {
+        "label": "Commit Model Provider",
+        "modelLabel": "Commit Model",
+        "resetToDefault": "Reset",
+        "providerAvailable": "Available",
+        "providerUnavailable": "Unavailable",
+        "currentProviderAuto": "Currently using auto selection: {{provider}}",
+        "currentProviderManual": "Currently using the manually selected provider: {{provider}}",
+        "currentProviderUnavailable": "The selected provider is currently unavailable: {{provider}}"
+      },
+      "prompt": {
+        "label": "Additional Prompt",
+        "placeholder": "Add your extra requirements here, e.g., generate commit in English, include issue number, etc...",
+        "hint": "The plugin has built-in CCG Commits specification prompts. Content you add here will be used as additional requirements, and AI will prioritize your instructions."
+      },
+      "projectPrompt": {
+        "label": "Project-specific Additional Prompt",
+        "placeholder": "Add project-specific requirements here, e.g., scope must use module name, commit body should include impact scope, etc...",
+        "hint": "This prompt only applies to the current project and is appended together with the global additional prompt. When they conflict, the project prompt takes precedence. Different projects can be configured independently."
+      },
+      "codeReview": {
+        "comingSoon": "Coming Soon",
+        "label": "Code Review AI Additional Prompt",
+        "placeholder": "This feature is under development, stay tuned...",
+        "hint": "Code Review AI will help you automatically review code, identify potential issues, and provide improvement suggestions. You can configure review preferences and focus areas here."
+      }
+    },
+    "agents": "Agents",
+    "agentsDesc": "Manage and configure AI agents",
+    "skills": "Skills",
+    "skillsDesc": "Manage and configure skill modules",
+    "other": {
+      "title": "Other Settings",
+      "description": "Configure miscellaneous settings",
+      "historyCompletion": {
+        "label": "History Input Completion",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, the input box will auto-complete based on input history. Press Tab to accept the suggestion.",
+        "manageHistory": "Manage History",
+        "empty": "No history records",
+        "clearAll": "Clear All",
+        "clearLow": "Clear Low Importance",
+        "clearLowHint": "Delete records with importance ≤ 1",
+        "delete": "Delete",
+        "edit": "Edit",
+        "add": "Add",
+        "importance": "Importance",
+        "editor": {
+          "addTitle": "Add History Record",
+          "editTitle": "Edit History Record",
+          "contentLabel": "Content",
+          "contentPlaceholder": "Enter history record content...",
+          "importanceLabel": "Importance",
+          "importanceHint": "Higher importance means higher priority in auto-completion"
+        },
+        "timeAgo": {
+          "yearsAgo_one": "{{count}} year ago",
+          "yearsAgo_other": "{{count}} years ago",
+          "monthsAgo_one": "{{count}} month ago",
+          "monthsAgo_other": "{{count}} months ago",
+          "daysAgo_one": "{{count}} day ago",
+          "daysAgo_other": "{{count}} days ago",
+          "hoursAgo_one": "{{count}} hour ago",
+          "hoursAgo_other": "{{count}} hours ago",
+          "minutesAgo_one": "{{count}} minute ago",
+          "minutesAgo_other": "{{count}} minutes ago",
+          "justNow": "just now"
+        }
+      },
+      "aiTitleGeneration": {
+        "label": "AI session title generation",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "hint": "When enabled, a short Haiku-generated title is created after the first turn of a new session. When disabled, sessions keep using the first user message as the title."
+      },
+      "loadError": "Failed to load settings"
+    },
+    "codexFeatureUnavailable": "This settings section is not available in Codex yet. Please switch to Claude Code.",
+    "sidebar": {
+      "expand": "Expand Sidebar",
+      "collapse": "Collapse Sidebar"
+    },
+    "community": "Community",
+    "communityDesc": "Scan the QR code below to join the official WeChat group for the latest news and technical support",
+    "versionHistory": "Version History",
+    "versionHistoryDesc": "View all version update records",
+    "communityQrTip": "Scan with WeChat to join the community",
+    "communityQrAlt": "Official WeChat community QR code",
+    "githubTitle": "GitHub Repository",
+    "githubDesc": "This project is open source on GitHub. Star us to show your support!",
+    "githubCopyBtn": "Copy Repository URL",
+    "githubCopied": "Repository URL copied to clipboard. Please visit it in your browser.",
+    "githubCopyFailed": "Failed to copy. Please copy manually.",
+    "sponsor": "Sponsor",
+    "sponsorDesc": "If this project helps you, consider sponsoring to support ongoing maintenance!",
+    "alipay": "Alipay",
+    "wechatPay": "WeChat Pay",
+    "paypal": "PayPal",
+    "provider": {
+      "currentConfig": "Current ClaudeCode Configuration",
+      "loading": "Loading...",
+      "noConfig": "No local configuration found",
+      "noConfigDescription": "No readable API key or endpoint was found in the authorized local Claude configuration.",
+      "emptyProvider": "No provider configured",
+      "notConfigured": "Not configured",
+      "apiKey": "API Key",
+      "apiKeyHelper": "API Key Helper",
+      "baseUrl": "Base URL",
+      "provider": "Provider",
+      "source": "Source",
+      "show": "Show",
+      "hide": "Hide",
+      "switchTo": "Switch to",
+      "addProvider": "Add Provider",
+      "importProvider": "Import Provider",
+      "importFrom": "Import from",
+      "importFromCcSwitch": "Import from cc-switch",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Confirm Delete Provider",
+      "deleteMessage": "Are you sure you want to delete provider \"{{name}}\"? This action cannot be undone.",
+      "convertLocal": "Convert to Local",
+      "convertMessage": "After conversion, the connection with the import source will be disconnected. This action is irreversible.",
+      "convertSuccess": "Conversion successful, new ID generated and disconnected",
+      "importing": "Importing...",
+      "allProviders": "All Providers",
+      "dragToSort": "Drag to reorder",
+      "import": "Import",
+      "importFromCcSwitchUpdate": "Import/Update from cc-switch",
+      "importFromCcSwitchFile": "Select cc-switch.db File to Import",
+      "importFromCcSwitchCli": "Import/Update from cc-switch CLI",
+      "importFromClaudeRouter": "Import/Update from Claude Code Router",
+      "featureComingSoon": "Feature not yet implemented, coming soon",
+      "readingCcSwitch": "Reading cc-switch configuration...",
+      "editCcSwitchTitle": "Edit cc-switch Configuration",
+      "editCcSwitchWarning": "You are editing a cc-switch configuration. Editing will not update cc-switch, and imports may overwrite your changes. Consider converting to local configuration before editing.",
+      "continueEdit": "Continue Editing",
+      "convertAndEdit": "Convert and Edit",
+      "convertToPlugin": "Convert to Plugin Configuration",
+      "convertConfirmMessage": "Convert cc-switch configuration \"{{name}}\" to plugin configuration?",
+      "convertDetailMessage": "After conversion, the ID connection with cc-switch will be disconnected, and future imports won't overwrite this configuration.",
+      "confirmConvert": "Confirm Conversion",
+      "inUse": "In Use",
+      "enable": "Enable",
+      "authorizeAndEnable": "Authorize and Enable",
+      "authorizeLoadConfig": "Authorize and Load Current Config",
+      "refreshConfig": "Refresh Current Config",
+      "configHiddenTitle": "Local Claude configuration is hidden by default",
+      "configHiddenDescription": "To protect local credentials and settings, the plugin will not read ~/.claude/settings.json until you explicitly authorize a one-time load.",
+      "officialRouteNotice": "Requests are configured to go directly to the official Anthropic API.",
+      "proxyRouteNotice": "Requests are routed through a third-party or proxy endpoint instead of directly to the official Anthropic API.",
+      "localProviderName": "Authorized local settings.json",
+      "localProviderDescription": "Explicitly authorize reading ~/.claude/settings.json",
+      "localProviderAuthorizeTitle": "Authorize local settings.json access",
+      "localProviderAuthorizeMessage": "This will allow the plugin to read ~/.claude/settings.json for Claude requests.",
+      "localProviderAuthorizeDetail": "You can revoke this authorization at any time. The plugin will not modify your local file.",
+      "localProviderDisableTitle": "Cancel local settings.json authorization",
+      "localProviderDisableMessage": "This will stop using ~/.claude/settings.json and leave Claude with no active provider until you explicitly enable another one.",
+      "revokeAuthorization": "Revoke Authorization",
+      "localProviderHelp": "When using local provider mode:\n• The plugin will not modify your ~/.claude/settings.json file\n• You need to manually manage your configurations\n• Make sure the file exists and contains valid JSON\n• Suitable for advanced users who prefer manual control",
+      "cliLoginProviderName": "CLI Login State",
+      "cliLoginProviderDescription": "Reuse your existing Claude CLI login state completed in the terminal",
+      "cliLoginAuthorizeTitle": "Authorize CLI Login State",
+      "cliLoginAuthorizeMessage": "This will allow the plugin to use your Claude CLI login session for API requests. You must have already logged in via the Claude CLI in your terminal.",
+      "cliLoginAuthorizeDetail": "The plugin delegates authentication to the Claude SDK's native OAuth flow. You can revoke this authorization at any time.",
+      "cliLoginDisableTitle": "Revoke CLI Login Authorization",
+      "cliLoginDisableMessage": "This will stop using CLI login state and leave Claude with no active provider until you explicitly enable another one.",
+      "cliLoginAccountInfo": "Logged in as: {{email}}",
+      "subscriptionTutorial": {
+        "entry": "Subscription Account Guide",
+        "dialogTitle": "How to use a subscription account",
+        "tabAriaLabel": "Subscription account guide tabs",
+        "tabs": {
+          "claude": "Claude Subscription",
+          "codex": "Codex Subscription"
+        },
+        "code": {
+          "copy": "Copy Code",
+          "copied": "Copied"
+        },
+        "providers": {
+          "claude": {
+            "title": "How to use Claude Code Subscription Account",
+            "item1": "Log in to your Claude Code subscription account via claude code CLI in the terminal, then you can chat normally in the terminal",
+            "item2": "Make sure the ~/.claude/settings.json file and .env file are empty",
+            "item3": "Restart IDEA, and you can chat normally",
+            "emptyConfigCodeLabel": "~/.claude/settings.json",
+            "emptyConfigCode": "{\n  \"env\": {\n  }\n}",
+            "noteTitle": "Special Case Notes:",
+            "note1": "If you have done the above but the plugin still does not respond, try setting ~/.claude/settings.json .env to:",
+            "proxyConfigCodeLabel": "~/.claude/settings.json",
+            "proxyConfigCode": "{\n  \"env\": {\n    \"HTTP_PROXY\": \"http://127.0.0.1:7897\",\n    \"HTTPS_PROXY\": \"http://127.0.0.1:7897\"\n  }\n}",
+            "issuePrefix": "If it still doesn't work, please report an issue on GitHub: ",
+            "issueUrl": "https://github.com/zhukunpenglinyutong/vscode-cc-gui/issues"
+          },
+          "codex": {
+            "title": "Codex Subscription Account Setup",
+            "item1": "Run codex login in the terminal Codex CLI and log in successfully, then you can chat in the terminal",
+            "item2": "Restart IDEA",
+            "item3": "You can now chat normally",
+            "emptyConfigCodeLabel": "",
+            "emptyConfigCode": "",
+            "noteTitle": "",
+            "note1": "",
+            "proxyConfigCodeLabel": "",
+            "proxyConfigCode": "",
+            "issuePrefix": "If it still doesn't work, please report an issue on GitHub: ",
+            "issueUrl": "https://github.com/zhukunpenglinyutong/vscode-cc-gui/issues"
+          }
+        }
+      },
+      "importDialog": {
+        "title": "Import cc-switch Configuration",
+        "summary": "Found {{total}} configurations, including",
+        "newCount": "{{count}} new",
+        "updateCount": "{{count}} updates",
+        "columnName": "Name",
+        "columnId": "ID",
+        "columnStatus": "Status",
+        "statusNew": "New",
+        "statusUpdate": "Update",
+        "selectedCount": "Selected {{count}} items",
+        "confirmImport": "Confirm Import"
+      },
+      "deleteProviderMessage": "Are you sure you want to delete provider \"{{name}}\"?\n\nThis action cannot be undone.",
+      "dialog": {
+        "addTitle": "Add Provider",
+        "editTitle": "Edit Provider: {{name}}",
+        "addDescription": "Configure a Claude-compatible provider. Official direct mode is the default.",
+        "securityNotice": "Notice: All settings are stored locally on your computer. This project is 100% open source. Please feel free to use it.",
+        "editDescription": "Changes will be applied immediately to the current provider.",
+        "officialSectionTitle": "Official Direct API",
+        "officialPreset": "Anthropic Official Direct",
+        "officialSectionHint": "Use your manually entered credentials with the official endpoint https://api.anthropic.com.",
+        "proxySectionTitle": "Third-Party / Proxy Presets",
+        "proxySectionHint": "These presets route requests through a third-party or proxy provider endpoint instead of the official Anthropic API.",
+        "providerName": "Provider Name",
+        "providerNamePlaceholder": "e.g., Claude Official",
+        "remark": "Remark",
+        "remarkPlaceholder": "Optional",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "sk-ant-...",
+        "apiKeyHint": "Please enter your API Key",
+        "apiUrl": "API Endpoint",
+        "apiUrlPlaceholder": "https://api.anthropic.com",
+        "apiUrlHint": "Enter a Claude-compatible service endpoint. Official direct mode should use https://api.anthropic.com.",
+        "apiUrlLockedHint": "Official direct mode always uses the fixed Anthropic endpoint https://api.anthropic.com.",
+        "proxyEndpointWarning": "Requests will be routed through that endpoint instead of directly to the official Anthropic API.",
+        "modelMapping": "Model Mapping (will be injected into JSON env)",
+        "mainModel": "Main Model",
+        "mainModelPlaceholder": "e.g., claude-sonnet-4-6",
+        "haikuModel": "Haiku Default Model",
+        "haikuModelPlaceholder": "e.g., claude-haiku-4-5",
+        "sonnetModel": "Sonnet Default Model",
+        "sonnetModelPlaceholder": "e.g., claude-sonnet-4-6",
+        "opusModel": "Opus Default Model",
+        "opusModelPlaceholder": "e.g., claude-opus-4-6",
+        "modelMappingHint": "Optional: Specify default Claude models to use. Leave empty for system defaults.",
+        "customModels": "Custom Models",
+        "customModelsHint": "Add extra models supported by this provider. Custom models will appear at the top of the model selector list",
+        "jsonConfig": "JSON Configuration",
+        "jsonConfigDescription": "Configure complete settings.json content here, supporting all fields (e.g., model, alwaysThinkingEnabled, ccSwitchProviderId, codemossProviderId, etc.)",
+        "jsonError": "Invalid JSON format",
+        "required": "*",
+        "showApiKey": "Show",
+        "hideApiKey": "Hide",
+        "confirmAdd": "Confirm Add",
+        "saveChanges": "Save Changes",
+        "codeView": "Code",
+        "visualView": "Visual",
+        "formatJson": "Format",
+        "invalidJson": "Invalid JSON format, please switch to code view to fix",
+        "presetGroup": "Quick Presets",
+        "fableModel": "Fable Default Model",
+        "fableModelPlaceholder": "e.g., claude-fable-5"
+      },
+      "presets": {
+        "custom": "Custom",
+        "zhipu": "Zhipu GLM",
+        "kimi": "Kimi K2",
+        "deepseek": "DeepSeek",
+        "minimax": "MiniMax",
+        "xiaomi": "Xiaomi MiMo",
+        "xiaomiPlan": "Xiaomi MiMo Plan",
+        "qwen": "Alibaba Qwen",
+        "openrouter": "OpenRouter",
+        "kimiCoding": "Kimi Coding",
+        "bailian": "Bailian",
+        "bailianCoding": "Bailian Coding",
+        "longcat": "LongCat",
+        "opencodeGo": "OpenCode Go"
+      },
+      "disabled": "Disabled"
+    },
+    "comingSoon": "Coming soon...",
+    "permissionsComingSoon": "Permissions configuration coming soon...",
+    "agentsComingSoon": "Agents configuration coming soon...",
+    "skillsComingSoon": "Skills configuration coming soon...",
+    "codexProvider": {
+      "title": "Codex Provider Management",
+      "description": "Manage Codex provider configurations, settings will be written to ~/.codex/ directory",
+      "emptyProvider": "No Codex providers configured, click Add to create one",
+      "deleteConfirmTitle": "Confirm Delete",
+      "deleteConfirmMessage": "Are you sure you want to delete provider \"{{name}}\"? This action cannot be undone.",
+      "dialog": {
+        "addTitle": "Add Codex Provider",
+        "editTitle": "Edit Provider: {{name}}",
+        "addDescription": "Configure new Codex provider, will be written to ~/.codex/ directory",
+        "editDescription": "Changes will be applied immediately to ~/.codex/ directory",
+        "providerName": "Provider Name",
+        "providerNamePlaceholder": "e.g., Codex Official",
+        "configJson": "Config",
+        "authJsonLabel": "Config",
+        "formatJson": "Format",
+        "formatSuccess": "Format successful",
+        "formatError": "Format failed, invalid JSON",
+        "nameRequired": "Please enter provider name",
+        "configJsonError": "config.toml JSON format error",
+        "authJsonError": "auth.json JSON format error",
+        "configJsonHint": "JSON object containing model_provider, model, model_providers, etc.",
+        "authJsonHint": "JSON object containing OPENAI_API_KEY and other auth info",
+        "customModels": "Custom Models",
+        "customModelsHint": "Add extra models supported by this provider. Custom models will appear at the top of the model selection list",
+        "noCustomModels": "No custom models",
+        "addModel": "Add Model",
+        "modelIdPlaceholder": "Model ID (required, e.g., gpt-4o)",
+        "modelLabelPlaceholder": "Display name (optional)",
+        "modelDescPlaceholder": "Model description (optional)",
+        "cliLoginProviderName": "Codex CLI Login",
+        "cliLoginProviderDescription": "Use ChatGPT subscription credentials from Codex CLI",
+        "cliLoginAuthorizeTitle": "Authorize Local Codex Config Access",
+        "cliLoginAuthorizeMessage": "The plugin will read the existing local configuration from ~/.codex/config.toml and auth.json.",
+        "cliLoginAuthorizeDetail": "This will not modify or overwrite your config.toml or auth.json, and you can revoke the authorization at any time.",
+        "cliLoginDisableTitle": "Revoke Local Codex Config Authorization",
+        "cliLoginDisableMessage": "The plugin will stop reading ~/.codex/config.toml and auth.json.",
+        "modelIdRequired": "Model ID is required",
+        "modelIdInvalid": "Invalid model ID format (only letters, numbers, dots, hyphens, underscores, slashes and colons allowed)",
+        "modelIdDuplicate": "Model ID already exists",
+        "envVarsTitle": "Environment Variables",
+        "messageEnvLabel": "Message Environment Variables",
+        "messageEnvHint": "Custom environment variables injected into the Codex message subprocess",
+        "mcpEnvLabel": "MCP Environment Variables",
+        "mcpEnvHint": "Custom environment variables injected into the MCP tool discovery subprocess",
+        "envKeyPlaceholder": "ENV_KEY",
+        "envValuePlaceholder": "value",
+        "addEnvVar": "Add Variable",
+        "envKeyInvalid": "Invalid key name (must start with letter/underscore, alphanumeric only)",
+        "envKeyProtected": "Cannot set built-in variable: {{key}}",
+        "envKeyDuplicate": "Duplicate key: {{key}}",
+        "envValueTooLong": "Value too long (max {{max}} characters)",
+        "officialPreset": "OpenAI Official Direct",
+        "officialSectionHint": "Use your manually entered credentials with the official endpoint https://api.openai.com.",
+        "presetHint": "These presets route requests to third-party or proxy provider endpoints instead of the OpenAI official API.",
+        "noEnvVars": "No environment variables set"
+      }
+    },
+    "agent": {
+      "title": "Agents",
+      "create": "Create",
+      "export": "Export",
+      "import": "Import",
+      "createAgent": "Create Agent",
+      "createAgentHint": "Click to go to agent settings page to create",
+      "customAgents": "Custom Agents",
+      "noAgents": "No custom agents",
+      "noAgentsDropdown": "No agents",
+      "loadFailed": "Load failed",
+      "loading": "Loading...",
+      "menu": "Menu",
+      "addSuccess": "Agent created successfully",
+      "updateSuccess": "Agent updated successfully",
+      "deleteSuccess": "Agent deleted successfully",
+      "operationSuccess": "Operation successful",
+      "operationFailed": "Operation failed",
+      "deleteConfirmTitle": "Confirm Delete",
+      "deleteConfirmMessage": "Are you sure you want to delete agent \"{{name}}\"? This action cannot be undone.",
+      "clearAgent": "Clear selected agent",
+      "dialog": {
+        "addTitle": "Create Agent",
+        "editTitle": "Edit Agent",
+        "name": "Name",
+        "namePlaceholder": "Enter agent name",
+        "nameRequired": "Please enter agent name",
+        "prompt": "Prompt",
+        "promptPlaceholder": "Enter the agent's role, tone, workflow, tool preferences and rules. (Optional)",
+        "promptHint": "The prompt will be sent to AI as system instructions at the start of conversation",
+        "confirmAdd": "Create",
+        "saveChanges": "Save"
+      },
+      "importDialog": {
+        "title": "Import Agents",
+        "selectItems": "Select agents to import",
+        "summary": "Total {{total}} agents:",
+        "newCount": "{{count}} new",
+        "updateCount": "{{count}} updates",
+        "selectedCount": "{{count}} items selected",
+        "conflictStrategy": "Conflict Resolution Strategy",
+        "strategySkip": "Skip",
+        "strategySkipDesc": "Skip existing agents",
+        "strategyOverwrite": "Overwrite",
+        "strategyOverwriteDesc": "Overwrite existing agents",
+        "strategyDuplicate": "Duplicate",
+        "strategyDuplicateDesc": "Create duplicates (generate new IDs)",
+        "conflictWarning": "{{count}} conflicts detected",
+        "columnName": "Name",
+        "columnId": "ID",
+        "columnStatus": "Status",
+        "statusNew": "New",
+        "statusUpdate": "Update",
+        "importSuccess": "Successfully imported {{count}} agents",
+        "importFailed": "Import failed",
+        "importPartialSuccess": "Imported {{imported}}, skipped {{skipped}}, updated {{updated}}",
+        "noItemsSelected": "Please select at least one agent",
+        "confirmImport": "Confirm Import",
+        "exportSuccess": "Agents exported successfully",
+        "exportFailed": "Export failed",
+        "importFileError": "Failed to read file",
+        "invalidFileFormat": "Invalid file format"
+      },
+      "exportDialog": {
+        "title": "Export Agents",
+        "selectHint": "Select agents to export",
+        "confirmExport": "Confirm Export"
+      }
+    },
+    "prompts": "Prompt Library",
+    "promptsDesc": "Manage common prompt templates for quick insertion during chat",
+    "prompt": {
+      "title": "Prompt Library",
+      "create": "Create",
+      "export": "Export",
+      "import": "Import",
+      "createPrompt": "Create Prompt",
+      "createPromptHint": "Click to go to prompt settings page to create",
+      "customPrompts": "Custom Prompts",
+      "noPrompts": "No custom prompts",
+      "noPromptsDropdown": "No prompts",
+      "loadFailed": "Load failed",
+      "loading": "Loading...",
+      "menu": "Menu",
+      "addSuccess": "Prompt created successfully",
+      "updateSuccess": "Prompt updated successfully",
+      "deleteSuccess": "Prompt deleted successfully",
+      "operationSuccess": "Operation successful",
+      "operationFailed": "Operation failed",
+      "deleteConfirmTitle": "Confirm Delete",
+      "deleteConfirmMessage": "Are you sure you want to delete prompt \"{{name}}\"? This action cannot be undone.",
+      "description": "Create common prompt templates. Type ! in the chat input to quickly select and insert",
+      "global": "Global Prompts",
+      "project": "Project Prompts",
+      "projectScope": "Project Prompts - {{projectName}}",
+      "noProject": "No Active Project",
+      "copyToGlobal": "Copy to Global",
+      "scopeLabel": {
+        "global": "Global",
+        "project": "Project"
+      },
+      "copyToGlobalSuccess": "Copied to global prompts",
+      "projectPromptsUnavailable": "Project prompts unavailable in current project",
+      "dialog": {
+        "addTitle": "Create Prompt",
+        "editTitle": "Edit Prompt",
+        "name": "Name",
+        "namePlaceholder": "Enter prompt name",
+        "nameRequired": "Please enter prompt name",
+        "content": "Content",
+        "contentPlaceholder": "Enter prompt content, you can include variables like {{variable}}",
+        "contentHint": "Prompt content will be inserted directly into the input box when selected",
+        "confirmAdd": "Create",
+        "saveChanges": "Save"
+      },
+      "importDialog": {
+        "title": "Import Prompts",
+        "selectItems": "Select prompts to import",
+        "summary": "Total {{total}} prompts:",
+        "newCount": "{{count}} new",
+        "updateCount": "{{count}} updates",
+        "selectedCount": "{{count}} items selected",
+        "conflictStrategy": "Conflict Resolution Strategy",
+        "strategySkip": "Skip",
+        "strategySkipDesc": "Skip existing prompts",
+        "strategyOverwrite": "Overwrite",
+        "strategyOverwriteDesc": "Overwrite existing prompts",
+        "strategyDuplicate": "Duplicate",
+        "strategyDuplicateDesc": "Create duplicates (generate new IDs)",
+        "conflictWarning": "{{count}} conflicts detected",
+        "columnName": "Name",
+        "columnId": "ID",
+        "columnStatus": "Status",
+        "statusNew": "New",
+        "statusUpdate": "Update",
+        "importSuccess": "Successfully imported {{count}} prompts",
+        "importFailed": "Import failed",
+        "importPartialSuccess": "Imported {{imported}}, skipped {{skipped}}, updated {{updated}}",
+        "noItemsSelected": "Please select at least one prompt",
+        "confirmImport": "Confirm Import",
+        "exportSuccess": "Prompts exported successfully",
+        "exportFailed": "Export failed",
+        "importFileError": "Failed to read file",
+        "invalidFileFormat": "Invalid file format"
+      },
+      "exportDialog": {
+        "title": "Export Prompts",
+        "selectHint": "Select prompts to export",
+        "confirmExport": "Confirm Export"
+      }
+    },
+    "configure": "Configure",
+    "cli": {
+      "hint": "These CLIs must be installed and configured in your system terminal. The plugin only detects installation status and version — it will never install them for you. Confirm each CLI works in the terminal before coming back here to use it.",
+      "refresh": "Re-check",
+      "retry": "Retry",
+      "loading": "Checking CLI installation status…",
+      "loadFailed": "Detection failed. Please try again.",
+      "status": {
+        "installed": "Installed",
+        "notInstalled": "Not installed"
+      },
+      "viewInstallGuide": "Install guide",
+      "howToInstall": "View install guide",
+      "copy": "Copy",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Failed to copy",
+      "tools": {
+        "grok": {
+          "name": "Grok CLI",
+          "description": "xAI Grok terminal coding agent"
+        },
+        "kimi": {
+          "name": "Kimi CLI",
+          "description": "Moonshot Kimi Code CLI"
+        },
+        "opencode": {
+          "name": "OpenCode",
+          "description": "Open-source terminal AI coding agent"
+        },
+        "pi": {
+          "name": "PI CLI",
+          "description": "Minimal terminal coding agent with multi-provider model support"
+        }
+      },
+      "installDialog": {
+        "title": "Install {{name}}",
+        "lead": "Install {{name}} in your system terminal first and make sure `{{binary}}` is available, then come back and click Re-check. This plugin will not run the installer for you.",
+        "stepOpenTerminal": "Open your system terminal (Terminal / iTerm / PowerShell, etc.)",
+        "stepRunCommand": "Copy and run the install command below",
+        "stepVerify": "After install, run `{{binary}} --version` to verify",
+        "stepReturn": "Return here and click Re-check",
+        "primaryCommand": "Recommended install command (macOS / Linux)",
+        "windowsCommand": "Windows (PowerShell)",
+        "altCommand": "Alternative install method",
+        "openDocs": "Open official docs"
+      },
+      "listTitle": "Local CLI tools",
+      "summary": "{{installed}} / {{total}} installed",
+      "moreComingSoon": "More coming soon",
+      "copyPath": "Copy path"
+    }
+  },
+  "history": {
+    "title": "History",
+    "sessionDeleted": "Session deleted",
+    "confirmDelete": "Confirm Delete",
+    "deleteMessage": "Are you sure you want to delete this session? This action cannot be undone.",
+    "deleteSession": "Delete this session",
+    "selectMode": "Select",
+    "exitSelectMode": "Exit selection",
+    "selectedSessions": "{{count}} selected",
+    "selectAll": "Select all",
+    "clearSelection": "Clear",
+    "deleteSelected": "Delete selected",
+    "confirmDeleteSelected": "Confirm Delete",
+    "deleteSelectedMessage": "Are you sure you want to delete {{count}} selected sessions? This action cannot be undone.",
+    "selectSession": "Select session",
+    "selectSessionWithTitle": "Select {{title}}",
+    "exportSession": "Export session",
+    "exportSuccess": "Session exported",
+    "exportFailed": "Export failed",
+    "favoriteSession": "Favorite session",
+    "unfavoriteSession": "Unfavorite session",
+    "favorited": "Favorited",
+    "unfavorited": "Unfavorited",
+    "loading": "Loading history...",
+    "loadFailed": "Load failed",
+    "noSessions": "No history sessions",
+    "noSessionsDesc": "No session records found for the current provider in this project",
+    "unsupportedTitle": "History not available for this CLI",
+    "unsupportedDesc": "{{provider}} can chat in this panel, but local history listing is not supported yet. Switch to Claude, Codex, or Grok to browse their history.",
+    "totalSessions": "{{count}} sessions · {{total}} messages",
+    "messageCount": "{{count}} messages",
+    "searchPlaceholder": "Search session titles...",
+    "noSearchResults": "No matching sessions found",
+    "tryOtherKeywords": "Try other search keywords",
+    "deepSearchTooltip": "Deep Search (clear cache and reload)",
+    "editTitle": "Edit title",
+    "saveTitleButton": "Save",
+    "cancelEditButton": "Cancel",
+    "titleTooLong": "Title too long (max 50 characters)",
+    "titleUpdated": "Title updated",
+    "copySessionId": "Copy session ID for CLI resume",
+    "sessionIdCopied": "Session ID copied",
+    "copyFailed": "Copy failed",
+    "entrypointLabel": {
+      "sdk-cli": "SDK Session",
+      "claude-vscode": "VS Code",
+      "remote": "Remote"
+    },
+    "entrypointTooltip": {
+      "sdk-cli": "This session was created by the plugin via SDK and is not shown in CLI by default. Click 'Convert to CLI' to make it appear in terminal CLI's /resume list",
+      "claude-vscode": "This session was created by VS Code extension and is not shown in CLI by default. Click 'Convert to CLI' to make it appear in terminal CLI's /resume list",
+      "remote": "This session was created by a remote Claude Code instance"
+    },
+    "convertToCliSession": "Convert to CLI-recognizable session",
+    "convertButton": "Convert to CLI",
+    "convertSuccess": "Session converted, now visible in CLI /resume",
+    "convertFailed": "Conversion failed",
+    "confirmConvert": "Convert to CLI Session?",
+    "convertConfirmMessage": "This will modify the session's entrypoint to make it visible in Claude Code CLI's /resume list.",
+    "conversionErrors": {
+      "INVALID_SESSION_ID": "Invalid session ID",
+      "SESSION_ACTIVE": "Cannot convert the currently active session. Start a new session first, then convert this one",
+      "SESSION_NOT_FOUND": "Session file not found",
+      "FILE_NOT_EXIST": "Session file does not exist",
+      "FILE_LOCKED": "Session file is being accessed by another process",
+      "NOT_SDK_SESSION": "This session is not an SDK-created session (entrypoint is not sdk-cli)",
+      "ALREADY_CLI_SESSION": "This session is already a CLI session",
+      "CONVERSION_FAILED": "Conversion failed, please try again later"
+    },
+    "timeAgo": {
+      "yearsAgo": "years ago",
+      "monthsAgo": "months ago",
+      "daysAgo": "days ago",
+      "hoursAgo": "hours ago",
+      "minutesAgo": "minutes ago",
+      "secondsAgo": "seconds ago"
+    }
+  },
+  "permission": {
+    "dialogTitle": "Permission Request",
+    "allow": "Allow Once",
+    "allowAlways": "Always Allow",
+    "deny": "Deny",
+    "userDenied": "User denied the permission request",
+    "fromExternalProcess": "Request from external process",
+    "tools": {
+      "Write": "Write File",
+      "Edit": "Edit File",
+      "Read": "Read File",
+      "ReadBatch": "Batch Read Files",
+      "Bash": "Execute Command",
+      "TodoWrite": "Write Todo",
+      "TodoRead": "Read Todo",
+      "WebSearch": "Web Search",
+      "WebFetch": "Fetch Web",
+      "execute": "Execute {{toolName}}",
+      "readDirectory": "Read Directory",
+      "timeoutWarning": "Please answer soon, dialog will close in {{seconds}} seconds"
+    },
+    "timeoutWarning": "Please answer soon, dialog will close in {{seconds}} seconds"
+  },
+  "askUserQuestion": {
+    "title": "AI has some questions for you",
+    "progress": "Question {{current}} / {{total}}",
+    "multiSelectHint": "You can select multiple options",
+    "cancel": "Cancel",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "otherOption": "Other",
+    "otherOptionDesc": "Enter a custom answer",
+    "customInputPlaceholder": "Enter your answer...",
+    "timeoutWarning": "Please answer soon, dialog will close in {{seconds}} seconds",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "clickToAnswer": "Click to answer"
+  },
+  "planApproval": {
+    "title": "Plan Ready for Approval",
+    "subtitle": "AI has finished planning and is ready to execute.",
+    "requestedPermissions": "Requested Permissions",
+    "executionMode": "Execution Mode",
+    "executionModeDescription": "Select how AI should execute the plan:",
+    "approve": "Approve & Execute",
+    "reject": "Reject",
+    "toApprove": "to approve",
+    "toReject": "to reject",
+    "timeoutWarning": "Please make a choice soon, dialog will close in {{seconds}} seconds"
+  },
+  "toast": {
+    "switchSuccess": "Switched successfully",
+    "thinkingEnabled": "Thinking enabled",
+    "thinkingDisabled": "Thinking disabled",
+    "configLoading": "Configuration loading, please try again",
+    "saveSuccess": "Saved successfully",
+    "restartRequired": "Please restart IDEA for this setting to take effect",
+    "saveFailed": "Save failed",
+    "deleteSuccess": "Deleted successfully",
+    "operationFailed": "Operation failed",
+    "copySuccess": "{{label}} copied to clipboard",
+    "copyFailed": "Copy failed",
+    "newSessionCreatedReady": "New session created, you can start asking questions",
+    "providerSwitchSuccess": "Provider switched successfully!",
+    "providerSwitchFailed": "Failed to switch provider",
+    "operationSuccess": "Operation successful",
+    "pleaseEnterProviderName": "Please enter provider name",
+    "invalidJsonConfig": "Invalid JSON config format",
+    "providerAdded": "Provider added",
+    "providerUpdated": "Provider updated",
+    "providerDeleted": "Provider deleted"
+  },
+  "config": {
+    "clickToCopy": "Click to copy",
+    "switch": "Switch",
+    "switchProvider": "Switch provider",
+    "runtimeProvider": {
+      "title": "Switch Current Provider",
+      "loading": "Loading providers...",
+      "empty": "No providers available",
+      "switched": "Switched to {{provider}}"
+    },
+    "nodeProcesses": {
+      "title": "Node Process Manager",
+      "badge": "{{total}} processes",
+      "badgeWithOrphan": "{{total}} · {{orphan}} orphan ⚠",
+      "summary": "Total: {{total}} · Orphans: {{orphan}}",
+      "loading": "Loading processes...",
+      "empty": "No active Node processes",
+      "refresh": "Refresh",
+      "groups": {
+        "daemon": "Daemon Processes",
+        "channel": "Active Conversations",
+        "orphan": "Orphan Processes"
+      },
+      "kind": {
+        "daemonShort": "Daemon",
+        "channelShort": "Channel",
+        "orphanShort": "Orphan"
+      },
+      "kill": "Kill",
+      "interrupt": "Stop",
+      "restart": "Restart",
+      "pending": "Working...",
+      "killAll": "Clean up orphans ({{count}})",
+      "killHint": "Force terminate this Node process",
+      "killAllHint": "Kill every detected orphan process",
+      "restartHint": "Stop the daemon; the next message will spawn a fresh one",
+      "killConfirmTitle": "Terminate process?",
+      "killConfirm": "Kill process PID {{pid}}? Any in-flight conversation will be lost.",
+      "restartConfirmTitle": "Restart daemon?",
+      "restartConfirm": "Restart the daemon? Active conversations will be interrupted.",
+      "killAllConfirmTitle": "Clean up all orphans?",
+      "killAllConfirm": "Kill all {{count}} orphan processes?",
+      "killSuccess": "Process terminated",
+      "killAllSuccess": "Cleaned up {{count}} orphan process(es)",
+      "restartSuccess": "Daemon stopped; a new instance will start automatically on the next message",
+      "killFailed": "Kill failed: {{error}}",
+      "activeRequests": "{{count}} in-flight"
+    },
+    "link": "Link"
+  },
+  "markdown": {
+    "copyCode": "Copy code",
+    "copyMessage": "Copy message",
+    "copySuccess": "Copied!"
+  },
+  "usage": {
+    "checkingLabel": "Checking for tokentracker-cli…",
+    "installingLabel": "Installing tokentracker-cli…",
+    "installingDesc": "This may take a minute. The app will re-check and start the local server when installation finishes.",
+    "startingLabel": "Starting the tokentracker server…",
+    "guideTitle": "Install tokentracker-cli to see usage stats",
+    "guideDesc": "Usage stats are provided by tokentracker-cli. It runs a local server that aggregates token usage from your AI tools and renders it as a dashboard.",
+    "guideInstallLabel": "Install command",
+    "guideCopy": "Copy",
+    "guideCopied": "Copied",
+    "guideInstallNow": "Install now",
+    "guideNoteHooks": "On first launch, the tokentracker server writes hooks into your installed AI tools — that is how it collects usage data.",
+    "guideNoteTelemetry": "Anonymous telemetry is disabled by this app.",
+    "errorTitle": "Failed to start the tokentracker server",
+    "errorRetry": "Retry"
+  },
+  "mcp": {
+    "title": "MCP Servers",
+    "whatIsMcp": "What is MCP?",
+    "refreshStatus": "Refresh server status",
+    "add": "Add",
+    "manualConfig": "Manual config",
+    "addFromMarket": "Add from MCP market",
+    "market": {
+      "title": "MCP Marketplace",
+      "subtitle": "Browse registry sources and add installable MCP servers.",
+      "searchPlaceholder": "Search servers, publishers or tags",
+      "refresh": "Refresh marketplace",
+      "allSources": "All sources",
+      "loading": "Loading marketplace entries…",
+      "empty": "No MCP servers found.",
+      "selectServer": "Select a server to inspect installation details.",
+      "footerHint": "Verify commands, URLs, headers and environment placeholders before adding a server.",
+      "addServer": "Add Server",
+      "official": "official",
+      "installable": "installable",
+      "browseOnly": "browse only",
+      "repository": "Repository",
+      "docs": "Docs",
+      "homepage": "Homepage",
+      "installOption": "Install option",
+      "riskWarning": "This option runs a command on your machine. Review it before adding.",
+      "riskWarningUnverified": "This option runs an unrecognized command. Only add it if you trust the source.",
+      "configPreview": "Configuration preview",
+      "noInstall": "This source exposes discovery metadata only. Add this server manually after checking its repository instructions."
+    },
+    "import": {
+      "menuLabel": "Import from GitHub Copilot",
+      "title": "Import from GitHub Copilot",
+      "description": "Paste a GitHub Copilot MCP configuration (root key \"servers\") to import its servers.",
+      "placeholder": "{\n  \"servers\": {\n    \"my-server\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"my-mcp-server\"]\n    }\n  }\n}",
+      "previewButton": "Preview",
+      "previewTitle": "Servers to import",
+      "empty": "Paste a configuration and click Preview.",
+      "footerHint": "Review the servers and any renames before importing.",
+      "renamedFrom": "renamed from {{id}}",
+      "renameSummary": "{{count}} renamed due to name conflicts",
+      "confirm": "Import {{count}} servers"
+    },
+    "description": "Description",
+    "command": "Command",
+    "url": "URL",
+    "homepage": "Homepage",
+    "docs": "Docs",
+    "edit": "Edit",
+    "delete": "Delete",
+    "noServers": "No MCP servers",
+    "addServerHint": "Click 'Add' button to add a server",
+    "loading": "Loading...",
+    "deleteTitle": "Delete MCP server",
+    "deleteMessage": "Are you sure you want to delete server \"{{name}}\"?\n\nThis action cannot be undone.",
+    "deleteConfirm": "Delete",
+    "cancel": "Cancel",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "deleted": "Deleted",
+    "updated": "Updated",
+    "saved": "Saved",
+    "added": "Added",
+    "linkCopied": "Link copied, please open in browser",
+    "configCopied": "Config copied to clipboard",
+    "copyFailed": "Copy failed, please copy manually",
+    "connectionStatus": "Connection Status",
+    "serverVersion": "Server Version",
+    "statusConnected": "Connected",
+    "statusFailed": "Connection Failed",
+    "statusNeedsAuth": "Needs Authentication",
+    "statusPending": "Connecting...",
+    "statusUnknown": "Unknown",
+    "errorDetails": "Error Details",
+    "logs": {
+      "title": "Connection Logs",
+      "empty": "No logs yet",
+      "clear": "Clear logs",
+      "close": "Close",
+      "count": "{{count}} log entries",
+      "connected": "Connected",
+      "failed": "Connection failed",
+      "needsAuth": "Authentication required",
+      "unknownError": "Unknown error",
+      "loadingServers": "Loading MCP server list...",
+      "refreshingStatus": "Refreshing MCP server connection status...",
+      "loadedToolsFromCache": "Loaded tools from cache for \"{{name}}\": {{count}} tools",
+      "forceRefreshingTools": "Force refreshing tools for \"{{name}}\"...",
+      "loadingTools": "Loading tools for \"{{name}}\"...",
+      "fastLoadCache": "Fast load from cache: {{count}} servers (cached {{seconds}}s ago)",
+      "loadedToolsFromCacheSimple": "Loaded tools from cache: {{count}} tools",
+      "usingCacheStrategy": "Using cache-first strategy. Click refresh to get latest data",
+      "firstLoad": "First load, fetching server list...",
+      "loadedServersSuccess": "Loaded server list: {{count}} servers found",
+      "loadedServersFailed": "Failed to load server list: {{error}}",
+      "statusUpdateComplete": "Status update complete: {{total}} servers ({{connected}} connected, {{failed}} failed, {{pending}} pending, {{needsAuth}} need auth)",
+      "loadedStatusFailed": "Failed to load server status: {{error}}",
+      "cleared": "Refresh logs cleared",
+      "refreshingAll": "Refreshing all MCP servers...",
+      "startRefresh": "Starting refresh",
+      "forceRefreshingToolsServer": "Force refreshing tools for \"{{name}}\"...",
+      "startRefreshServer": "Starting refresh for \"{{name}}\"...",
+      "checkingConnection": "Checking connection status",
+      "checkingConnectionServer": "Server \"{{name}}\" - Checking connection status...",
+      "refreshComplete": "Server \"{{name}}\" refresh complete",
+      "forceRefreshTools": "Force refresh tools"
+    },
+    "presets": {
+      "fetch": "Web content fetching tool for scraping web pages",
+      "time": "Time and timezone utilities",
+      "memory": "Knowledge graph and memory storage tool",
+      "sequentialThinking": "Sequential thinking and reasoning tool",
+      "context7": "Document search and context retrieval tool"
+    },
+    "help": {
+      "title": "What is MCP?",
+      "protocol": {
+        "title": "Model Context Protocol",
+        "description": "MCP (Model Context Protocol) is an open protocol developed by Anthropic that allows AI models to safely access external tools and data sources."
+      },
+      "features": {
+        "title": "Key Features",
+        "toolExtension": {
+          "label": "Tool Extension",
+          "description": "Add capabilities like file system and network access to AI"
+        },
+        "dataConnection": {
+          "label": "Data Connection",
+          "description": "Connect to external data sources such as databases and APIs"
+        },
+        "security": {
+          "label": "Security & Control",
+          "description": "Strict permission control and data isolation"
+        },
+        "integration": {
+          "label": "Easy Integration",
+          "description": "Support for multiple programming languages and runtime environments"
+        }
+      },
+      "configuration": {
+        "title": "Configuration Methods",
+        "description": "Two configuration types supported:",
+        "stdio": {
+          "description": "Communicate with local processes via standard input/output",
+          "example": "Started with npx/uvx commands"
+        },
+        "httpSse": {
+          "description": "Communicate with remote servers over network",
+          "example": "URL address"
+        }
+      },
+      "learnMore": {
+        "title": "Learn More",
+        "description": "Visit official documentation:"
+      },
+      "gotIt": "Got it"
+    },
+    "serverDialog": {
+      "addTitle": "Manual Configuration",
+      "editTitle": "Edit Server",
+      "rawConfig": "Raw Configuration (JSON)",
+      "description": "Enter MCP Servers configuration JSON (prefer NPX or UVX configuration)",
+      "securityWarning": "Please verify the source and assess risks before configuration",
+      "saving": "Saving...",
+      "scope": {
+        "label": "Scope",
+        "user": "Global",
+        "local": "This project only",
+        "userHint": "Written to ~/.claude.json, available to all projects",
+        "localHint": "Available to the current project only (projects[cwd])",
+        "badgeUser": "Global",
+        "badgeLocal": "Project"
+      },
+      "errors": {
+        "idExists": "Server ID \"{{id}}\" already exists",
+        "unrecognizedFormat": "Unrecognized configuration format",
+        "jsonParseError": "JSON parse error: {{message}}"
+      }
+    },
+    "tools": "Tools",
+    "loadTools": "Load Tool List",
+    "notConnected": "Not Connected",
+    "loadFailed": "Load Failed",
+    "noTools": "No Tools",
+    "clickToLoad": "Click to Load",
+    "refreshLogs": "Refresh Logs",
+    "clearLogs": "Clear Logs",
+    "clear": "Clear",
+    "noRefreshLogs": "No Refresh Logs",
+    "refreshLogsHint": "After clicking the refresh button, detailed refresh process information will be displayed here",
+    "noParams": "No Parameters",
+    "required": "Required",
+    "optional": "Optional",
+    "refreshServer": "Refresh {{name}}"
+  },
+  "tools": {
+    "toolCall": "Tool Call",
+    "runCommand": "Run Command",
+    "contextEngine": "Context Engine",
+    "task": "Task",
+    "agent": "Agent",
+    "agentGroupToggle": "Toggle agent group details",
+    "readFile": "Read File",
+    "editFile": "Edit File",
+    "writeFile": "Write File",
+    "replaceString": "Replace String",
+    "executeCommand": "Execute Command",
+    "search": "Search",
+    "fileMatch": "File Match",
+    "webFetch": "Web Fetch",
+    "webSearch": "Web Search",
+    "delete": "Delete",
+    "explore": "Explore",
+    "createDirectory": "Create Directory",
+    "moveFile": "Move File",
+    "copyFile": "Copy File",
+    "listFiles": "List Files",
+    "findFile": "Find File",
+    "todoList": "Todo List",
+    "editFileTitle": "Edit File",
+    "clickToOpen": "Click to open {{filePath}}",
+    "refreshFileInIdea": "Refresh file in IDEA",
+    "refreshFileInIdeaSuccess": "Manually refreshed this file in IDEA",
+    "showDiffInIdea": "Show changes in IDEA",
+    "diffButton": "Diff",
+    "editBatchTitle": "Batch Edit Files",
+    "searchBatchTitle": "Batch Search",
+    "editPrefix": "Edit: {{fileName}}",
+    "lineRange": "Lines {{start}}-{{end}}",
+    "lineSingle": "Line {{line}}",
+    "editLocationsSuffix": " more",
+    "filePath": "File path:",
+    "unknownTool": "Unknown tool",
+    "bashGroupBatchRun": "Batch Run Commands",
+    "bashGroupBatchExecution": "Batch Execution",
+    "bashGroupCompleted": "completed",
+    "bashGroupAllCompleted": "All Completed",
+    "bashGroupFailed": "failed",
+    "promptLabel": "Prompt",
+    "updatePlan": "Update Plan",
+    "applyPatch": "Apply Patch"
+  },
+  "todo": {
+    "inProgress": "In Progress {{completed}}/{{total}} tasks",
+    "allCompleted": "All Completed {{completed}}/{{total}} tasks",
+    "stopped": "Stopped"
+  },
+  "subagent": {
+    "process": {
+      "title": "Agent process",
+      "thought": "Thought",
+      "filesRead_one": "Read {{count}} file",
+      "filesRead_other": "Read {{count}} files",
+      "otherTools": "Other tools",
+      "result": "Result",
+      "showFullOutput": "Show full output",
+      "loading": "Loading Agent process…",
+      "unavailable": "Process log is unavailable until this session has an id.",
+      "reportGenerated": "Structured analysis report generated",
+      "unitMs": "ms",
+      "unitS": "s",
+      "unitTools": "tools",
+      "unitTokens": "tokens"
+    }
+  },
+  "statusPanel": {
+    "todoTab": "Plan",
+    "tasksTab": "Tasks",
+    "subagentTab": "Subagent",
+    "filesTab": "File Changes",
+    "editsTab": "Edits",
+    "noTodos": "No tasks running",
+    "noSubagents": "No subagents running",
+    "noFileChanges": "No file changes",
+    "blockedBy": "Blocked by: {{ids}}",
+    "showDiff": "Show diff (before AI ↔ current)",
+    "expand": "Expand status panel",
+    "collapse": "Collapse status panel",
+    "undoChanges": "Undo AI changes to this file",
+    "undoConfirmTitle": "Undo File Changes",
+    "undoWillDelete": "This file was newly created. Undo will delete this file.",
+    "undoWillRestore": "This will restore the file to its state before AI's modifications.",
+    "undoCannotUndo": "This action cannot be undone.",
+    "confirmUndo": "Confirm Undo",
+    "undoSuccess": "Undone changes to {{fileName}}",
+    "undoFailed": "Undo failed: {{error}}",
+    "discardAll": "Discard All",
+    "keepAll": "Keep All",
+    "discardAllConfirmTitle": "Discard All Changes",
+    "discardAllConfirmMessage": "This will undo all file changes. This action cannot be undone.",
+    "keepAllConfirmTitle": "Keep All",
+    "keepAllConfirmMessage": "Accept current changes as baseline. Future changes will be tracked from zero.",
+    "discardAllSuccess": "All changes discarded",
+    "discardAllFailed": "Discard failed: {{error}}",
+    "keepAllSuccess": "All changes kept, tracking reset"
+  },
+  "skills": {
+    "title": "Skills",
+    "all": "All",
+    "global": "Global",
+    "local": "Local",
+    "filterEnabled": "Filter enabled Skills",
+    "enabled": "Enabled",
+    "filterDisabled": "Filter disabled Skills",
+    "disabled": "Disabled",
+    "searchPlaceholder": "Search Skills...",
+    "whatIsSkills": "What are Skills?",
+    "importSkill": "Import Skill",
+    "importGlobalSkill": "Import Global Skill",
+    "importLocalSkill": "Import Local Skill",
+    "importUserSkill": "Import User Skill",
+    "importRepoSkill": "Import Repo Skill",
+    "user": "User",
+    "repo": "Repo",
+    "description": "Description",
+    "noDescription": "No description",
+    "noSkills": "No Skills",
+    "noMatchingSkills": "No matching Skills found",
+    "importHint": "Click + button to import Skill file or folder",
+    "deleteTitle": "Delete Skill",
+    "deleteMessage": "Are you sure you want to delete {{scope}} Skill \"{{name}}\"?\n\nThis action cannot be undone.",
+    "deleteMessageGlobal": "global",
+    "deleteMessageLocal": "local",
+    "deleteMessageUser": "user",
+    "deleteMessageRepo": "repo",
+    "importSuccess": "Successfully imported {{count}} Skills",
+    "importSuccessOne": "Successfully imported 1 Skill",
+    "importPartialSuccess": "Successfully imported {{count}}/{{total}} Skills, some failed",
+    "importFailed": "Failed to import Skill",
+    "deleteSuccess": "Successfully deleted Skill",
+    "toggleSuccess": "Updated Skill status",
+    "toggleFailed": "Failed to update Skill status",
+    "deleteFailed": "Failed to delete Skill",
+    "enableSuccess": "Successfully enabled Skill: {{name}}",
+    "disableSuccess": "Successfully disabled Skill: {{name}}",
+    "operationFailed": "Operation failed: {{error}}",
+    "operationError": "Skill operation failed",
+    "refreshed": "Skills list refreshed",
+    "help": {
+      "title": "What are Skills?",
+      "overview": {
+        "title": "Overview",
+        "description": "Skills are dynamically loaded instruction sets, scripts, and resource folders that enhance AI's performance for specific tasks. Skills teach AI how to complete particular tasks in a repeatable way, such as creating documents using company brand guidelines, analyzing data following organization-specific workflows, or automating personal tasks."
+      },
+      "structure": {
+        "title": "Skill Structure",
+        "description": "A Skill is a folder containing a SKILL.md file:",
+        "example": "my-skill/\n├── SKILL.md          # Required: skill definition file\n├── templates/        # Optional: template files\n└── references/       # Optional: reference materials"
+      },
+      "format": {
+        "title": "SKILL.md Format",
+        "description": "SKILL.md files use YAML frontmatter + Markdown format:",
+        "example": "---\nname: my-skill-name\ndescription: Skill description and when to use\n---\n\n# Skill Instructions\n\nDetailed instruction content...",
+        "hint": "name and description are required fields. Optional fields include license, allowed-tools, metadata"
+      },
+      "configuration": {
+        "title": "Configuration Methods",
+        "description": "Ways to add a Skill:",
+        "localPath": {
+          "label": "Local Path",
+          "description": "Specify folder path containing SKILL.md"
+        },
+        "relativePath": {
+          "label": "Relative Path",
+          "description": "Relative to project root, e.g., ./skills/my-skill"
+        },
+        "absolutePath": {
+          "label": "Absolute Path",
+          "description": "Complete filesystem path"
+        }
+      },
+      "tips": {
+        "title": "Usage Tips",
+        "item1": "Ensure Skill directory contains a valid SKILL.md file",
+        "item2": "Skill names must use lowercase letters, numbers, and hyphens (hyphen-case)",
+        "item3": "Skills automatically take effect in AI sessions after loading",
+        "item4": "Control individual Skill status with enable/disable toggles",
+        "item5": "Mention Skill name in chat to use it, e.g., \"Use the pdf skill to extract form fields\""
+      },
+      "learnMore": {
+        "title": "Learn More",
+        "description": "More information about Skills:",
+        "link1": "What are Skills?",
+        "link2": "Creating Custom Skills",
+        "link3": "Anthropic Skills Example Repository"
+      },
+      "codex": {
+        "title": "What are Codex Skills?",
+        "overview": {
+          "title": "Overview",
+          "description": "Codex Skills are instruction sets stored in .agents/skills/ directories that enhance Codex's performance for specific tasks. Invoke them in chat using the $ prefix."
+        },
+        "structure": {
+          "title": "Skill Structure",
+          "description": "A Codex Skill is a folder containing a SKILL.md file:",
+          "example": ".agents/skills/\n└── my-skill/\n    ├── SKILL.md          # Required: skill definition file\n    ├── templates/        # Optional: template files\n    └── references/       # Optional: reference materials"
+        },
+        "format": {
+          "title": "SKILL.md Format",
+          "description": "SKILL.md files use YAML frontmatter + Markdown format:",
+          "example": "---\nname: my-skill-name\ndescription: Skill description and when to use\n---\n\n# Skill Instructions\n\nDetailed instruction content...",
+          "hint": "name and description are required fields"
+        },
+        "configuration": {
+          "title": "Configuration",
+          "description": "Where Codex Skills are stored:",
+          "userPath": {
+            "label": "User Directory",
+            "description": "~/.agents/skills/, shared across all projects"
+          },
+          "repoPath": {
+            "label": "Repo Directory",
+            "description": "{project-root}/.agents/skills/, available only in current project"
+          },
+          "configToml": {
+            "label": "Enable/Disable",
+            "description": "Controlled via [[skills.config]] entries in ~/.codex/config.toml"
+          }
+        },
+        "tips": {
+          "title": "Usage Tips",
+          "item1": "Ensure Skill directory contains a valid SKILL.md file",
+          "item2": "Skill names must use lowercase letters, numbers, and hyphens",
+          "item3": "Type $ prefix in chat to trigger Skill autocomplete",
+          "item4": "Control individual Skill status with enable/disable toggles",
+          "item5": "Disabled Skills are recorded in ~/.codex/config.toml"
+        },
+        "learnMore": {
+          "title": "Learn More",
+          "description": "More information about Codex Skills:",
+          "link1": "Codex Skills Documentation"
+        }
+      }
+    }
+  },
+  "claudeEffort": {
+    "title": "Select effort level",
+    "low": {
+      "label": "Low",
+      "description": "Short, scoped, latency-sensitive tasks"
+    },
+    "medium": {
+      "label": "Medium",
+      "description": "Cost-sensitive work, trades off some intelligence"
+    },
+    "high": {
+      "label": "High",
+      "description": "Balanced token usage and intelligence"
+    },
+    "xhigh": {
+      "label": "XHigh",
+      "description": "Best results for most coding tasks (recommended)"
+    },
+    "max": {
+      "label": "Max",
+      "description": "Maximum reasoning for demanding tasks (session only)"
+    }
+  },
+  "models": {
+    "addModel": "Add Model",
+    "longContext": {
+      "label": "1M",
+      "shortLabel": "1M context",
+      "tooltipEnabled": "Toggle 1M context window on/off",
+      "tooltipDisabled": "1M context not available for Haiku"
+    },
+    "claude": {
+      "sonnet46": {
+        "label": "Sonnet 4.6",
+        "description": "Sonnet 4.6 · Use the default model"
+      },
+      "opus46": {
+        "label": "Opus 4.7",
+        "description": "Opus 4.7 · Previous flagship model"
+      },
+      "opus46_1m": {
+        "label": "Opus 4.6",
+        "description": "Opus 4.6 · High-performance reasoning model"
+      },
+      "haiku45": {
+        "label": "Haiku 4.5",
+        "description": "Haiku 4.5 · Fastest for quick answers"
+      },
+      "opus48": {
+        "label": "Opus 4.8",
+        "description": "Opus 4.8 · Previous Opus generation"
+      },
+      "fable5": {
+        "label": "Fable 5",
+        "description": "Fable 5 · Most powerful · Mythos-class"
+      },
+      "sonnet5": {
+        "label": "Sonnet 5",
+        "description": "Sonnet 5 · Upgraded Sonnet model"
+      },
+      "sonnet47": {
+        "label": "Sonnet 4.7",
+        "description": "Sonnet 4.7 · Use the default model"
+      },
+      "opus5": {
+        "label": "Opus 5",
+        "description": "Opus 5 · Latest Opus upgrade"
+      }
+    },
+    "codex": {
+      "gpt53codex": {
+        "label": "GPT-5.3-Codex",
+        "description": "Latest frontier agentic coding model with enhanced capabilities."
+      },
+      "gpt55": {
+        "label": "GPT-5.5",
+        "description": "Latest frontier model with stronger capabilities."
+      },
+      "gpt54": {
+        "label": "GPT-5.4",
+        "description": "Latest frontier model with enhanced capabilities."
+      },
+      "gpt52codex": {
+        "label": "GPT-5.2-Codex",
+        "description": "Frontier agentic coding model."
+      },
+      "gpt51codexMax": {
+        "label": "GPT-5.1-Codex-Max",
+        "description": "Codex-optimized flagship for deep and fast reasoning."
+      },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "Smaller frontier agentic coding model."
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "Ultra-fast coding model."
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "Optimized for professional work and long-running agents."
+      },
+      "gpt51codexMini": {
+        "label": "GPT-5.1-Codex-Mini",
+        "description": "Optimized for Codex. Cheaper, faster, but less capable."
+      },
+      "gpt56sol": {
+        "label": "GPT-5.6 Sol",
+        "description": "Frontier model for complex professional work."
+      },
+      "gpt56terra": {
+        "label": "GPT-5.6 Terra",
+        "description": "GPT-5.6 model that balances intelligence and cost."
+      },
+      "gpt56luna": {
+        "label": "GPT-5.6 Luna",
+        "description": "GPT-5.6 model optimized for cost-sensitive workloads."
+      }
+    },
+    "searchPlaceholder": "Search models",
+    "noModelsFound": "No models found",
+    "hiddenModelCount": "+ {{count}} more models. Type to search.",
+    "grok": {
+      "grok45": {
+        "label": "Grok 4.5",
+        "description": "xAI Grok 4.5"
+      }
+    },
+    "cliLoadFailed": "Failed to load models. Click to retry."
+  },
+  "modes": {
+    "default": {
+      "label": "Default Mode",
+      "tooltip": "Standard permission behavior",
+      "description": "Requires manual confirmation for each operation, suitable for cautious use"
+    },
+    "plan": {
+      "label": "Plan Mode",
+      "tooltip": "Plan mode - read-only analysis",
+      "description": "Uses only read-only tools, generates plan for user approval"
+    },
+    "acceptEdits": {
+      "label": "Agent Mode",
+      "tooltip": "Automatically accept file edits",
+      "description": "Automatically accept file creation/editing, reducing confirmation steps"
+    },
+    "bypassPermissions": {
+      "label": "Auto Mode",
+      "tooltip": "Bypass all permission checks",
+      "description": "Fully automated, bypassing all permission checks [Use with caution]"
+    }
+  },
+  "codexModes": {
+    "default": {
+      "label": "Suggest (approval)",
+      "tooltip": "Codex approval_policy=untrusted – prompts before editing files or running shell commands.",
+      "description": "Safest option. Every write or command requires your approval."
+    },
+    "plan": {
+      "label": "Plan Mode",
+      "tooltip": "Plan mode - read-only analysis",
+      "description": "Uses only read-only tools, generates plan for user approval"
+    },
+    "acceptEdits": {
+      "label": "Auto Edit",
+      "tooltip": "Codex approval_policy=on-request – asks for approval when needed",
+      "description": "Balanced option. Allows normal editing flow while still requiring approvals when needed."
+    },
+    "bypassPermissions": {
+      "label": "Full Auto",
+      "tooltip": "Codex approval_policy=never – runs commands and writes files without prompting (workspace sandbox still enforced).",
+      "description": "Hands-off mode. Codex executes edits and shell commands immediately."
+    }
+  },
+  "providers": {
+    "claude": {
+      "label": "Claude Code"
+    },
+    "codex": {
+      "label": "Codex"
+    },
+    "gemini": {
+      "label": "Gemini Cli"
+    },
+    "opencode": {
+      "label": "OpenCode"
+    },
+    "grok": {
+      "label": "Grok CLI"
+    },
+    "kimi": {
+      "label": "Kimi CLI"
+    },
+    "pi": {
+      "label": "PI CLI"
+    },
+    "beta": {
+      "badge": "Beta",
+      "title": "Beta Feature",
+      "message": "This feature is still in Beta. If you encounter any bugs, please report them to the author promptly."
+    }
+  },
+  "promptEnhancer": {
+    "title": "Prompt Enhancer",
+    "tooltip": "Enhance Prompt",
+    "tooltipFull": "Rewrite prompt to provide more context and improve agent responses",
+    "shortcut": "⌘/",
+    "enhancing": "Enhancing prompt...",
+    "originalPrompt": "Original Prompt",
+    "enhancedPrompt": "Enhanced Prompt",
+    "useEnhanced": "Use Enhanced",
+    "keepOriginal": "Keep Original",
+    "enhanceFailed": "Failed to enhance prompt",
+    "emptyPrompt": "Please enter a prompt first",
+    "copyEnhanced": "Copy Enhanced"
+  },
+  "fileContext": {
+    "placeholder": "File Context",
+    "enableTitle": "Enable File Context?",
+    "enableDescription": "When enabled, the currently opened file path in the editor will be sent to AI. Note: only the file path is transmitted, not the file content.",
+    "enable": "Enable",
+    "cancel": "Cancel"
+  },
+  "contextUsage": {
+    "title": "Context Usage",
+    "loading": "Loading context usage...",
+    "autoCompactEnabled": "Auto-compact: enabled",
+    "autoCompactEnabledWithThreshold": "Auto-compact: enabled ({{threshold}}%)",
+    "notAvailable": "N/A",
+    "categories": {
+      "systemPrompt": "System prompt",
+      "systemTools": "System tools",
+      "mcpTools": "MCP tools",
+      "customAgents": "Custom agents",
+      "memoryFiles": "Memory files",
+      "skills": "Skills",
+      "messages": "Messages",
+      "autoCompactBuffer": "Autocompact buffer",
+      "freeSpace": "Free space"
+    },
+    "sections": {
+      "mcpTools": "MCP Tools ({{count}})",
+      "agents": "Agents ({{count}})",
+      "memoryFiles": "Memory Files ({{count}})",
+      "skills": "Skills ({{included}}/{{total}})"
+    },
+    "table": {
+      "tool": "Tool",
+      "server": "Server",
+      "tokens": "Tokens",
+      "agent": "Agent",
+      "source": "Source",
+      "type": "Type",
+      "path": "Path",
+      "skill": "Skill"
+    }
+  },
+  "rewind": {
+    "title": "Rewind Files to Previous State",
+    "tooltip": "Rewind",
+    "tooltipFull": "Restore files to their state at this message",
+    "selectTitle": "Select Rewind Point",
+    "noRewindableMessages": "No rewindable messages in this session",
+    "rewindTo": "Rewind to",
+    "impact": "Impact",
+    "willRestore": "Will restore files to their state at this message",
+    "changesLost": "Changes made after this point will be lost",
+    "messagesAffected": "messages affected",
+    "historyKept": "Conversation history will be kept",
+    "cannotUndo": "This action cannot be undone.",
+    "restoreFiles": "Restore Files",
+    "restoring": "Restoring files...",
+    "success": "Rewind successful",
+    "successSimple": "Rewind successful",
+    "failed": "Failed to restore files",
+    "notAvailable": "Rewind not available for this session",
+    "parseError": "Failed to parse result"
+  },
+  "reasoning": {
+    "title": "Select reasoning depth",
+    "low": {
+      "label": "Low",
+      "description": "Quick responses with basic reasoning"
+    },
+    "medium": {
+      "label": "Medium",
+      "description": "Balanced thinking (default)"
+    },
+    "high": {
+      "label": "High",
+      "description": "Deep reasoning for complex tasks"
+    },
+    "xhigh": {
+      "label": "XHigh",
+      "description": "Extra deep reasoning for demanding tasks"
+    },
+    "max": {
+      "label": "Max",
+      "description": "Maximum reasoning depth"
+    }
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "The application encountered an unexpected error. Please copy the error details below and share them with the developer for troubleshooting.",
+    "possibleCauses": "Possible causes:",
+    "cause1": "Node.js is not installed or not configured correctly",
+    "cause2": "Network connection issues",
+    "cause3": "Plugin or IDE compatibility issues",
+    "cause4": "Insufficient system resources",
+    "errorDetails": "Error Details",
+    "copyError": "Copy Error Info",
+    "copied": "Copied!",
+    "reload": "Reload Application",
+    "helpText": "If the problem persists, please copy the error information and submit it as an issue on GitHub, or share it in the community group."
+  },
+  "aiBridge": {
+    "claudeCodeInterrupted": "Claude Code was interrupted (possibly response timeout or user cancellation):",
+    "claudeCodeError": "Claude Code error:",
+    "errorMessage": "Error message",
+    "currentApiKeySource": "Current API Key source",
+    "currentApiKeyPreview": "Current API Key preview",
+    "currentBaseUrl": "Current Base URL",
+    "source": "source",
+    "notConfigured": "Not configured",
+    "notConfiguredEmpty": "Not configured (value is empty or missing)",
+    "defaultBaseUrl": "Default (https://api.anthropic.com)",
+    "configTip": "Tip: CLI can read from environment variables or settings.json; this plugin only supports reading from settings.json to avoid issues. You can configure it in the plugin's top-right Settings > Provider Management",
+    "apiError": "API error",
+    "apiErrorCauses": "Possible causes:\n1. API Key is not configured correctly\n2. Third-party proxy service configuration issue\n3. Please check the configuration in ~/.claude/settings.json",
+    "codexAuthError": "Codex authentication error:",
+    "codexAuthErrorChecks": "Please check the following:\n1. Is the Codex API Key in plugin settings correct\n2. Does the API Key have sufficient permissions\n3. If using a custom Base URL, please confirm the address is correct",
+    "codexAuthTip": "Tip: Codex requires a valid OpenAI API Key",
+    "codexNetworkError": "Codex network error:",
+    "codexNetworkErrorChecks": "Please check:\n1. Is the network connection working\n2. If using a proxy, please confirm proxy configuration\n3. Is the firewall blocking the connection",
+    "codexError": "Codex error:",
+    "codexErrorCheck": "Please check network connection and Codex configuration",
+    "codexConfigError": "Codex configuration error:",
+    "codexConfigDuplicateKeyTip": "Cause: a key is defined more than once in ~/.codex/config.toml (for example model_provider).\nFix: open the file and keep only one definition of each top-level key, then retry.",
+    "codexConfigReservedProviderTip": "Cause: custom model_providers cannot use built-in IDs such as \"openai\".\nFix: rename your provider, for example:\n  model_provider = \"openai-custom\"\n  [model_providers.openai-custom]\nBoth names must match. Do not use [model_providers.openai].",
+    "codexConfigGenericTip": "Cause: Codex failed to load ~/.codex/config.toml.\nFix: open the file, correct the syntax/keys reported above, then retry.\nTip: custom Base URL providers must use a non-reserved provider id (not \"openai\").",
+    "codexThinkingHint": "Codex did not return reasoning items. If you still cannot see the thinking process, please refer to docs/codex/docs/config.md for hide_agent_reasoning/show_raw_agent_reasoning settings, and ensure your OpenAI account has been verified.",
+    "userDeniedPermission": "User denied permission for {{toolName}} tool",
+    "userDidNotProvideAnswers": "User did not provide answers",
+    "dbMissingPath": "Missing database file path argument",
+    "dbFileNotExist": "Database file does not exist",
+    "dbReadFailed": "Failed to read database",
+    "dbParseProviderFailed": "Failed to parse provider config",
+    "aiResponseEmpty": "AI response is empty",
+    "enhancementFailed": "Enhancement failed",
+    "uploadedImages": "Uploaded {{count}} image(s)",
+    "uploadedAttachments": "Uploaded attachment(s)",
+    "emptyMessage": "Empty message",
+    "attachment": "Attachment"
+  },
+  "changelog": {
+    "title": "What's New",
+    "close": "Got it",
+    "page": "{{current}} / {{total}}"
+  },
+  "codexFastMode": {
+    "title": "Select Codex speed mode",
+    "normal": {
+      "label": "Standard",
+      "description": "Codex default response speed"
+    },
+    "fast": {
+      "label": "Fast",
+      "description": "Codex fast response mode (uses additional credits)"
+    }
+  },
+  "error": {
+    "providerNotConfigured": "Provider Not Configured",
+    "providerNotConfiguredDesc": "No AI provider is configured yet, or access to the local configuration has not been authorized. Please complete setup in Provider Management settings before starting a conversation.",
+    "goToProviderSettings": "Go to Settings"
+  },
+  "errorDiagnostic": {
+    "copyCommand": "Copy",
+    "copied": "Copied",
+    "openDependencySettings": "Open Dependency Settings",
+    "recommended": "Recommended",
+    "codexThreadResume": {
+      "title": "Session thread is no longer valid",
+      "intro": "Creating a new session will resolve this issue. The thread ID for the current session no longer exists on the Codex server.",
+      "reason": "Codex clears old threads after a period of time, which can trigger this error when resuming a previous session."
+    },
+    "sdkNativeBinaryMissing": {
+      "title": "SDK installation incomplete — native binary missing",
+      "intro": "This is a known issue with the Taobao npm mirror (not a plugin bug). The mirror hasn't fully synchronized the platform-specific files. You can resolve it manually with either of the options below:",
+      "reason": "This issue will disappear automatically once the Taobao mirror finishes syncing — no further action needed.",
+      "solutions": {
+        "switchRegistry": {
+          "title": "Option 1: Temporarily switch to the official registry and reinstall",
+          "step0": "1. Run this in your terminal (switch to the official npm registry):",
+          "step1": "2. Open the plugin's Dependency Management settings and click Reinstall:",
+          "step2": "3. After the reinstall completes, switch back to the Taobao mirror:"
+        },
+        "downgrade": {
+          "title": "Option 2: Roll back to an older version",
+          "step0": "In Dependency Management, switch the SDK version to v0.2.112 or earlier. Restart IDEA after switching."
+        }
+      }
+    },
+    "spawnEbusy": {
+      "title": "spawn EBUSY — child process failed to launch",
+      "intro": "This error is typically caused by an incompatible Node.js version or an incomplete SDK installation. Try the two options below in order:",
+      "reason": "EBUSY is a system error raised by Node.js when a child process can't be launched due to a busy resource. Common causes: Node.js 24 compatibility issues, an outdated SDK, or an incomplete install from the Taobao mirror.",
+      "solutions": {
+        "checkNodeVersion": {
+          "title": "Option 1: Check your Node.js version",
+          "step0": "Run the command below in a terminal to see your version. Node 22 or the current LTS is recommended — users have reported many issues on Node 24, so prefer Node 20 or 22:"
+        },
+        "reinstallLatestSdk": {
+          "title": "Option 2: Reinstall the latest SDK from the official npm registry",
+          "step0": "1. Switch to the official npm registry (avoid the Taobao mirror — it may not have the latest version):",
+          "step1": "2. Open Dependency Management and reinstall the latest SDK:"
+        }
+      }
+    }
+  }
+}

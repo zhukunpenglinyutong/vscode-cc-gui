@@ -1,0 +1,272 @@
+{
+  "name": "vscode-cc-gui",
+  "displayName": "CCGUI / CC GUI（Claude Codex OpenCode Kimi）",
+  "description": "CCGUI / CC GUI — independent open-source GUI for Claude Code, Codex, OpenCode, Kimi, Grok and more (unofficial)",
+  "version": "0.1.6",
+  "publisher": "MossX",
+  "author": {
+    "name": "MossX"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhukunpenglinyutong/vscode-cc-gui"
+  },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other", "AI"],
+  "keywords": [
+    "ccgui",
+    "CCGUI",
+    "cc-gui",
+    "cc gui",
+    "claude",
+    "claude-code",
+    "claude code",
+    "codex",
+    "opencode",
+    "open code",
+    "kimi",
+    "kimi-code",
+    "kimi code",
+    "grok",
+    "pi",
+    "ai",
+    "llm",
+    "agent",
+    "chat",
+    "gui",
+    "anthropic",
+    "openai",
+    "chatgpt",
+    "coding-assistant",
+    "ai-assistant",
+    "vscode-ai",
+    "claude cli",
+    "codex cli",
+    "prompt",
+    "multi-agent"
+  ],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "icon": "media/icon.png",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cc-gui-activity",
+          "title": "%ccGui.viewsContainers.activitybar.title%",
+          "icon": "media/icon-activity.svg"
+        }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "cc-gui-secondary",
+          "title": "%ccGui.viewsContainers.secondarySidebar.title%",
+          "icon": "media/icon-outline.svg"
+        }
+      ]
+    },
+    "views": {
+      "cc-gui-activity": [
+        {
+          "type": "webview",
+          "id": "ccGui.mainView",
+          "name": "%ccGui.views.mainView.name%"
+        }
+      ],
+      "cc-gui-secondary": [
+        {
+          "type": "webview",
+          "id": "ccGui.secondaryView",
+          "name": "%ccGui.views.secondaryView.name%"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "ccGui.openPanel",
+        "title": "%ccGui.command.openPanel.title%",
+        "category": "%ccGui.command.category%",
+        "icon": {
+          "light": "media/icon-outline.svg",
+          "dark": "media/icon-outline.svg"
+        }
+      },
+      {
+        "command": "ccGui.newSession",
+        "title": "%ccGui.command.newSession.title%",
+        "category": "%ccGui.command.category%",
+        "icon": "$(add)"
+      },
+      {
+        "command": "ccGui.renameActiveChatTab",
+        "title": "%ccGui.command.renameActiveChatTab.title%",
+        "category": "%ccGui.command.category%",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "ccGui.openDevTools",
+        "title": "%ccGui.command.openDevTools.title%",
+        "category": "%ccGui.command.category%",
+        "icon": "$(debug-console)"
+      },
+      {
+        "command": "ccGui.hidePanel",
+        "title": "%ccGui.command.hidePanel.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.sendSelection",
+        "title": "%ccGui.command.sendSelection.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.copySelectionReference",
+        "title": "%ccGui.command.copySelectionReference.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.sendFilePath",
+        "title": "%ccGui.command.sendFilePath.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.generateCommitMessage",
+        "title": "%ccGui.command.generateCommitMessage.title%",
+        "category": "%ccGui.command.category%",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "ccGui.quickFixWithClaude",
+        "title": "%ccGui.command.quickFixWithClaude.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.saveSessionTemplate",
+        "title": "%ccGui.command.saveSessionTemplate.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.createSessionFromTemplate",
+        "title": "%ccGui.command.createSessionFromTemplate.title%",
+        "category": "%ccGui.command.category%"
+      },
+      {
+        "command": "ccGui.runSetupWizard",
+        "title": "%ccGui.command.runSetupWizard.title%",
+        "category": "%ccGui.command.category%"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "ccGui.openPanel",
+          "group": "navigation@100"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "ccGui.sendSelection",
+          "when": "editorHasSelection",
+          "group": "ccGui@1"
+        },
+        {
+          "command": "ccGui.copySelectionReference",
+          "when": "editorHasSelection",
+          "group": "ccGui@2"
+        },
+        {
+          "command": "ccGui.sendFilePath",
+          "group": "ccGui@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "ccGui.sendFilePath",
+          "group": "ccGui@1"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "ccGui.sendFilePath",
+          "group": "ccGui@1"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "ccGui.generateCommitMessage",
+          "group": "navigation@50",
+          "when": "scmProvider == git"
+        },
+        {
+          "command": "ccGui.generateCommitMessage",
+          "group": "1_ccgui@1",
+          "when": "scmProvider == git"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "ccGui.newSession",
+          "when": "view == ccGui.mainView || view == ccGui.secondaryView",
+          "group": "navigation"
+        },
+        {
+          "command": "ccGui.openDevTools",
+          "when": "ccGui.enableDebugLog && (view == ccGui.mainView || view == ccGui.secondaryView)",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "ccGui.sendSelection",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "ccGui.quickFixWithClaude",
+        "key": "ctrl+shift+q",
+        "mac": "cmd+shift+q",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "%ccGui.configuration.title%",
+      "properties": {
+        "ccGui.nodePath": {
+          "type": "string",
+          "default": "",
+          "description": "%ccGui.configuration.nodePath.description%"
+        },
+        "ccGui.autoSyncActiveFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "%ccGui.configuration.autoSyncActiveFile.description%"
+        },
+        "ccGui.enableDebugLog": {
+          "type": "boolean",
+          "default": false,
+          "description": "%ccGui.configuration.enableDebugLog.description%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "npm run build:ext && npm run build:webview",
+    "build:debug": "npm run build:ext:debug && npm run build:webview",
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "build:ext:debug": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:webview": "cd webview && npm run build",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch",
+    "dev": "npm run watch",
+    "test:ext": "node --experimental-strip-types --no-warnings --test 'src/__tests__/**/*.test.mts'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "~5.3.0"
+  }
+}

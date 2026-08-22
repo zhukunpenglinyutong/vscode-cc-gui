@@ -1,0 +1,101 @@
+# Dependencies
+node_modules/
+webview/node_modules/
+ai-bridge/node_modules/
+
+# Build outputs
+dist/
+webview/dist/
+out/
+*.vsix
+*.tsbuildinfo
+
+# Test / coverage
+.vscode-test/
+.vscode-dev/
+coverage/
+.nyc_output/
+*.lcov
+
+# Package manager lockfiles (prefer npm lock in this repo)
+pnpm-lock.yaml
+webview/pnpm-lock.yaml
+yarn.lock
+webview/yarn.lock
+
+# Environment & secrets (never commit)
+.env
+.env.*
+!.env.example
+!.env.*.example
+.secrets/
+secrets/
+credentials.json
+**/credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.keystore
+
+# Local AI / tool config that may contain tokens
+.claude/
+.cursor/
+.codex/
+.mossx/
+.ace-tool/
+.continue/
+.windsurf/
+
+# IDE / editor (keep shared .vscode launch/tasks if needed)
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS junk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs & temp
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.tmp/
+.temp/
+tmp/
+temp/
+*.bak
+*.orig
+*.tmp
+
+# Local overrides
+*.local
+*.local.*
+settings.local.json
+.vscode/settings.local.json
+
+# Optional local tooling caches
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.turbo/
+.vite/
+.npm-cache

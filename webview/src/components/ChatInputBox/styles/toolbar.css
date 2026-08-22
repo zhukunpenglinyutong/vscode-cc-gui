@@ -1,0 +1,110 @@
+/* ============================================================
+   Bottom Toolbar
+   ============================================================ */
+.button-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  /* Extra right padding keeps send/enhance clear of the rounded corner clip */
+  padding: 4px 8px 4px 4px;
+  border-top: none;
+  background: rgba(0, 0, 0, 0.1);
+  font-family: inherit;
+  /* Enable container queries for responsive button behavior */
+  container-type: inline-size;
+  container-name: button-area;
+  position: relative;
+  z-index: 20;
+  min-width: 0;
+  /* Keep overflow visible so mode/model dropdowns can open upward.
+   * The left pane is the one that scrolls when content is too wide. */
+  overflow: visible;
+}
+
+.button-area-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 0%;
+  min-width: 0;
+  /* Must stay visible: overflow-x:auto forces overflow-y to compute to auto as well,
+   * which clips mode/config/provider dropdowns that open upward (looks like "can't click").
+   * Narrow layouts rely on container-query icon-only chrome + right-side z-index instead. */
+  overflow: visible;
+}
+
+.button-area-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 2px;
+  /* Stay above any overflowing left selectors */
+  position: relative;
+  z-index: 2;
+  /* Match toolbar so left overflow does not show through under the send button */
+  background: rgba(0, 0, 0, 0.1);
+  box-shadow: -8px 0 8px -4px rgba(0, 0, 0, 0.25);
+}
+
+.button-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-color);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Agent Tag Styles
+   ============================================================ */
+.agent-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: var(--accent-color-alpha);
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--accent-color);
+  max-width: 150px;
+  cursor: default;
+}
+
+.agent-tag .codicon-hubot {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.agent-tag-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tag-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-left: 2px;
+  background: transparent;
+  border: none;
+  color: var(--accent-color);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.agent-tag-close:hover {
+  opacity: 1;
+}
+
+.agent-tag-close .codicon {
+  font-size: 10px;
+}
+

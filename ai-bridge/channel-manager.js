@@ -1,0 +1,192 @@
+#!/usr/bin/env node
+
+/**
+ * AI Bridge Channel Manager
+ * Unified bridge entry point for Claude/Codex SDKs and CLI providers
+ *
+ * Command format:
+ *   node channel-manager.js <provider> <command> [args...]
+ *
+ * Provider:
+ *   claude   - Claude Agent SDK (@anthropic-ai/claude-agent-sdk)
+ *   codex    - Codex SDK (@openai/codex-sdk)
+ *   grok     - Grok CLI (no SDK; spawns local `grok` binary)
+ *   kimi     - Kimi CLI (no SDK; spawns local `kimi` binary)
+ *   opencode - OpenCode CLI (no SDK; spawns local `opencode` binary)
+ *   pi       - PI CLI (no SDK; spawns local `pi` binary)
+ *
+ * Commands:
+ *   send                - Send a message (parameters passed via stdin as JSON)
+ *   sendWithAttachments - Send a message with attachments (claude dedicated path;
+ *                         grok/codex etc. receive attachments on plain `send`)
+ *   getSession          - Retrieve session message history (claude only)
+ *   listModels          - List models (kimi / opencode / pi)
+ *
+ * Design notes:
+ * - Single entry point that dispatches to different services based on the provider parameter
+ * - sessionId/threadId is managed by the caller (extension host / host IDE)
+ * - Messages and other parameters are passed via stdin in JSON format
+ */
+
+// Shared utilities
+import { readStdinData } from './utils/stdin-utils.js';
+import { handleClaudeCommand } from './channels/claude-channel.js';
+import { handleCodexCommand } from './channels/codex-channel.js';
+import { handleGrokCommand } from './channels/grok-channel.js';
+import { handleKimiCommand } from './channels/kimi-channel.js';
+import { handleOpenCodeCommand } from './channels/opencode-channel.js';
+import { handlePiCommand } from './channels/pi-channel.js';
+import { getSdkStatus, isClaudeSdkAvailable, isCodexSdkAvailable } from './utils/sdk-loader.js';
+import { configureCliIdentity } from './config/api-config.js';
+
+// Do not globally inject Claude proxy/TLS env vars at process startup.
+// Claude request handlers opt in per request; Codex/system commands must not
+// inherit Claude-local proxy settings implicitly.
+
+// Configure CLI client identity before any SDK loading
+configureCliIdentity();
+
+// Diagnostic logging: startup info
+console.log('[DIAG-ENTRY] ========== CHANNEL-MANAGER STARTUP ==========');
+console.log('[DIAG-ENTRY] Node.js version:', process.version);
+console.log('[DIAG-ENTRY] Platform:', process.platform);
+console.log('[DIAG-ENTRY] CWD:', process.cwd());
+console.log('[DIAG-ENTRY] argv:', process.argv);
+
+// Parse command-line arguments
+const provider = process.argv[2];
+const command = process.argv[3];
+const args = process.argv.slice(4);
+
+// Diagnostic logging: argument info
+console.log('[DIAG-ENTRY] Provider:', provider);
+console.log('[DIAG-ENTRY] Command:', command);
+console.log('[DIAG-ENTRY] Args:', args);
+
+// Error handling
+process.on('uncaughtException', (error) => {
+  console.error('[UNCAUGHT_ERROR]', error.message);
+  console.log(JSON.stringify({
+    success: false,
+    error: error.message
+  }));
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED_REJECTION]', reason);
+  console.log(JSON.stringify({
+    success: false,
+    error: String(reason)
+  }));
+  process.exit(1);
+});
+
+/**
+ * Handle system-level commands (e.g., SDK status checks)
+ */
+async function handleSystemCommand(command, args, stdinData) {
+  switch (command) {
+    case 'getSdkStatus':
+      // Return the installation status of all SDKs
+      const status = getSdkStatus();
+      console.log(JSON.stringify({
+        success: true,
+        data: status
+      }));
+      break;
+
+    case 'checkClaudeSdk':
+      // Check if Claude SDK is available
+      console.log(JSON.stringify({
+        success: true,
+        available: isClaudeSdkAvailable()
+      }));
+      break;
+
+    case 'checkCodexSdk':
+      // Check if Codex SDK is available
+      console.log(JSON.stringify({
+        success: true,
+        available: isCodexSdkAvailable()
+      }));
+      break;
+
+    default:
+      console.log(JSON.stringify({
+        success: false,
+        error: 'Unknown system command: ' + command
+      }));
+      process.exit(1);
+  }
+}
+
+const providerHandlers = {
+  claude: handleClaudeCommand,
+  codex: handleCodexCommand,
+  grok: handleGrokCommand,
+  kimi: handleKimiCommand,
+  opencode: handleOpenCodeCommand,
+  pi: handlePiCommand,
+  system: handleSystemCommand
+};
+
+// Execute command
+(async () => {
+  console.log('[DIAG-EXEC] ========== STARTING EXECUTION ==========');
+  try {
+    // Validate provider
+    console.log('[DIAG-EXEC] Validating provider...');
+    if (!provider || !providerHandlers[provider]) {
+      console.error('Invalid provider. Use "claude", "codex", "grok", "kimi", "opencode", "pi", or "system"');
+      console.log(JSON.stringify({
+        success: false,
+        error: 'Invalid provider: ' + provider
+      }));
+      process.exit(1);
+    }
+
+    // Validate command
+    if (!command) {
+      console.error('No command specified');
+      console.log(JSON.stringify({
+        success: false,
+        error: 'No command specified'
+      }));
+      process.exit(1);
+    }
+
+    // Read stdin data
+    console.log('[DIAG-EXEC] Reading stdin data...');
+    const stdinData = await readStdinData(provider);
+    console.log('[DIAG-EXEC] Stdin data received, keys:', stdinData ? Object.keys(stdinData) : 'null');
+
+    // Dispatch to the appropriate provider handler
+    console.log('[DIAG-EXEC] Dispatching to handler:', provider);
+    const handler = providerHandlers[provider];
+    await handler(command, args, stdinData);
+    console.log('[DIAG-EXEC] Handler completed successfully');
+
+    // IMPORTANT: Do not use process.exit(0) here -- it terminates the process
+    // before the stdout buffer is fully flushed, which can truncate large JSON
+    // output (e.g., the history returned by getSession).
+    // Instead, set process.exitCode and let the process exit naturally so all I/O completes.
+    process.exitCode = 0;
+
+    // For the rewindFiles command we need to force-exit, because it restores
+    // an SDK session whose MCP connections may stay open and prevent the
+    // process from exiting naturally. Its output is small, so truncation is not a concern.
+    if (command === 'rewindFiles') {
+      // Allow a short delay for the stdout buffer to flush
+      setTimeout(() => process.exit(0), 100);
+    }
+
+  } catch (error) {
+    console.error('[COMMAND_ERROR]', error.message);
+    console.log(JSON.stringify({
+      success: false,
+      error: error.message
+    }));
+    process.exit(1);
+  }
+})();

@@ -1,0 +1,339 @@
+/* ============================================================
+   Selector Styles
+   ============================================================ */
+.selector-button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  background: var(--button-bg);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.selector-button:hover {
+  background: var(--button-hover);
+  color: var(--text-primary);
+}
+
+/* Compact provider icon button */
+.selector-button.provider-compact {
+  padding: 4px 5px;
+  gap: 0;
+  border-radius: 4px;
+}
+
+.selector-button.provider-compact:hover {
+  background: var(--button-hover);
+}
+
+.runtime-provider-text {
+  max-width: 120px;
+}
+
+.runtime-provider-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Auto mode (bypassPermissions) - subtle orange indicator */
+.selector-button.mode-auto-active {
+  color: #cc8400;
+}
+
+.selector-button.mode-auto-active:hover {
+  color: #e09520;
+}
+
+.selector-button.codex-fast-active {
+  color: #cc8400;
+}
+
+.selector-button.codex-fast-active:hover {
+  color: #e09520;
+}
+
+.selector-button .codicon {
+  font-size: 14px;
+}
+
+/* Responsive text hiding for selector buttons */
+.selector-button-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition: max-width 0.2s ease, opacity 0.2s ease, margin 0.2s ease;
+}
+
+/* Compact selector chrome when the toolbar is tight (all providers).
+ * Codex especially has mode + model + reasoning + fast-mode, so the
+ * send button was being pushed past the rounded right edge. */
+@container button-area (max-width: 450px) {
+  .button-area .selector-button-text {
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .button-area .selector-button {
+    gap: 2px;
+    padding: 4px 6px;
+    min-width: 28px;
+    flex-shrink: 0;
+  }
+
+  .button-area .selector-button > .codicon-chevron-up,
+  .button-area .selector-button > .codicon-chevron-down {
+    display: none;
+  }
+}
+
+/* Even tighter: slightly smaller hit targets */
+@container button-area (max-width: 320px) {
+  .button-area .selector-button {
+    padding: 4px 5px;
+    min-width: 26px;
+  }
+}
+
+/* Fallback for browsers without container query support */
+@supports not (container-type: inline-size) {
+  @media (max-width: 560px) {
+    .button-area .selector-button-text {
+      max-width: 0;
+      opacity: 0;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    .button-area .selector-button {
+      gap: 2px;
+      padding: 4px 6px;
+      min-width: 28px;
+      flex-shrink: 0;
+    }
+
+    .button-area .selector-button > .codicon-chevron-up,
+    .button-area .selector-button > .codicon-chevron-down {
+      display: none;
+    }
+  }
+}
+
+.selector-dropdown {
+  background: var(--dropdown-bg);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+  padding: 4px 0;
+  white-space: nowrap;
+  font-family: inherit;
+  /* Above input-editable and status chrome when menus open upward */
+  z-index: 10050;
+}
+
+.selector-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+
+.selector-option:hover {
+  background: var(--dropdown-hover);
+}
+
+.selector-option.selected {
+  background: var(--dropdown-selected);
+}
+
+.selector-option .codicon {
+  font-size: 14px;
+  width: 16px;
+}
+
+.selector-option .check-mark {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--success-color);
+}
+
+.selector-option .model-description {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  margin-top: 2px;
+}
+
+.selector-option .mode-description {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  margin-top: 2px;
+}
+
+.selector-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+.provider-beta-badge {
+  margin-left: auto;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--vscode-badge-foreground, #fff);
+  background: var(--vscode-badge-background, #0078d4);
+  opacity: 0.9;
+}
+
+.selector-divider {
+  height: 1px;
+  background: var(--dropdown-border);
+  margin: 4px 0;
+}
+
+.selector-option-add {
+  opacity: 0.8;
+}
+
+.selector-add-icon {
+  font-size: 14px;
+  width: 16px;
+}
+
+/* Node process management panel */
+.node-process-dropdown .codicon-modifier-spin {
+  animation: codicon-spin 1.5s linear infinite;
+}
+
+.node-process-icon-button {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.node-process-icon-button:hover:not(:disabled) {
+  background: var(--button-hover);
+}
+
+.node-process-icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.node-process-icon-button .codicon {
+  font-size: 14px;
+}
+
+.node-process-icon-button--danger {
+  color: var(--error-color, #d9534f);
+}
+
+.node-process-icon-button--danger:hover:not(:disabled) {
+  background: rgba(217, 83, 79, 0.12);
+}
+
+/* Selector toast notification */
+.selector-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 1001;
+  animation: toast-fade 1.5s ease-in-out;
+}
+
+@keyframes toast-fade {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* ============================================================
+   Usage Indicator
+   ============================================================ */
+.token-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.token-indicator-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.token-indicator-ring {
+  transform: rotate(-90deg);
+}
+
+.token-indicator-bg {
+  fill: none;
+  stroke: var(--progress-bg);
+  stroke-width: 1.5;
+}
+
+.token-indicator-fill {
+  fill: none;
+  stroke: var(--progress-fill);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s;
+}
+
+/* Usage hover tooltip bubble */
+.token-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  transform: translateY(-6px);
+  background: var(--dropdown-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 6px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 1002;
+}
+
+.token-indicator:hover .token-tooltip {
+  opacity: 1;
+  visibility: visible;
+}

@@ -1,0 +1,56 @@
+# NOTE: vsce ignore semantics differ from gitignore.
+# A "!" pattern force-includes a match even if other ignore rules match.
+# Do NOT use "!ai-bridge/**" — it would re-include tests and debug assets.
+
+# Dev / editor
+.vscode/**
+.vscode-test/**
+.vscode-dev/**
+.npm-cache/**
+.mossx/**
+.git/**
+.gitignore
+.vscodeignore
+
+# Source (extension is bundled into dist/)
+src/**
+scripts/**
+tsconfig.json
+**/*.map
+**/*.ts
+**/*.mts
+**/*.tsx
+
+# Root tooling / lockfiles / local packages
+node_modules/**
+package-lock.json
+*.vsix
+
+# Webview: ship only the production build (! re-includes dist after webview/**)
+webview/**
+!webview/dist/**
+
+# Tests (ai-bridge and elsewhere)
+**/*.test.js
+**/*.test.mjs
+**/*.test.cjs
+
+# ai-bridge local tooling
+ai-bridge/.gitignore
+ai-bridge/.npmrc
+ai-bridge/package-lock.json
+ai-bridge/node_modules/.package-lock.json
+
+# sql.js: keep only the Node wasm runtime (main: dist/sql-wasm.js + .wasm)
+ai-bridge/node_modules/sql.js/dist/*debug*
+ai-bridge/node_modules/sql.js/dist/*browser*
+ai-bridge/node_modules/sql.js/dist/sql-asm*
+ai-bridge/node_modules/sql.js/dist/worker.*
+ai-bridge/node_modules/sql.js/.devcontainer/**
+ai-bridge/node_modules/sql.js/*.md
+ai-bridge/node_modules/sql.js/eslint*
+ai-bridge/node_modules/sql.js/.eslintrc*
+ai-bridge/node_modules/sql.js/.jsdoc*
+ai-bridge/node_modules/sql.js/.nojekyll
+ai-bridge/node_modules/sql.js/logo.svg
+ai-bridge/node_modules/sql.js/AUTHORS

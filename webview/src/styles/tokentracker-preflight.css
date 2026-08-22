@@ -1,0 +1,253 @@
+/*
+ * Scoped Tailwind preflight for the vendored TokenTracker dashboard.
+ *
+ * The webview deliberately does NOT load Tailwind's global preflight (it would
+ * reset antd/Less styles app-wide), but the vendored dashboard components were
+ * written against it — most visibly <button> cards rely on the UA buttonface
+ * background being reset to transparent, and tables on border-collapse.
+ *
+ * Every rule below is the upstream tailwindcss/preflight.css selector
+ * re-scoped under `.tt-dashboard`, and the whole file lives in `layer(base)`
+ * so utility classes (layer(utilities)) keep winning exactly like upstream.
+ * Re-sync with node_modules/tailwindcss/preflight.css when upgrading Tailwind.
+ */
+
+@layer base {
+  .tt-dashboard,
+  .tt-dashboard *,
+  .tt-dashboard ::after,
+  .tt-dashboard ::before,
+  .tt-dashboard ::backdrop,
+  .tt-dashboard ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+
+  .tt-dashboard {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /*
+   * Default border color — mirrors desktop's `@layer base { * { border-color:
+   * var(--border) } }` (Tailwind v4 otherwise defaults bare `border` utilities
+   * to currentColor, i.e. near-black). Uses the plain @theme gray values that
+   * `border-oai-gray-200` / `dark:border-oai-gray-800` resolve to, so explicit
+   * and implicit borders look identical. Must come after the universal reset
+   * above (same specificity, later wins).
+   */
+  .tt-dashboard,
+  .tt-dashboard *,
+  .tt-dashboard ::after,
+  .tt-dashboard ::before {
+    border-color: #e5e5e5;
+  }
+
+  .tt-dashboard.dark,
+  .tt-dashboard.dark *,
+  .tt-dashboard.dark ::after,
+  .tt-dashboard.dark ::before {
+    border-color: #262626;
+  }
+
+  .tt-dashboard hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+
+  .tt-dashboard abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+
+  .tt-dashboard h1,
+  .tt-dashboard h2,
+  .tt-dashboard h3,
+  .tt-dashboard h4,
+  .tt-dashboard h5,
+  .tt-dashboard h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  .tt-dashboard a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+
+  .tt-dashboard b,
+  .tt-dashboard strong {
+    font-weight: bolder;
+  }
+
+  .tt-dashboard code,
+  .tt-dashboard kbd,
+  .tt-dashboard samp,
+  .tt-dashboard pre {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+    font-size: 1em;
+  }
+
+  .tt-dashboard small {
+    font-size: 80%;
+  }
+
+  .tt-dashboard sub,
+  .tt-dashboard sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+
+  .tt-dashboard sub {
+    bottom: -0.25em;
+  }
+
+  .tt-dashboard sup {
+    top: -0.5em;
+  }
+
+  .tt-dashboard table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+
+  .tt-dashboard :-moz-focusring:where(:not(iframe)) {
+    outline: auto;
+  }
+
+  .tt-dashboard progress {
+    vertical-align: baseline;
+  }
+
+  .tt-dashboard summary {
+    display: list-item;
+  }
+
+  .tt-dashboard ol,
+  .tt-dashboard ul,
+  .tt-dashboard menu {
+    list-style: none;
+  }
+
+  .tt-dashboard img,
+  .tt-dashboard svg,
+  .tt-dashboard video,
+  .tt-dashboard canvas,
+  .tt-dashboard audio,
+  .tt-dashboard iframe,
+  .tt-dashboard embed,
+  .tt-dashboard object {
+    display: block;
+    vertical-align: middle;
+  }
+
+  .tt-dashboard img,
+  .tt-dashboard video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .tt-dashboard button,
+  .tt-dashboard input,
+  .tt-dashboard select,
+  .tt-dashboard optgroup,
+  .tt-dashboard textarea,
+  .tt-dashboard ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+
+  .tt-dashboard :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+
+  .tt-dashboard :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+
+  .tt-dashboard ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+
+  .tt-dashboard ::placeholder {
+    opacity: 1;
+  }
+
+  @supports (not (-webkit-appearance: -apple-pay-button)) or
+    (contain-intrinsic-size: 1px) {
+    .tt-dashboard ::placeholder {
+      color: color-mix(in oklab, currentcolor 50%, transparent);
+    }
+  }
+
+  .tt-dashboard textarea {
+    resize: vertical;
+  }
+
+  .tt-dashboard ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+
+  .tt-dashboard ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+
+  .tt-dashboard ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+
+  .tt-dashboard ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+
+  .tt-dashboard ::-webkit-datetime-edit,
+  .tt-dashboard ::-webkit-datetime-edit-year-field,
+  .tt-dashboard ::-webkit-datetime-edit-month-field,
+  .tt-dashboard ::-webkit-datetime-edit-day-field,
+  .tt-dashboard ::-webkit-datetime-edit-hour-field,
+  .tt-dashboard ::-webkit-datetime-edit-minute-field,
+  .tt-dashboard ::-webkit-datetime-edit-second-field,
+  .tt-dashboard ::-webkit-datetime-edit-millisecond-field,
+  .tt-dashboard ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+
+  .tt-dashboard ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+
+  .tt-dashboard :-moz-ui-invalid {
+    box-shadow: none;
+  }
+
+  .tt-dashboard button,
+  .tt-dashboard input:where([type='button'], [type='reset'], [type='submit']),
+  .tt-dashboard ::file-selector-button {
+    appearance: button;
+  }
+
+  .tt-dashboard ::-webkit-inner-spin-button,
+  .tt-dashboard ::-webkit-outer-spin-button {
+    height: auto;
+  }
+
+  .tt-dashboard [hidden]:where(:not([hidden='until-found'])) {
+    display: none !important;
+  }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Core geometric crystal only (no outer rounded frame).
+       Monochrome currentColor for VS Code Activity / Secondary Side Bar. -->
+  <path fill="currentColor" d="M 57.88 9.80 L 73.27 9.93 L 80.85 23.12 L 73.27 36.44 L 88.42 36.56 L 96.00 49.88 L 88.55 63.44 L 73.15 63.56 L 80.61 76.88 L 73.03 90.07 L 57.76 90.20 L 50.18 77.12 L 42.24 90.07 L 26.97 90.07 L 19.27 76.76 L 26.73 63.56 L 11.82 63.44 L 4.00 50.00 L 11.70 36.56 L 26.60 36.44 L 19.27 23.24 L 26.97 10.05 L 42.36 10.05 L 50.18 23.00 L 57.76 9.93 Z"/>
+</svg>

@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build:ext:debug"],
+      "windows": {
+        "options": {
+          "env": {
+            "Path": "C:\\Program Files\\nodejs;${env:Path}"
+          }
+        }
+      },
+      "group": "build",
+      "label": "npm: build:ext:debug"
+    },
+    {
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build:debug"],
+      "windows": {
+        "options": {
+          "env": {
+            "Path": "C:\\Program Files\\nodejs;${env:Path}"
+          }
+        }
+      },
+      "group": "build",
+      "label": "npm: build:debug"
+    },
+    {
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build:ext"],
+      "windows": {
+        "options": {
+          "env": {
+            "Path": "C:\\Program Files\\nodejs;${env:Path}"
+          }
+        }
+      },
+      "group": "build",
+      "label": "npm: build:ext"
+    },
+    {
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "windows": {
+        "options": {
+          "env": {
+            "Path": "C:\\Program Files\\nodejs;${env:Path}"
+          }
+        }
+      },
+      "group": "build",
+      "label": "npm: build"
+    }
+  ]
+}

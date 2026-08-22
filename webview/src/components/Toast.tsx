@@ -1,0 +1,94 @@
+import React, { useEffect, useState } from 'react';
+
+export interface ToastMessage {
+  id: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error';
+  /** Auto-dismiss delay in ms. Omit to use type defaults. */
+  duration?: number;
+}
+
+interface ToastProps {
+  message: ToastMessage;
+  onDismiss: (id: string) => void;
+  duration?: number;
+}
+
+const Toast: React.FC<ToastProps> = ({ message, onDismiss, duration = 1000 }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // duration <= 0 means stay until user clicks close.
+    if (duration <= 0) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setIsExiting(true);
+      setTimeout(() => onDismiss(message.id), 300); // Wait for exit animation
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [message.id, duration, onDismiss]);
+
+  return (
+    <div className={`toast toast-${message.type || 'info'} ${isExiting ? 'toast-exit' : ''}`}>
+      <div className="toast-content">
+        <span className="toast-message">{message.message}</span>
+        <button
+          type="button"
+          className="toast-close"
+          aria-label="Close"
+          onClick={() => {
+            setIsExiting(true);
+            setTimeout(() => onDismiss(message.id), 300);
+          }}
+        >
+          <span className="codicon codicon-close" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+interface ToastContainerProps {
+  messages: ToastMessage[];
+  onDismiss: (id: string) => void;
+}
+
+// Toast display duration constants (milliseconds)
+const TOAST_DURATION = {
+  error: 5000,   // Error messages display for 5 seconds
+  warning: 3000, // Warning messages display for 3 seconds
+  default: 2000, // Other messages display for 2 seconds
+} as const;
+
+// Set different display durations based on message type (overridable per toast)
+const getDuration = (msg: ToastMessage) => {
+  if (typeof msg.duration === 'number') {
+    return msg.duration;
+  }
+  switch (msg.type) {
+    case 'error':
+      return TOAST_DURATION.error;
+    case 'warning':
+      return TOAST_DURATION.warning;
+    default:
+      return TOAST_DURATION.default;
+  }
+};
+
+export const ToastContainer: React.FC<ToastContainerProps> = ({ messages, onDismiss }) => {
+  return (
+    <div className="toast-container">
+      {messages.map((msg) => (
+        <Toast
+          key={msg.id}
+          message={msg}
+          onDismiss={onDismiss}
+          duration={getDuration(msg)}
+        />
+      ))}
+    </div>
+  );
+};
+
