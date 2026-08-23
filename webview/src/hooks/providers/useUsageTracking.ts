@@ -11,6 +11,8 @@ const PROVIDER_TO_SDK: Record<string, string> = {
   kimi: 'kimi-cli',
   opencode: 'opencode-cli',
   pi: 'pi-cli',
+  // CLI providers have no npm SDK — markers are only for lookups.
+  omp: 'omp-cli',
 };
 
 type SdkStatus = Record<string, { installed?: boolean; status?: string }>;

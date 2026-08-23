@@ -62,15 +62,29 @@ export function useGlobalCallbacks({
       ) {
         // Cursor inside input box, insert at cursor position
         const range = selection.getRangeAt(0);
-        range.deleteContents();
-        const textNode = document.createTextNode(pathToInsert);
-        range.insertNode(textNode);
+        // File paths arrive from external actions (file explorer / toolbar), not
+        // from typing. A stale non-collapsed selection must not be replaced by
+        // deleteContents() - that wiped the existing content. Only a collapsed
+        // caret is a real insertion point; otherwise append at end.
+        if (!range.collapsed) {
+          const textNode = document.createTextNode(pathToInsert);
+          editableRef.current.appendChild(textNode);
+          const appendRange = document.createRange();
+          appendRange.setStartAfter(textNode);
+          appendRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(appendRange);
+        } else {
+          range.deleteContents();
+          const textNode = document.createTextNode(pathToInsert);
+          range.insertNode(textNode);
 
-        // Move cursor after inserted text
-        range.setStartAfter(textNode);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+          // Move cursor after inserted text
+          range.setStartAfter(textNode);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
       } else {
         // Cursor not inside input box, append to end
         // Use appendChild instead of innerText to avoid breaking existing file tags
@@ -229,6 +243,15 @@ export function useGlobalCallbacks({
       }
 
       const range = selection.getRangeAt(0);
+      // External snippets come from external actions (editor selection), never
+      // from typing inside the input. A stale NON-collapsed selection (user last
+      // selected text in the box, then triggered an external insert) must not be
+      // replaced by deleteContents() - that wiped the existing content. Only a
+      // collapsed caret is a real insertion point; otherwise fall back to
+      // appending at the end.
+      if (!range.collapsed) {
+        return false;
+      }
       range.deleteContents();
       const fragment = createTextFragment(`${selectionInfo} `);
       const lastChild = fragment.lastChild;

@@ -57,12 +57,12 @@ const DEFAULT_MODEL_MAP: Record<string, ModelInfo> = AVAILABLE_MODELS.reduce(
 const MODEL_LABEL_KEYS: Record<string, string> = {
   'claude-opus-5': 'models.claude.opus5.label',
   'claude-sonnet-5': 'models.claude.sonnet5.label',
-  'claude-sonnet-4-7': 'models.claude.sonnet47.label',
   'claude-sonnet-4-6': 'models.claude.sonnet46.label',
   'claude-fable-5': 'models.claude.fable5.label',
   'claude-opus-4-8': 'models.claude.opus48.label',
-  'grok-4.5': 'models.grok.grok45.label',
-  grok: 'models.grok.grok45.label',
+  'grok-4.6': 'models.grok.grok46.label',
+  'grok-4.5': 'models.grok.grok46.label',
+  grok: 'models.grok.grok46.label',
   'claude-opus-4-6': 'models.claude.opus46_1m.label',
   'claude-opus-4-6[1m]': 'models.claude.opus46_1m.label',
   'claude-haiku-4-5': 'models.claude.haiku45.label',
@@ -76,7 +76,6 @@ const MODEL_LABEL_KEYS: Record<string, string> = {
 const MODEL_DESCRIPTION_KEYS: Record<string, string> = {
   'claude-opus-5': 'models.claude.opus5.description',
   'claude-sonnet-5': 'models.claude.sonnet5.description',
-  'claude-sonnet-4-7': 'models.claude.sonnet47.description',
   'claude-sonnet-4-6': 'models.claude.sonnet46.description',
   'claude-fable-5': 'models.claude.fable5.description',
   'claude-opus-4-8': 'models.claude.opus48.description',
@@ -88,8 +87,9 @@ const MODEL_DESCRIPTION_KEYS: Record<string, string> = {
   'gpt-5.6-luna': 'models.codex.gpt56luna.description',
   'gpt-5.5': 'models.codex.gpt55.description',
   'gpt-5.4': 'models.codex.gpt54.description',
-  'grok-4.5': 'models.grok.grok45.description',
-  grok: 'models.grok.grok45.description',
+  'grok-4.6': 'models.grok.grok46.description',
+  'grok-4.5': 'models.grok.grok46.description',
+  grok: 'models.grok.grok46.description',
 };
 
 /**
@@ -183,6 +183,15 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
   };
 
   const getModelLabel = (model: ModelInfo, show1MContext = false): string => {
+    // The Anthropic slot maps below (MODEL_ID_TO_MAPPING_KEY, DEFAULT_MODEL_MAP,
+    // MODEL_LABEL_KEYS) are keyed by claude-* ids. Third-party catalogs (CLI
+    // providers) expose models whose ids collide with those slots (e.g.
+    // claude-sonnet-4-6). For any non-claude provider, render the catalog label
+    // verbatim — never let the Claude model mapping override catalog labels.
+    if (currentProvider !== 'claude') {
+      return append1MContextSuffix(model.label ?? '', model.id, show1MContext);
+    }
+
     const mappingKey = MODEL_ID_TO_MAPPING_KEY[model.id];
     if (mappingKey) {
       const mappedName = resolveMappedModelName(mappingKey, modelMapping);
@@ -305,7 +314,7 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
           providerId={currentProvider}
           modelId={
             currentModel
-              ? resolveModelIdForIcon(currentModel.id, modelMapping, MODEL_ID_TO_MAPPING_KEY)
+              ? resolveModelIdForIcon(currentModel.id, currentProvider === 'claude' ? modelMapping : {}, MODEL_ID_TO_MAPPING_KEY)
               : undefined
           }
           size={12}
@@ -367,7 +376,7 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
             >
               <ProviderModelIcon
                 providerId={currentProvider}
-                modelId={resolveModelIdForIcon(model.id, modelMapping, MODEL_ID_TO_MAPPING_KEY)}
+                modelId={resolveModelIdForIcon(model.id, currentProvider === 'claude' ? modelMapping : {}, MODEL_ID_TO_MAPPING_KEY)}
                 size={16}
                 colored
               />

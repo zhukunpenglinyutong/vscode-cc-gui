@@ -36,6 +36,7 @@ export const WelcomeScreen = memo(function WelcomeScreen({
     codex: t('providers.codex.label'),
     gemini: t('providers.gemini.label'),
     opencode: t('providers.opencode.label'),
+    dsh: t('providers.dsh.label'),
   };
 
   return (

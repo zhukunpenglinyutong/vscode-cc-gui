@@ -92,7 +92,6 @@
     "attachmentFile": "[Attachment: {{fileName}}]",
     "unknownFile": "Unknown file",
     "attachmentsUploaded": "[Attachments Uploaded]",
-    "streamingConnected": "AI connected, understanding your question",
     "streamStallTimeout": "No model response for {{seconds}} second(s). This turn was ended automatically. You can change “Stream stall timeout” under Settings → Behavior.",
     "showEarlierMessages": "Show {{count}} earlier messages",
     "totalDuration": "This reply took",
@@ -126,7 +125,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "Repo link copied to clipboard — paste it in your browser to visit ⭐",
     "openSourceBannerStarAria": "Copy repository link and star on GitHub",
-    "streamingWorking": "{{provider}} is working — thinking or running tools…",
     "cacheHitsWithRatio": "(cache hits {{tokens}}, {{ratio}})",
     "planModeEnabled": "Plan mode enabled",
     "commandProviderOnly": "{{command}} is only available for {{provider}}",
@@ -249,7 +247,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -1014,6 +1013,14 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "Oh My Pi terminal coding agent with multi-provider model support"
+        },
+        "dsh": {
+          "name": "DeepSeek Harness",
+          "description": "DeepSeek terminal agent harness (persistent dsh web host)"
         }
       },
       "installDialog": {
@@ -1031,7 +1038,24 @@
       "listTitle": "Local CLI tools",
       "summary": "{{installed}} / {{total}} installed",
       "moreComingSoon": "More coming soon",
-      "copyPath": "Copy path"
+      "copyPath": "Copy path",
+      "dsh": {
+        "cardTitle": "DeepSeek Harness (DSH)",
+        "hint": "One persistent local dsh web host serves all sessions; the plugin adopts a running host instead of spawning a second one.",
+        "state": {
+          "checking": "Checking…",
+          "notInstalled": "Not installed",
+          "notRunning": "Not running",
+          "connected": "Connected"
+        },
+        "adopted": "adopted",
+        "adoptedHint": "Adopted an already-running host; it is never stopped by the plugin.",
+        "openWebUi": "Open DSH Web UI",
+        "startHost": "Start host",
+        "stopHost": "Stop host (plugin-spawned only)",
+        "stopHostShort": "Stop host",
+        "autoStart": "Auto-start when needed"
+      }
     }
   },
   "history": {
@@ -1187,6 +1211,7 @@
   },
   "config": {
     "clickToCopy": "Click to copy",
+    "officialDocs": "Official Docs",
     "switch": "Switch",
     "switchProvider": "Switch provider",
     "runtimeProvider": {
@@ -1506,6 +1531,7 @@
   "subagent": {
     "process": {
       "title": "Agent process",
+      "prompt": "Prompt",
       "thought": "Thought",
       "filesRead_one": "Read {{count}} file",
       "filesRead_other": "Read {{count}} files",
@@ -1550,7 +1576,9 @@
     "keepAllConfirmMessage": "Accept current changes as baseline. Future changes will be tracked from zero.",
     "discardAllSuccess": "All changes discarded",
     "discardAllFailed": "Discard failed: {{error}}",
-    "keepAllSuccess": "All changes kept, tracking reset"
+    "keepAllSuccess": "All changes kept, tracking reset",
+    "multiAgentBadge": "Multi-agent",
+    "multiAgentEdited": "{{count}} agents edited this file in this session — review carefully"
   },
   "skills": {
     "title": "Skills",
@@ -1749,11 +1777,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Upgraded Sonnet model"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · Use the default model"
+        "description": "Sonnet 5 · Use the default model"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1814,9 +1838,9 @@
     "noModelsFound": "No models found",
     "hiddenModelCount": "+ {{count}} more models. Type to search.",
     "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
+      "grok46": {
+        "label": "Grok 4.6",
+        "description": "xAI Grok 4.6"
       }
     },
     "cliLoadFailed": "Failed to load models. Click to retry."
@@ -1843,10 +1867,32 @@
       "description": "Fully automated, bypassing all permission checks [Use with caution]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "Default",
+      "tooltip": "Use the selected model (or OMP auto)",
+      "description": "Uses the model chosen in the model dropdown, or the OMP CLI default when set to Auto."
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "Fast model role (omp --model smol)",
+      "description": "Runs this conversation with the model configured for omp's smol role. Overrides the model dropdown."
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "Reasoning model role (omp --model slow)",
+      "description": "Runs this conversation with the model configured for omp's slow role. Overrides the model dropdown."
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "Planning model role (omp --model plan)",
+      "description": "Runs this conversation with the model configured for omp's plan role. Overrides the model dropdown."
+    }
+  },
   "codexModes": {
     "default": {
       "label": "Suggest (approval)",
-      "tooltip": "Codex approval_policy=untrusted – prompts before editing files or running shell commands.",
+      "tooltip": "Codex approval_policy=on-request – prompts before editing files or running shell commands.",
       "description": "Safest option. Every write or command requires your approval."
     },
     "plan": {
@@ -1887,10 +1933,16 @@
     "pi": {
       "label": "PI CLI"
     },
+    "omp": {
+      "label": "OMP CLI"
+    },
     "beta": {
       "badge": "Beta",
       "title": "Beta Feature",
       "message": "This feature is still in Beta. If you encounter any bugs, please report them to the author promptly."
+    },
+    "dsh": {
+      "label": "DeepSeek Harness"
     }
   },
   "promptEnhancer": {
@@ -2108,6 +2160,32 @@
           "step1": "2. Open Dependency Management and reinstall the latest SDK:"
         }
       }
+    }
+  },
+  "dshPresets": {
+    "title": "Select DeepSeek Harness agent preset",
+    "none": {
+      "label": "Default",
+      "description": "dsh default headless composition (full toolset)"
+    },
+    "standard": {
+      "label": "Standard",
+      "description": "Full coding agent with the standard toolset"
+    },
+    "code": {
+      "label": "PTC",
+      "description": "Standard capabilities with Code Mode"
+    },
+    "minimal": {
+      "label": "Minimal",
+      "description": "Bash and str_replace_editor only"
+    },
+    "cordis": {
+      "label": "Creator",
+      "description": "Standard capabilities plus composition authoring"
+    },
+    "user": {
+      "description": "Custom preset installed under the DSH home"
     }
   }
 }

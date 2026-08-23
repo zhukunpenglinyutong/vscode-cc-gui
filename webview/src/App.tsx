@@ -155,6 +155,7 @@ const App = () => {
     currentProviderRef,
     activeProviderConfig, claudeSettingsAlwaysThinkingEnabled,
     reasoningEffort, codexFastMode, streamingEnabledSetting, sendShortcut, autoOpenFileEnabled,
+    dshPreset,
     longContextEnabled,
     usagePercentage, usageUsedTokens, usageMaxTokens,
     setPermissionMode,
@@ -168,6 +169,7 @@ const App = () => {
     syncActiveProviderModelMapping,
     handleModeSelect, handleModelSelect, handleProviderSelect,
     handleReasoningChange, handleCodexFastModeChange, handleAgentSelect, handleToggleThinking,
+    handleDshPresetChange,
     handleStreamingEnabledChange, handleSendShortcutChange,
     handleAutoOpenFileEnabledChange, handleLongContextChange,
   } = useModelProviderState({ addToast, t });
@@ -347,6 +349,7 @@ const App = () => {
   } = useMessageSender({
     t, addToast,
     currentProvider, selectedModel, permissionMode, reasoningEffort, selectedAgent, currentSessionId, codexFastMode, streamingEnabledSetting,
+    dshPreset,
     sdkStatusLoaded, currentSdkInstalled,
     sentAttachmentsRef, chatInputRef, messagesContainerRef,
     isUserAtBottomRef, userPausedRef, isStreamingRef,
@@ -424,7 +427,7 @@ const App = () => {
   );
 
   // Stabilize context value references for SubagentContext consumers.
-  const { subagentHistoryCtxValue, sessionIdCtxValue } = useSubagentContextValues(subagentHistories, currentSessionId);
+  const { subagentHistoryCtxValue, sessionIdCtxValue } = useSubagentContextValues(subagentHistories, currentSessionId, currentProvider);
 
   const handleNavigateToProviderSettings = useCallback(() => {
     setSettingsInitialTab('providers');
@@ -530,6 +533,7 @@ const App = () => {
           claudeSettingsAlwaysThinkingEnabled={claudeSettingsAlwaysThinkingEnabled}
           reasoningEffort={reasoningEffort}
           codexFastMode={codexFastMode}
+          dshPreset={dshPreset}
           streamingEnabledSetting={streamingEnabledSetting}
           sendShortcut={sendShortcut}
           autoOpenFileEnabled={autoOpenFileEnabled}
@@ -542,6 +546,7 @@ const App = () => {
           onAgentSelect={handleAgentSelect}
           onReasoningChange={handleReasoningChange}
           onCodexFastModeChange={handleCodexFastModeChange}
+          onDshPresetChange={handleDshPresetChange}
           onToggleThinking={handleToggleThinking}
           onStreamingEnabledChange={handleStreamingEnabledChange}
           onAutoOpenFileEnabledChange={handleAutoOpenFileEnabledChange}

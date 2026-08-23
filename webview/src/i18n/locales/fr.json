@@ -91,7 +91,6 @@
     "attachmentFile": "[Pièce jointe: {{fileName}}]",
     "unknownFile": "Unknown file",
     "attachmentsUploaded": "[Pièces jointes téléchargées]",
-    "streamingConnected": "AI connecté, en train de comprendre votre question",
     "showEarlierMessages": "Afficher {{count}} messages précédents",
     "totalDuration": "Cette réponse a pris",
     "tokenUsage": "{{input}} entrée / {{output}} sortie",
@@ -124,7 +123,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "Lien copié dans le presse-papiers — collez-le dans votre navigateur pour y accéder ⭐",
     "openSourceBannerStarAria": "Copier le lien et mettre une étoile sur GitHub",
-    "streamingWorking": "{{provider}} travaille — réflexion ou outils en cours…",
     "cacheHitsWithRatio": "(succès du cache {{tokens}}, {{ratio}})",
     "planModeEnabled": "Mode Plan activé",
     "commandProviderOnly": "{{command}} n'est disponible que pour le fournisseur {{provider}}",
@@ -234,7 +232,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -814,6 +813,10 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "Agent de codage terminal Oh My Pi avec prise en charge multi-fournisseurs"
         }
       },
       "installDialog": {
@@ -984,6 +987,7 @@
   },
   "config": {
     "clickToCopy": "Cliquer pour copier",
+    "officialDocs": "Documentation officielle",
     "switch": "Basculer",
     "switchProvider": "Changer de fournisseur",
     "runtimeProvider": {
@@ -1280,7 +1284,9 @@
     "keepAllConfirmMessage": "Accepter les modifications actuelles comme référence. Les modifications futures seront suivies à partir de zéro.",
     "discardAllSuccess": "Tous les changements annulés",
     "discardAllFailed": "Échec de l'annulation: {{error}}",
-    "keepAllSuccess": "Tous les changements conservés, suivi réinitialisé"
+    "keepAllSuccess": "Tous les changements conservés, suivi réinitialisé",
+    "multiAgentBadge": "Multi-agents",
+    "multiAgentEdited": "{{count}} agents ont modifié ce fichier dans cette session — vérifiez attentivement"
   },
   "skills": {
     "title": "Skills",
@@ -1450,11 +1456,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Modèle amélioré de Sonnet 4.6"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · Modèle recommandé par défaut"
+        "description": "Sonnet 5 · Modèle recommandé par défaut"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1520,12 +1522,6 @@
     "searchPlaceholder": "Rechercher des modèles",
     "noModelsFound": "Aucun modèle trouvé",
     "hiddenModelCount": "+ {{count}} modèles supplémentaires. Tapez pour rechercher.",
-    "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
-      }
-    },
     "cliLoadFailed": "Failed to load models. Click to retry."
   },
   "modes": {
@@ -1550,10 +1546,32 @@
       "description": "Fully automated, bypassing all permission checks [Use with caution]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "Par défaut",
+      "tooltip": "Utilise le modèle sélectionné (ou OMP auto)",
+      "description": "Utilise le modèle choisi dans la liste déroulante, ou le modèle par défaut d'OMP CLI lorsque Auto est sélectionné."
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "Rôle de modèle rapide (omp --model smol)",
+      "description": "Exécute cette conversation avec le modèle configuré pour le rôle smol d'omp. Remplace la liste déroulante de modèles."
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "Rôle de modèle de raisonnement (omp --model slow)",
+      "description": "Exécute cette conversation avec le modèle configuré pour le rôle slow d'omp. Remplace la liste déroulante de modèles."
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "Rôle de modèle de planification (omp --model plan)",
+      "description": "Exécute cette conversation avec le modèle configuré pour le rôle plan d'omp. Remplace la liste déroulante de modèles."
+    }
+  },
   "codexModes": {
     "default": {
       "label": "Suggest (approval)",
-      "tooltip": "Codex approval_policy=untrusted – prompts before editing files or running shell commands.",
+      "tooltip": "Codex approval_policy=on-request – prompts before editing files or running shell commands.",
       "description": "Safest option. Every write or command requires your approval."
     },
     "plan": {
@@ -1593,6 +1611,9 @@
     },
     "pi": {
       "label": "PI CLI"
+    },
+    "omp": {
+      "label": "OMP CLI"
     },
     "beta": {
       "badge": "Beta",

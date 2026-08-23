@@ -3,7 +3,7 @@
  * Supports both Claude and Codex modes
  */
 
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { McpServer, McpPreset } from '../../types/mcp';
 import { sendToJava } from '../../utils/bridge';
@@ -203,6 +203,49 @@ function McpProviderPanel({ currentProvider }: { currentProvider: McpProvider })
     onLog: addLog,
   });
 
+  // Codex mutations report success only after config.toml was written: the
+  // backend fires these callbacks from the daemon's [MCP_SERVER_MUTATED]
+  // receipt (failures arrive via window.showError instead).
+  useEffect(() => {
+    if (!isCodexMode) {
+      return;
+    }
+    const readServer = (json: string): McpServer | null => {
+      try {
+        return JSON.parse(json) as McpServer;
+      } catch {
+        return null;
+      }
+    };
+    window.codexMcpServerAdded = (json) => {
+      const server = readServer(json);
+      addToast(`${t('mcp.added')} ${server?.name || server?.id || ''}`, 'success');
+      loadServers();
+    };
+    window.codexMcpServerUpdated = (json) => {
+      const server = readServer(json);
+      addToast(`${t('mcp.saved')} ${server?.name || server?.id || ''}`, 'success');
+      loadServers();
+    };
+    window.codexMcpServerDeleted = (serverId) => {
+      addToast(`${t('mcp.deleted')} ${serverId}`, 'success');
+      loadServers();
+    };
+    window.codexMcpServerToggled = (json) => {
+      const server = readServer(json);
+      const enabled = server?.enabled !== false;
+      addToast(`${enabled ? t('mcp.enabled') : t('mcp.disabled')} ${server?.name || server?.id || ''}`, 'success');
+      loadServers();
+      loadServerStatus();
+    };
+    return () => {
+      window.codexMcpServerAdded = undefined;
+      window.codexMcpServerUpdated = undefined;
+      window.codexMcpServerDeleted = undefined;
+      window.codexMcpServerToggled = undefined;
+    };
+  }, [isCodexMode, addToast, loadServers, loadServerStatus, t]);
+
   // Toggle server expand/collapse
   const toggleExpand = useCallback((serverId: string) => {
     const server = servers.find(s => s.id === serverId);
@@ -244,15 +287,15 @@ function McpProviderPanel({ currentProvider }: { currentProvider: McpProvider })
   const confirmDelete = useCallback(() => {
     if (deletingServer) {
       sendToJava(`delete_${messagePrefix}mcp_server`, { id: deletingServer.id });
-      addToast(`${t('mcp.deleted')} ${deletingServer.name || deletingServer.id}`, 'success');
-
-      setTimeout(() => {
-        loadServers();
-      }, 100);
+      // Codex: toast + reload happen in the codexMcpServerDeleted callback.
+      if (!isCodexMode) {
+        addToast(`${t('mcp.deleted')} ${deletingServer.name || deletingServer.id}`, 'success');
+        setTimeout(() => loadServers(), 100);
+      }
     }
     setShowConfirmDialog(false);
     setDeletingServer(null);
-  }, [deletingServer, messagePrefix, addToast, t, loadServers]);
+  }, [deletingServer, messagePrefix, isCodexMode, addToast, t, loadServers]);
 
   // Cancel deletion
   const cancelDelete = useCallback(() => {
@@ -284,35 +327,45 @@ function McpProviderPanel({ currentProvider }: { currentProvider: McpProvider })
     importedServers.forEach((server) => {
       sendToJava(`add_${messagePrefix}mcp_server`, server);
     });
-    addToast(`${t('mcp.added')} ${importedServers.length}`, 'success');
-    setTimeout(() => {
-      loadServers();
-    }, 100);
-  }, [messagePrefix, addToast, t, loadServers]);
+    if (!isCodexMode) {
+      addToast(`${t('mcp.added')} ${importedServers.length}`, 'success');
+      setTimeout(() => loadServers(), 100);
+    }
+  }, [messagePrefix, isCodexMode, addToast, t, loadServers]);
 
   // Save server
   const handleSaveServer = useCallback((server: McpServer) => {
     if (editingServer) {
       if (editingServer.id !== server.id) {
-        sendToJava(`delete_${messagePrefix}mcp_server`, { id: editingServer.id });
-        sendToJava(`add_${messagePrefix}mcp_server`, server);
-        addToast(`${t('mcp.updated')} ${server.name || server.id}`, 'success');
+        if (isCodexMode) {
+          // Codex rename goes through a single backend op (oldId) instead of a
+          // delete+add pair, so a failure never drops the old entry.
+          sendToJava('update_codex_mcp_server', { ...server, oldId: editingServer.id });
+        } else {
+          sendToJava(`delete_${messagePrefix}mcp_server`, { id: editingServer.id });
+          sendToJava(`add_${messagePrefix}mcp_server`, server);
+          addToast(`${t('mcp.updated')} ${server.name || server.id}`, 'success');
+        }
       } else {
         sendToJava(`update_${messagePrefix}mcp_server`, server);
-        addToast(`${t('mcp.saved')} ${server.name || server.id}`, 'success');
+        if (!isCodexMode) {
+          addToast(`${t('mcp.saved')} ${server.name || server.id}`, 'success');
+        }
       }
     } else {
       sendToJava(`add_${messagePrefix}mcp_server`, server);
-      addToast(`${t('mcp.added')} ${server.name || server.id}`, 'success');
+      if (!isCodexMode) {
+        addToast(`${t('mcp.added')} ${server.name || server.id}`, 'success');
+      }
     }
 
-    setTimeout(() => {
-      loadServers();
-    }, 100);
+    if (!isCodexMode) {
+      setTimeout(() => loadServers(), 100);
+    }
 
     setShowServerDialog(false);
     setEditingServer(null);
-  }, [editingServer, messagePrefix, addToast, t, loadServers]);
+  }, [editingServer, messagePrefix, isCodexMode, addToast, t, loadServers]);
 
   // Select preset
   const handleSelectPreset = useCallback((preset: McpPreset) => {
@@ -332,11 +385,10 @@ function McpProviderPanel({ currentProvider }: { currentProvider: McpProvider })
       enabled: true,
     };
     sendToJava(`add_${messagePrefix}mcp_server`, server);
-    addToast(`${t('mcp.added')} ${preset.name}`, 'success');
-
-    setTimeout(() => {
-      loadServers();
-    }, 100);
+    if (!isCodexMode) {
+      addToast(`${t('mcp.added')} ${preset.name}`, 'success');
+      setTimeout(() => loadServers(), 100);
+    }
 
     setShowPresetDialog(false);
   }, [isCodexMode, messagePrefix, addToast, t, loadServers]);

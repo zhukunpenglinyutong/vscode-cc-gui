@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProviderModelIcon } from '../../shared/ProviderModelIcon';
 import { copyToClipboard } from '../../../utils/copyUtils';
+import DshConnectionCard from './DshConnectionCard';
 import {
   CLI_TOOL_DEFINITIONS,
   type CliStatusMap,
@@ -300,19 +301,25 @@ const CliSection = ({ addToast }: CliSectionProps) => {
 
       <div className={styles.cliList}>
         {loading && Object.keys(statusMap).length === 0 ? (
-          <div className={styles.loadingState}>
-            <span className="codicon codicon-loading codicon-modifier-spin" />
-            <span>{t('settings.cli.loading')}</span>
-          </div>
+          <>
+            <div className={styles.loadingState}>
+              <span className="codicon codicon-loading codicon-modifier-spin" />
+              <span>{t('settings.cli.loading')}</span>
+            </div>
+            <DshConnectionCard />
+          </>
         ) : statusError && Object.keys(statusMap).length === 0 ? (
-          <div className={styles.errorState}>
-            <span className="codicon codicon-warning" />
-            <span>{t('settings.cli.loadFailed')}</span>
-            <button type="button" className={styles.refreshBtn} onClick={requestStatus}>
-              <span className="codicon codicon-refresh" />
-              {t('settings.cli.retry')}
-            </button>
-          </div>
+          <>
+            <div className={styles.errorState}>
+              <span className="codicon codicon-warning" />
+              <span>{t('settings.cli.loadFailed')}</span>
+              <button type="button" className={styles.refreshBtn} onClick={requestStatus}>
+                <span className="codicon codicon-refresh" />
+                {t('settings.cli.retry')}
+              </button>
+            </div>
+            <DshConnectionCard />
+          </>
         ) : (
           CLI_TOOL_DEFINITIONS.map((tool) => {
             const status = statusMap[tool.id];
@@ -332,8 +339,11 @@ const CliSection = ({ addToast }: CliSectionProps) => {
             return (
               <div
                 key={tool.id}
-                className={`${styles.cliCard} ${installed ? styles.installed : styles.missing}`}
+                className={tool.id === 'dsh' ? styles.dshGroup : undefined}
               >
+                <div
+                  className={`${styles.cliCard} ${installed ? styles.installed : styles.missing}`}
+                >
                 {/* Left: identity + path/description */}
                 <div className={styles.cliMain} title={metaTitle}>
                   <div className={styles.cliIcon}>
@@ -398,6 +408,9 @@ const CliSection = ({ addToast }: CliSectionProps) => {
                     </>
                   )}
                 </div>
+                </div>
+                {/* Host connection belongs with the DSH install row, not above the whole CLI list. */}
+                {tool.id === 'dsh' && <DshConnectionCard />}
               </div>
             );
           })

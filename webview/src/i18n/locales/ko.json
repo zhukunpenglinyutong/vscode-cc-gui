@@ -91,7 +91,6 @@
     "attachmentFile": "[첨부파일: {{fileName}}]",
     "unknownFile": "알 수 없는 파일",
     "attachmentsUploaded": "[첨부파일 업로드됨]",
-    "streamingConnected": "AI 연결됨, 질문을 이해하는 중",
     "showEarlierMessages": "이전 메시지 {{count}}개 보기",
     "totalDuration": "이번 응답 소요 시간",
     "tokenUsage": "입력 {{input}} / 출력 {{output}}",
@@ -124,7 +123,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "저장소 주소를 클립보드에 복사했습니다. 브라우저에 붙여넣어 방문하세요 ⭐",
     "openSourceBannerStarAria": "저장소 주소 복사 후 GitHub에서 Star",
-    "streamingWorking": "{{provider}} 작업 중 — 생각하거나 도구 실행 중…",
     "cacheHitsWithRatio": "(캐시 히트 {{tokens}}, {{ratio}})",
     "planModeEnabled": "Plan 모드가 활성화되었습니다",
     "commandProviderOnly": "{{command}}는 {{provider}} 공급자에서만 사용할 수 있습니다",
@@ -234,7 +232,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -930,6 +929,10 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "멀티 프로바이더 모델을 지원하는 Oh My Pi 터미널 코딩 에이전트"
         }
       },
       "installDialog": {
@@ -1100,6 +1103,7 @@
   },
   "config": {
     "clickToCopy": "클릭하여 복사",
+    "officialDocs": "공식 문서",
     "switch": "전환",
     "switchProvider": "제공자 전환",
     "runtimeProvider": {
@@ -1397,7 +1401,9 @@
     "keepAllConfirmMessage": "현재 변경 사항을 기준선으로 수락합니다. 이후 변경 사항은 처음부터 추적됩니다.",
     "discardAllSuccess": "모든 변경 사항이 버려졌습니다",
     "discardAllFailed": "버리기 실패: {{error}}",
-    "keepAllSuccess": "모든 변경 사항이 유지되었으며, 추적이 초기화되었습니다"
+    "keepAllSuccess": "모든 변경 사항이 유지되었으며, 추적이 초기화되었습니다",
+    "multiAgentBadge": "다중 Agent",
+    "multiAgentEdited": "이 세션에서 {{count}}개 Agent가 이 파일을 수정했습니다. 주의해서 확인하세요"
   },
   "skills": {
     "title": "스킬",
@@ -1567,11 +1573,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Sonnet 4.6 업그레이드 모델"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · 기본 모델 사용"
+        "description": "Sonnet 5 · 기본 모델 사용"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1637,12 +1639,6 @@
     "searchPlaceholder": "모델 검색",
     "noModelsFound": "모델을 찾을 수 없습니다",
     "hiddenModelCount": "+ {{count}}개 모델 더 있음. 입력하여 검색하세요.",
-    "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
-      }
-    },
     "cliLoadFailed": "Failed to load models. Click to retry."
   },
   "modes": {
@@ -1667,10 +1663,32 @@
       "description": "완전 자동화, 모든 권한 검사를 우회합니다 [주의하여 사용]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "기본",
+      "tooltip": "선택한 모델 사용 (또는 OMP auto)",
+      "description": "모델 드롭다운에서 선택한 모델을 사용하며, Auto로 설정된 경우 OMP CLI 기본값을 사용합니다."
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "빠른 모델 역할 (omp --model smol)",
+      "description": "omp의 smol 역할에 구성된 모델로 이 대화를 실행합니다. 모델 드롭다운을 재정의합니다."
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "추론 모델 역할 (omp --model slow)",
+      "description": "omp의 slow 역할에 구성된 모델로 이 대화를 실행합니다. 모델 드롭다운을 재정의합니다."
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "계획 모델 역할 (omp --model plan)",
+      "description": "omp의 plan 역할에 구성된 모델로 이 대화를 실행합니다. 모델 드롭다운을 재정의합니다."
+    }
+  },
   "codexModes": {
     "default": {
       "label": "제안 (승인 필요)",
-      "tooltip": "Codex approval_policy=untrusted – 파일 편집이나 셸 명령 실행 전에 확인합니다.",
+      "tooltip": "Codex approval_policy=on-request – 파일 편집이나 셸 명령 실행 전에 확인합니다.",
       "description": "가장 안전한 옵션. 모든 쓰기 또는 명령에 승인이 필요합니다."
     },
     "plan": {
@@ -1710,6 +1728,9 @@
     },
     "pi": {
       "label": "PI CLI"
+    },
+    "omp": {
+      "label": "OMP CLI"
     },
     "beta": {
       "badge": "Beta",

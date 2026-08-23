@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AVAILABLE_MODES, type PermissionMode } from '../types';
+import { AVAILABLE_MODES, type ModeInfo, type ModelInfo, type PermissionMode } from '../types';
+import { useOmpRoles } from '../../../hooks/providers/useCliModels';
 
 const RELATIVE_INLINE_BLOCK_STYLE: React.CSSProperties = { position: 'relative', display: 'inline-block' };
 const CHEVRON_ICON_STYLE: React.CSSProperties = { fontSize: '10px', marginLeft: '2px' };
@@ -12,6 +13,28 @@ const DROPDOWN_STYLE: React.CSSProperties = {
   zIndex: 10000,
 };
 const MODE_INFO_STYLE: React.CSSProperties = { display: 'flex', flexDirection: 'column', flex: 1 };
+
+/** Icons for the well-known omp roles; any other dynamic role gets a sparkle. */
+const OMP_ROLE_ICONS: Record<string, string> = {
+  smol: 'codicon-zap',
+  slow: 'codicon-lightbulb',
+  plan: 'codicon-tasklist',
+};
+
+/**
+ * Maps a dynamic omp role (listModels payload) to a ModeInfo. Label is the
+ * capitalized role id; description/tooltip carry the resolved model selector.
+ * Roles with an ompModes.* i18n entry get translated text via getModeText.
+ */
+function roleToModeInfo(role: ModelInfo): ModeInfo {
+  return {
+    id: role.id,
+    label: role.id.charAt(0).toUpperCase() + role.id.slice(1),
+    icon: OMP_ROLE_ICONS[role.id] ?? 'codicon-sparkle',
+    description: role.description,
+    tooltip: role.description,
+  };
+}
 
 function getModeOptionStyle(disabled: boolean): React.CSSProperties {
   return {
@@ -31,19 +54,30 @@ interface ModeSelectProps {
  * Supports switching between default, agent, plan, and auto modes
  */
 export const ModeSelect = ({ value, onChange, provider }: ModeSelectProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Dynamic omp model roles (subscribed unconditionally per hook rules; only
+  // consumed for provider 'omp'). Static smol/slow/plan until roles load.
+  const ompRoles = useOmpRoles();
 
   const modeOptions = useMemo(() => {
-    if (provider === 'codex' || provider === 'grok' || provider === 'kimi'
-      || provider === 'opencode' || provider === 'pi') {
-      // Codex / CLI providers: plan mode is not exposed.
-      return AVAILABLE_MODES.filter((mode) => mode.id !== 'plan');
+    if (provider === 'omp') {
+      // OMP model-role modes: [Default, ...roles]. Roles are dynamic from the
+      // listModels payload, falling back to static smol/slow/plan.
+      const defaultMode = AVAILABLE_MODES.find((mode) => mode.id === 'default');
+      const roleModes = ompRoles.map(roleToModeInfo);
+      return defaultMode ? [defaultMode, ...roleModes] : roleModes;
     }
-    return AVAILABLE_MODES;
-  }, [provider]);
+    if (provider === 'codex' || provider === 'grok' || provider === 'kimi'
+      || provider === 'opencode' || provider === 'pi' || provider === 'dsh') {
+      // Codex / CLI providers: plan mode is not exposed.
+      // smol/slow are OMP-only model roles; hide them everywhere else.
+      return AVAILABLE_MODES.filter((mode) => mode.id !== 'plan' && mode.id !== 'smol' && mode.id !== 'slow');
+    }
+    return AVAILABLE_MODES.filter((mode) => mode.id !== 'smol' && mode.id !== 'slow');
+  }, [provider, ompRoles]);
 
   const currentMode = modeOptions.find(m => m.id === value) || modeOptions[0];
 
@@ -53,6 +87,18 @@ export const ModeSelect = ({ value, onChange, provider }: ModeSelectProps) => {
       const codexKey = `codexModes.${modeId}.${field}`;
       const fallbackKey = `modes.${modeId}.${field}`;
       return t(codexKey, { defaultValue: t(fallbackKey) });
+    }
+
+    if (provider === 'omp') {
+      const ompKey = `ompModes.${modeId}.${field}`;
+      if (i18n.exists(ompKey)) return t(ompKey);
+      const fallbackKey = `modes.${modeId}.${field}`;
+      if (i18n.exists(fallbackKey)) return t(fallbackKey);
+      // Dynamic role with no i18n entry: show the raw ModeInfo strings
+      // (capitalized role id / resolved model selector).
+      const info = modeOptions.find((mode) => mode.id === modeId);
+      if (field === 'label') return info?.label ?? modeId;
+      return info?.[field] ?? info?.description ?? '';
     }
 
     return t(`modes.${modeId}.${field}`);
@@ -125,6 +171,7 @@ export const ModeSelect = ({ value, onChange, provider }: ModeSelectProps) => {
           {modeOptions.map((mode) => (
             <div
               key={mode.id}
+              data-testid={`mode-option-${mode.id}`}
               className={`selector-option ${mode.id === value ? 'selected' : ''} ${mode.disabled ? 'disabled' : ''}`}
               onClick={() => handleSelect(mode.id, mode.disabled)}
               title={getModeText(mode.id, 'tooltip')}

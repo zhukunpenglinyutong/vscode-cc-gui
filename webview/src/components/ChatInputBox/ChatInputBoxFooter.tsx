@@ -33,6 +33,8 @@ export function ChatInputBoxFooter({
   onProviderSelect,
   onReasoningChange,
   onCodexFastModeChange,
+  dshPreset,
+  onDshPresetChange,
   onEnhancePrompt,
   alwaysThinkingEnabled,
   onToggleThinking,
@@ -70,6 +72,8 @@ export function ChatInputBoxFooter({
   onProviderSelect?: (providerId: string) => void;
   onReasoningChange?: (effort: ReasoningEffort) => void;
   onCodexFastModeChange?: (mode: CodexFastMode) => void;
+  dshPreset?: string;
+  onDshPresetChange?: (preset: string) => void;
   onEnhancePrompt: () => void;
   alwaysThinkingEnabled?: boolean;
   onToggleThinking?: (enabled: boolean) => void;
@@ -119,6 +123,8 @@ export function ChatInputBoxFooter({
         onProviderSelect={onProviderSelect}
         onReasoningChange={onReasoningChange}
         onCodexFastModeChange={onCodexFastModeChange}
+        dshPreset={dshPreset}
+        onDshPresetChange={onDshPresetChange}
         onEnhancePrompt={onEnhancePrompt}
         alwaysThinkingEnabled={alwaysThinkingEnabled}
         onToggleThinking={onToggleThinking}

@@ -91,7 +91,6 @@
     "attachmentFile": "[Вложение: {{fileName}}]",
     "unknownFile": "Неизвестный файл",
     "attachmentsUploaded": "[Вложения загружены]",
-    "streamingConnected": "AI обрабатывает запрос",
     "showEarlierMessages": "Показать предыдущие сообщения ({{count}})",
     "totalDuration": "Этот ответ занял",
     "tokenUsage": "вход {{input}} / выход {{output}}",
@@ -124,7 +123,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "Ссылка скопирована в буфер обмена — вставьте её в браузере, чтобы открыть ⭐",
     "openSourceBannerStarAria": "Скопировать ссылку и поставить звезду на GitHub",
-    "streamingWorking": "{{provider}} работает — думает или выполняет инструменты…",
     "cacheHitsWithRatio": "(попадания в кэш {{tokens}}, {{ratio}})",
     "planModeEnabled": "Режим Plan включён",
     "commandProviderOnly": "{{command}} доступна только для провайдера {{provider}}",
@@ -234,7 +232,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -826,6 +825,10 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "Терминальный агент для кодирования Oh My Pi с поддержкой нескольких провайдеров"
         }
       },
       "installDialog": {
@@ -1011,6 +1014,7 @@
   },
   "config": {
     "clickToCopy": "Нажмите для копирования",
+    "officialDocs": "Официальная документация",
     "switch": "Переключить",
     "switchProvider": "Переключить провайдер",
     "runtimeProvider": {
@@ -1306,7 +1310,9 @@
     "keepAllConfirmMessage": "Принять изменения как базу. Дальнейшие правки будут отслеживаться заново.",
     "discardAllSuccess": "Все изменения отменены",
     "discardAllFailed": "Ошибка отмены: {{error}}",
-    "keepAllSuccess": "Все изменения сохранены, отслеживание сброшено"
+    "keepAllSuccess": "Все изменения сохранены, отслеживание сброшено",
+    "multiAgentBadge": "Несколько агентов",
+    "multiAgentEdited": "{{count}} агентов изменили этот файл в сессии — проверьте внимательно"
   },
   "skills": {
     "title": "Навыки",
@@ -1476,11 +1482,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Обновленная модель Sonnet 4.6"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · Модель по умолчанию"
+        "description": "Sonnet 5 · Модель по умолчанию"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1546,12 +1548,6 @@
     "searchPlaceholder": "Поиск моделей",
     "noModelsFound": "Модели не найдены",
     "hiddenModelCount": "+ {{count}} дополнительных моделей. Введите текст для поиска.",
-    "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
-      }
-    },
     "cliLoadFailed": "Failed to load models. Click to retry."
   },
   "modes": {
@@ -1576,10 +1572,32 @@
       "description": "Полностью автоматический, пропускает все проверки разрешений [Используйте с осторожностью]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "По умолчанию",
+      "tooltip": "Использовать выбранную модель (или OMP auto)",
+      "description": "Использует модель, выбранную в выпадающем списке, или модель OMP CLI по умолчанию при значении Auto."
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "Быстрая роль модели (omp --model smol)",
+      "description": "Запускает этот диалог с моделью, настроенной для роли smol в omp. Переопределяет выбор в списке моделей."
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "Роль модели для рассуждений (omp --model slow)",
+      "description": "Запускает этот диалог с моделью, настроенной для роли slow в omp. Переопределяет выбор в списке моделей."
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "Роль модели для планирования (omp --model plan)",
+      "description": "Запускает этот диалог с моделью, настроенной для роли plan в omp. Переопределяет выбор в списке моделей."
+    }
+  },
   "codexModes": {
     "default": {
       "label": "Предложение (одобрение)",
-      "tooltip": "Codex approval_policy=untrusted — запрашивает перед редактированием файлов или выполнением команд.",
+      "tooltip": "Codex approval_policy=on-request — запрашивает перед редактированием файлов или выполнением команд.",
       "description": "Самый безопасный вариант. Каждая запись или команда требует вашего одобрения."
     },
     "plan": {
@@ -1619,6 +1637,9 @@
     },
     "pi": {
       "label": "PI CLI"
+    },
+    "omp": {
+      "label": "OMP CLI"
     },
     "beta": {
       "badge": "Beta",

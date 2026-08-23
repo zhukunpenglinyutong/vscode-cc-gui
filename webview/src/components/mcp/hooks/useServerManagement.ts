@@ -123,16 +123,20 @@ export function useServerManagement({
       return next;
     });
 
-    // Show toast notification
-    onToast(
-      enabled
-        ? `${t('mcp.enabled')} ${server.name || server.id}`
-        : `${t('mcp.disabled')} ${server.name || server.id}`,
-      'success'
-    );
-
-    loadServers();
-    loadServerStatus();
+    // Codex mutations report success only after the daemon wrote config.toml:
+    // the toast + reload happen in the codexMcpServerToggled callback instead
+    // (see McpSettingsSection). Claude edits are applied synchronously by the
+    // backend, so the optimistic toast stays for them.
+    if (!isCodexMode) {
+      onToast(
+        enabled
+          ? `${t('mcp.enabled')} ${server.name || server.id}`
+          : `${t('mcp.disabled')} ${server.name || server.id}`,
+        'success'
+      );
+      loadServers();
+      loadServerStatus();
+    }
   }, [isCodexMode, messagePrefix, cacheKeys, setServerTools, onToast, t, loadServers, loadServerStatus]);
 
   return {

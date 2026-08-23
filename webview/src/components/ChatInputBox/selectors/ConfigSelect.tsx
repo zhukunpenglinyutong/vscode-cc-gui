@@ -11,6 +11,23 @@ import {
   subscribeNodeProcesses,
   type NodeProcessSnapshot,
 } from '../../../utils/nodeProcessCapabilities';
+import { openBrowser } from '../../../utils/bridge';
+
+const DOCS_URLS: Record<string, string> = {
+  zh: 'https://docs.mossx.ai/vscode',
+  'zh-TW': 'https://docs.mossx.ai/zh-Hant/vscode/index',
+};
+const DEFAULT_DOCS_URL = 'https://docs.mossx.ai/en/vscode/index';
+
+const resolveDocsUrl = (language: string): string => {
+  if (language.startsWith('zh-TW') || language.startsWith('zh-Hant')) {
+    return DOCS_URLS['zh-TW'];
+  }
+  if (language.startsWith('zh')) {
+    return DOCS_URLS.zh;
+  }
+  return DEFAULT_DOCS_URL;
+};
 
 interface ConfigSelectProps {
   alwaysThinkingEnabled?: boolean;
@@ -141,7 +158,7 @@ export const ConfigSelect = ({
   onOpenAgentSettings,
   currentProvider = 'claude',
 }: ConfigSelectProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState<'none' | 'agent' | 'runtimeProvider' | 'nodeProcesses'>('none');
   const [agentItems, setAgentItems] = useState<AgentItem[]>([]);
@@ -501,6 +518,30 @@ export const ConfigSelect = ({
                  onToggleThinking?.(checked);
               }}
             />
+          </div>
+
+          {/* Divider */}
+          <div style={FAINT_DIVIDER_STYLE} />
+
+          {/* Official Docs Item */}
+          <div
+            className="selector-option"
+            data-testid="config-option-official-docs"
+            onClick={(e) => {
+              e.stopPropagation();
+              openBrowser(resolveDocsUrl(i18n.language));
+              setIsOpen(false);
+              setActiveSubmenu('none');
+            }}
+            onMouseEnter={() => setActiveSubmenu('none')}
+          >
+            <span className="codicon codicon-book" />
+            <div style={ITEM_INFO_STYLE}>
+              <span>{t('config.officialDocs')}</span>
+            </div>
+            <div style={ARROW_CONTAINER_STYLE}>
+              <span className="codicon codicon-link-external" style={ARROW_ICON_STYLE} />
+            </div>
           </div>
         </div>
       )}

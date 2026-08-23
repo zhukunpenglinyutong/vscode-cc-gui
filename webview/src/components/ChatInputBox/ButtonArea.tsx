@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ButtonAreaProps, CodexFastMode, ModelInfo, PermissionMode, ReasoningEffort } from './types';
-import { CodexFastModeSelect, ConfigSelect, ModelSelect, ModeSelect, ProviderSelect, ReasoningSelect } from './selectors';
-import { CLAUDE_MODELS, CODEX_MODELS, GROK_MODELS } from './types';
+import { CodexFastModeSelect, ConfigSelect, DshPresetSelect, ModelSelect, ModeSelect, ProviderSelect, ReasoningSelect } from './selectors';
+import { CLAUDE_MODELS, CODEX_MODELS, DEFAULT_CLAUDE_MODEL_ID, GROK_MODELS, OMP_DEFAULT_MODEL_ID, OMP_MODELS, OMP_ROLE_MODELS } from './types';
 import { STORAGE_KEYS, validateCodexCustomModels } from '../../types/provider';
 import type { CodexCustomModel } from '../../types/provider';
 import { readClaudeModelMapping } from '../../utils/claudeModelMapping';
-import { useCliModels } from '../../hooks/providers/useCliModels';
+import { useCliModels, useOmpRoles } from '../../hooks/providers/useCliModels';
 
 /**
  * Get custom Codex model list from localStorage
@@ -72,11 +72,12 @@ export const ButtonArea = ({
   hasInputContent = false,
   isLoading = false,
   isEnhancing = false,
-  selectedModel = 'claude-sonnet-4-6',
+  selectedModel = DEFAULT_CLAUDE_MODEL_ID,
   permissionMode = 'bypassPermissions',
   currentProvider = 'claude',
   reasoningEffort = 'high',
   codexFastMode = 'normal',
+  dshPreset = '',
   onSubmit,
   onStop,
   onModeSelect,
@@ -84,6 +85,7 @@ export const ButtonArea = ({
   onProviderSelect,
   onReasoningChange,
   onCodexFastModeChange,
+  onDshPresetChange,
   onEnhancePrompt,
   alwaysThinkingEnabled = false,
   onToggleThinking,
@@ -98,7 +100,9 @@ export const ButtonArea = ({
 }: ButtonAreaProps) => {
   const { t } = useTranslation();
   // const fileInputRef = useRef<HTMLInputElement>(null);
-  const { cliModels, cliModelsLoading, cliModelsError, refreshCliModels } = useCliModels(currentProvider);
+  const { cliModels, cliModelsLoading, cliModelsError, cliDefaultModel, refreshCliModels } = useCliModels(currentProvider);
+  // Dynamic omp roles (static smol/slow/plan fallback until loaded).
+  const ompRoles = useOmpRoles();
 
   // Track changes to custom models in localStorage
   // When localStorage changes, updating this version number triggers useMemo recalculation
@@ -171,8 +175,22 @@ export const ButtonArea = ({
     if (currentProvider === 'grok') {
       return GROK_MODELS;
     }
-    if (currentProvider === 'kimi' || currentProvider === 'opencode' || currentProvider === 'pi') {
+    if (currentProvider === 'kimi' || currentProvider === 'opencode' || currentProvider === 'pi' || currentProvider === 'dsh') {
       return cliModels;
+    }
+    if (currentProvider === 'omp') {
+      // Built-ins first: 'auto' plus the role entries (dynamic from listModels,
+      // static smol/slow/plan until loaded), then the dynamic catalog appended.
+      // Dedupe by id — the role selector entries win on collision, and the
+      // static-fallback 'auto' must not duplicate the OMP_MODELS one.
+      const roles = ompRoles.length > 0 ? ompRoles : OMP_ROLE_MODELS;
+      const merged = [...OMP_MODELS, ...roles, ...cliModels];
+      const seenIds = new Set<string>();
+      return merged.filter((m) => {
+        if (seenIds.has(m.id)) return false;
+        seenIds.add(m.id);
+        return true;
+      });
     }
     if (typeof window === 'undefined' || !window.localStorage) {
       return CLAUDE_MODELS;
@@ -198,17 +216,32 @@ export const ButtonArea = ({
     const customIds = new Set(customModels.map(m => m.id));
     const filteredBuiltIn = builtInModels.filter(m => !customIds.has(m.id));
     return [...customModels, ...filteredBuiltIn];
-  }, [currentProvider, applyModelMapping, customModelsVersion, cliModels]);
+  }, [currentProvider, applyModelMapping, customModelsVersion, cliModels, ompRoles]);
 
   // When CLI model catalog arrives, ensure selection is a real entry.
+  // DSH prefers the host-configured default route when nothing valid is selected.
   useEffect(() => {
-    if (currentProvider !== 'kimi' && currentProvider !== 'opencode' && currentProvider !== 'pi') return;
+    // Skip validation while the dynamic catalog is still loading — until then
+    // the lists are static fallbacks (dsh: only 'auto'; omp roles: smol/slow/plan),
+    // so a persisted dynamic selection would be wrongly reset to the default.
+    if (cliModelsLoading) return;
+    if (currentProvider === 'omp') {
+      // Roles are valid selections but never appear in the runtime catalog —
+      // validate against the merged list (auto + roles + catalog).
+      if (!onModelSelect) return;
+      const exists = availableModels.some((model) => model.id === selectedModel);
+      if (!exists) {
+        onModelSelect(OMP_DEFAULT_MODEL_ID);
+      }
+      return;
+    }
+    if (currentProvider !== 'kimi' && currentProvider !== 'opencode' && currentProvider !== 'pi' && currentProvider !== 'dsh') return;
     if (!cliModels.length || !onModelSelect) return;
     const exists = cliModels.some((model) => model.id === selectedModel);
     if (!exists) {
-      onModelSelect(cliModels[0].id);
+      onModelSelect(cliDefaultModel ?? cliModels[0].id);
     }
-  }, [cliModels, currentProvider, onModelSelect, selectedModel]);
+  }, [availableModels, cliModels, cliModelsLoading, cliDefaultModel, currentProvider, onModelSelect, selectedModel]);
 
   /**
    * Handle submit button click
@@ -262,6 +295,13 @@ export const ButtonArea = ({
   }, [onCodexFastModeChange]);
 
   /**
+   * Handle DSH agent preset selection
+   */
+  const handleDshPresetChange = useCallback((preset: string) => {
+    onDshPresetChange?.(preset);
+  }, [onDshPresetChange]);
+
+  /**
    * Handle enhance prompt button click
    */
   const handleEnhanceClick = useCallback((e: React.MouseEvent) => {
@@ -304,6 +344,9 @@ export const ButtonArea = ({
         <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} selectedModel={selectedModel} currentProvider={currentProvider} />
         {currentProvider === 'codex' && (
           <CodexFastModeSelect value={codexFastMode} onChange={handleCodexFastModeChange} />
+        )}
+        {currentProvider === 'dsh' && (
+          <DshPresetSelect value={dshPreset} onChange={handleDshPresetChange} />
         )}
       </div>
 

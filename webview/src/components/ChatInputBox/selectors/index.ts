@@ -5,4 +5,5 @@ export { RuntimeProviderSelect } from './RuntimeProviderSelect';
 export { ConfigSelect } from './ConfigSelect';
 export { ReasoningSelect } from './ReasoningSelect';
 export { CodexFastModeSelect } from './CodexFastModeSelect';
+export { DshPresetSelect } from './DshPresetSelect';
 export { LongContextToggle } from './LongContextToggle';

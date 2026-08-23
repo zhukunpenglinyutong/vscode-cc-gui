@@ -24,6 +24,7 @@ export type ModelVendor =
   | 'longcat'
   | 'opencode'
   | 'pi'
+  | 'omp'
   | 'doubao'
   | 'spark'
   | 'hunyuan'
@@ -117,6 +118,10 @@ const PROVIDER_TO_VENDOR: Record<string, ModelVendor> = {
   'opencode-go': 'opencode',
   // Runtime CLI provider id (ProviderSelect, BlinkingLogo, CliSection)
   pi: 'pi',
+  // Runtime CLI provider id (ProviderSelect, BlinkingLogo, CliSection)
+  omp: 'omp',
+  // DeepSeek Harness — brand follows DeepSeek.
+  dsh: 'deepseek',
   openrouter: 'openrouter',
 };
 

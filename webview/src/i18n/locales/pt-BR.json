@@ -91,7 +91,6 @@
     "attachmentFile": "[Anexo: {{fileName}}]",
     "unknownFile": "Arquivo desconhecido",
     "attachmentsUploaded": "[Anexos Enviados]",
-    "streamingConnected": "AI conectado, entendendo sua pergunta",
     "showEarlierMessages": "Mostrar {{count}} mensagens anteriores",
     "totalDuration": "Esta resposta levou",
     "tokenUsage": "{{input}} entrada / {{output}} saída",
@@ -124,7 +123,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "Link copiado para a área de transferência — cole no navegador para acessar ⭐",
     "openSourceBannerStarAria": "Copiar link e dar uma estrela no GitHub",
-    "streamingWorking": "{{provider}} está trabalhando — pensando ou executando ferramentas…",
     "cacheHitsWithRatio": "(acertos de cache {{tokens}}, {{ratio}})",
     "planModeEnabled": "Modo Plan ativado",
     "commandProviderOnly": "{{command}} está disponível apenas para o provedor {{provider}}",
@@ -234,7 +232,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -983,6 +982,10 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "Agente de codificação de terminal Oh My Pi com suporte a múltiplos provedores"
         }
       },
       "installDialog": {
@@ -1154,6 +1157,7 @@
   },
   "config": {
     "clickToCopy": "Clique para copiar",
+    "officialDocs": "Documentação oficial",
     "switch": "Alternar",
     "switchProvider": "Alternar provedor",
     "runtimeProvider": {
@@ -1452,7 +1456,9 @@
     "keepAllConfirmMessage": "Aceitar as alterações atuais como base. Alterações futuras serão rastreadas a partir do zero.",
     "discardAllSuccess": "Todas as alterações descartadas",
     "discardAllFailed": "Falha ao descartar: {{error}}",
-    "keepAllSuccess": "Todas as alterações mantidas, rastreamento redefinido"
+    "keepAllSuccess": "Todas as alterações mantidas, rastreamento redefinido",
+    "multiAgentBadge": "Multi-agente",
+    "multiAgentEdited": "{{count}} agentes editaram este arquivo nesta sessão — revise com cuidado"
   },
   "skills": {
     "title": "Skills",
@@ -1622,11 +1628,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Modelo aprimorado do Sonnet 4.6"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · Usar o modelo padrão"
+        "description": "Sonnet 5 · Usar o modelo padrão"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1692,12 +1694,6 @@
     "searchPlaceholder": "Pesquisar modelos",
     "noModelsFound": "Nenhum modelo encontrado",
     "hiddenModelCount": "+ {{count}} modelos adicionais. Digite para pesquisar.",
-    "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
-      }
-    },
     "cliLoadFailed": "Failed to load models. Click to retry."
   },
   "modes": {
@@ -1722,10 +1718,32 @@
       "description": "Totalmente automatizado, ignorando todas as verificações de permissão [Use com cautela]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "Padrão",
+      "tooltip": "Usa o modelo selecionado (ou OMP auto)",
+      "description": "Usa o modelo escolhido no menu suspenso de modelos, ou o padrão do OMP CLI quando definido como Auto."
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "Função de modelo rápido (omp --model smol)",
+      "description": "Executa esta conversa com o modelo configurado para a função smol do omp. Substitui o menu suspenso de modelos."
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "Função de modelo de raciocínio (omp --model slow)",
+      "description": "Executa esta conversa com o modelo configurado para a função slow do omp. Substitui o menu suspenso de modelos."
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "Função de modelo de planejamento (omp --model plan)",
+      "description": "Executa esta conversa com o modelo configurado para a função plan do omp. Substitui o menu suspenso de modelos."
+    }
+  },
   "codexModes": {
     "default": {
       "label": "Sugerir (aprovação)",
-      "tooltip": "Codex approval_policy=untrusted – solicita antes de editar arquivos ou executar comandos shell.",
+      "tooltip": "Codex approval_policy=on-request – solicita antes de editar arquivos ou executar comandos shell.",
       "description": "Opção mais segura. Cada escrita ou comando requer sua aprovação."
     },
     "plan": {
@@ -1765,6 +1783,9 @@
     },
     "pi": {
       "label": "PI CLI"
+    },
+    "omp": {
+      "label": "OMP CLI"
     },
     "beta": {
       "badge": "Beta",
