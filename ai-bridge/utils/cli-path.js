@@ -6,21 +6,204 @@
  * 2. PATH lookup (`which` / `where`)
  * 3. Common home install candidates
  * 4. Bare binary name fallback
+ *
+ * Windows note: npm global installs create three shims (`pi`, `pi.cmd`, `pi.ps1`).
+ * `where pi` often lists the extensionless bash wrapper first. Node's
+ * `spawn()` cannot CreateProcess that file (ENOENT). Prefer `.cmd` / `.exe`
+ * and launch `.cmd`/`.bat` via `cmd.exe /d /s /c` (see `resolveCliSpawn`).
  */
 
 import { existsSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
-import { execSync } from 'child_process';
+import { join, isAbsolute, win32 as pathWin32 } from 'path';
+import { execFileSync, execSync } from 'child_process';
+
+/** Extensions that can be launched on Windows (`.cmd`/`.bat` via cmd.exe). */
+const WINDOWS_SPAWNABLE_EXT = /\.(cmd|bat|exe)$/i;
+/** Prefer real PE binaries, then cmd shims, over extensionless npm wrappers. */
+const WINDOWS_SPAWNABLE_PRIORITY = ['.exe', '.cmd', '.bat'];
+
+function stripOuterQuotes(value) {
+  const s = String(value ?? '').trim();
+  if (s.length >= 2 && ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
 
 /**
  * Windows npm global installs only ship a `.cmd` / `.bat` shim (no `.exe`),
- * and Node cannot spawn those without `shell: true`.
+ * and Node cannot CreateProcess those without going through `cmd.exe`.
  * @param {string} bin - resolved binary path or bare name
  * @returns {boolean}
  */
 export function isWindowsCmdShim(bin) {
-  return process.platform === 'win32' && /\.(cmd|bat)$/i.test(String(bin || ''));
+  return process.platform === 'win32' && /\.(cmd|bat)$/i.test(stripOuterQuotes(bin));
+}
+
+/**
+ * Quote one argv token for `cmd.exe /s /c`. Doubles quotes and percents so a
+ * spaced path or a `%VAR%` fragment cannot be re-parsed / expanded.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function quoteCmdArg(value) {
+  return `"${String(value ?? '').replace(/%/g, '%%').replace(/"/g, '""')}"`;
+}
+
+function prependPathDir(env, dir) {
+  if (!dir || dir === '.') return env;
+  const current = env.PATH || env.Path || '';
+  const parts = current ? current.split(';') : [];
+  if (!parts.includes(dir)) parts.unshift(dir);
+  const merged = parts.join(';');
+  env.PATH = merged;
+  env.Path = merged;
+  return env;
+}
+
+/**
+ * Build a spawn/spawnSync invocation that can run Windows npm `.cmd`/`.bat`
+ * shims without `shell: true`.
+ *
+ * Node's `shell: true` concatenates `file + ' ' + args` and does **not** quote
+ * `file`. A shim under npm's default prefix (`C:\Program Files\nodejs\opencode.cmd`)
+ * is then re-parsed by cmd as `'C:\Program'` (exit code 1). Passing a
+ * pre-quoted file into `shell: true` is also fragile: Node wraps the whole
+ * command again (`cmd /s /c "…"`), and a second quote pair becomes `""C:\Program`.
+ *
+ * Instead, launch `cmd.exe /d /s /c` ourselves with `windowsVerbatimArguments`
+ * and invoke the shim by **basename** after prepending its directory to PATH.
+ * That keeps spaces out of the command token entirely.
+ *
+ * @param {string} bin
+ * @param {string[]} [args]
+ * @param {import('child_process').SpawnOptions & { redirectTo?: string }} [extraOptions]
+ * @param {boolean} [forceWindows] - test hook; defaults to process.platform === 'win32'
+ * @returns {{ file: string, args: string[], options: object }}
+ */
+export function resolveCliSpawn(
+  bin,
+  args = [],
+  extraOptions = {},
+  forceWindows = process.platform === 'win32',
+) {
+  const { redirectTo, ...options } = extraOptions || {};
+  const normalized = stripOuterQuotes(bin);
+  const isShim = forceWindows && /\.(cmd|bat)$/i.test(normalized);
+  // `.cmd`/`.bat` must go through cmd (CVE-2024-27980). File-redirect
+  // recovery for Bun-on-Windows also needs cmd, including `.exe` paths.
+  const needsCmd = isShim || (forceWindows && Boolean(redirectTo));
+
+  if (needsCmd) {
+    const looksLikePath = pathWin32.isAbsolute(normalized) || /[\\/]/.test(normalized);
+    // Invoke shims by basename so `C:\Program Files\...` never appears as the
+    // command token. Keep the full path for real `.exe` binaries.
+    const invokeName = isShim && looksLikePath ? pathWin32.basename(normalized) : normalized;
+    const env = prependPathDir(
+      { ...(options.env || process.env) },
+      looksLikePath ? pathWin32.dirname(normalized) : '',
+    );
+    let command = [invokeName, ...args].map(quoteCmdArg).join(' ');
+    if (redirectTo) command += ` > ${quoteCmdArg(redirectTo)}`;
+    return {
+      file: env.ComSpec || env.COMSPEC || process.env.ComSpec || 'cmd.exe',
+      args: ['/d', '/s', '/c', `"${command}"`],
+      options: {
+        ...options,
+        env,
+        shell: false,
+        windowsVerbatimArguments: true,
+        windowsHide: options.windowsHide !== false,
+      },
+    };
+  }
+
+  return {
+    file: normalized,
+    args,
+    options: {
+      ...options,
+      ...(forceWindows ? { windowsHide: options.windowsHide !== false } : {}),
+    },
+  };
+}
+
+/**
+ * Decode CLI stdout/stderr. Windows `cmd` often emits GBK/CP936, which Node
+ * turns into U+FFFD replacement characters when forced to UTF-8.
+ * @param {string|Buffer|null|undefined} value
+ * @returns {string}
+ */
+export function decodeCliOutput(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  const buf = Buffer.isBuffer(value) ? value : Buffer.from(value);
+  const utf8 = buf.toString('utf8');
+  if (!utf8.includes('\uFFFD')) return utf8;
+  for (const label of ['gbk', 'gb18030']) {
+    try {
+      return new TextDecoder(label).decode(buf);
+    } catch {
+      // Node builds without full ICU cannot decode GBK; try the next label.
+    }
+  }
+  return utf8;
+}
+
+/**
+ * Pick the best match from `where` output lines on Windows.
+ * Prefer `.exe` / `.cmd` / `.bat` over extensionless npm bash shims.
+ *
+ * @param {string[]|null|undefined} matches
+ * @returns {string|null}
+ */
+export function selectWindowsWhereMatch(matches) {
+  const lines = (Array.isArray(matches) ? matches : [])
+    .map((line) => String(line || '').trim())
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+
+  for (const ext of WINDOWS_SPAWNABLE_PRIORITY) {
+    const hit = lines.find((line) => line.toLowerCase().endsWith(ext));
+    if (hit) return hit;
+  }
+  return lines[0];
+}
+
+/**
+ * If `bin` is an absolute/relative path without a spawnable Windows extension
+ * and a sibling `.exe`/`.cmd`/`.bat` exists, return that sibling.
+ *
+ * Bare names (`pi`) are left unchanged so PATH+PATHEXT still apply at spawn.
+ *
+ * @param {string} bin
+ * @param {(path: string) => boolean} [existsFn]
+ * @param {boolean} [forceWindows] - test hook; defaults to process.platform === 'win32'
+ * @returns {string}
+ */
+export function resolveWindowsSpawnableBin(
+  bin,
+  existsFn = pathExists,
+  forceWindows = process.platform === 'win32',
+) {
+  if (!forceWindows || typeof bin !== 'string') return bin;
+  const trimmed = bin.trim();
+  if (!trimmed) return bin;
+  if (WINDOWS_SPAWNABLE_EXT.test(trimmed)) return trimmed;
+
+  // Bare command names: let PATHEXT / shell resolve; do not invent a path.
+  const looksLikePath = isAbsolute(trimmed)
+    || trimmed.includes('/')
+    || trimmed.includes('\\')
+    || /^[A-Za-z]:/.test(trimmed);
+  if (!looksLikePath) return trimmed;
+
+  for (const ext of WINDOWS_SPAWNABLE_PRIORITY) {
+    const candidate = `${trimmed}${ext}`;
+    if (existsFn(candidate)) return candidate;
+  }
+  return trimmed;
 }
 
 function firstNonEmpty(...values) {
@@ -43,8 +226,32 @@ function pathExists(candidate) {
 
 function whichOnPath(binaryName) {
   try {
-    const command = process.platform === 'win32' ? `where ${binaryName}` : `which ${binaryName}`;
-    const output = execSync(command, {
+    if (process.platform === 'win32') {
+      // Prefer execFile so the binary name is not re-parsed by a shell.
+      // `where` lists every PATHEXT match; the extensionless npm shim is often first
+      // and cannot be spawned — selectWindowsWhereMatch prefers .cmd/.exe.
+      let output;
+      try {
+        output = execFileSync('where.exe', [binaryName], {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          env: process.env,
+          windowsHide: true,
+        });
+      } catch {
+        // Fallback for systems where where.exe is not on PATH of the IDE process.
+        output = execSync(`where ${binaryName}`, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          env: process.env,
+          windowsHide: true,
+        });
+      }
+      const lines = String(output || '').split(/\r?\n/);
+      return selectWindowsWhereMatch(lines);
+    }
+
+    const output = execFileSync('which', [binaryName], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       env: process.env,
@@ -76,12 +283,12 @@ export function resolveCliPath({ binaryName, envKeys = [], homeCandidates = [] }
 
   const envOverride = firstNonEmpty(...envKeys.map((key) => process.env[key]));
   if (envOverride) {
-    return envOverride;
+    return resolveWindowsSpawnableBin(envOverride);
   }
 
-  // `where <name>` (no extension) honors PATHEXT, so it finds `.cmd` shims.
+  // `where <name>` (no extension) honors PATHEXT; we then prefer .cmd/.exe.
   const fromPath = whichOnPath(binaryName);
-  if (fromPath) return fromPath;
+  if (fromPath) return resolveWindowsSpawnableBin(fromPath);
 
   const home = homedir();
   for (const template of homeCandidates) {
@@ -90,7 +297,7 @@ export function resolveCliPath({ binaryName, envKeys = [], homeCandidates = [] }
         .replace('{home}', home)
         .replace('{bin}', exeName)
         .replace('{name}', binaryName);
-      if (pathExists(resolved)) return resolved;
+      if (pathExists(resolved)) return resolveWindowsSpawnableBin(resolved);
     }
   }
 
@@ -144,6 +351,7 @@ export function commonCliBinDirs(home = homedir()) {
     join(home, '.local', 'share', 'opencode', 'bin'),
     join(home, '.grok', 'bin'),
     join(home, '.pi', 'bin'),
+    join(home, '.omp', 'bin'),
     join(home, '.claude', 'bin'),
     join(home, '.local', 'bin'),
     join(home, '.cargo', 'bin'),
@@ -152,6 +360,10 @@ export function commonCliBinDirs(home = homedir()) {
     // npm global bin dir on Windows (e.g. C:\Users\<user>\AppData\Roaming\npm).
     const appData = process.env.APPDATA || join(home, 'AppData', 'Roaming');
     dirs.push(join(appData, 'npm'));
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    dirs.push(join(programFiles, 'nodejs'));
+    const programFilesX86 = process.env['ProgramFiles(x86)'];
+    if (programFilesX86) dirs.push(join(programFilesX86, 'nodejs'));
   }
   return dirs;
 }
@@ -189,6 +401,17 @@ export function resolvePiCliPath() {
     envKeys: ['PI_BIN', 'PI_PATH', 'PI_CLI_PATH'],
     homeCandidates: [
       '{home}/.pi/bin/{bin}',
+      '{home}/.local/bin/{bin}',
+    ],
+  });
+}
+
+export function resolveOmpCliPath() {
+  return resolveCliPath({
+    binaryName: 'omp',
+    envKeys: ['OMP_BIN', 'OMP_PATH', 'OMP_CLI_PATH'],
+    homeCandidates: [
+      '{home}/.omp/bin/{bin}',
       '{home}/.local/bin/{bin}',
     ],
   });

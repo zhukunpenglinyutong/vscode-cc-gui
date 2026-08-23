@@ -9,8 +9,9 @@ import { spawnSync } from 'child_process';
 import { homedir } from 'os';
 import {
   commonCliBinDirs,
+  decodeCliOutput,
   enrichPathWithBinDirs,
-  isWindowsCmdShim,
+  resolveCliSpawn,
   resolvePiCliPath,
 } from '../../utils/cli-path.js';
 
@@ -64,14 +65,13 @@ export function listModels() {
 
   let result;
   try {
-    result = spawnSync(bin, ['--list-models'], {
-      encoding: 'utf8',
+    const invocation = resolveCliSpawn(bin, ['--list-models'], {
       env,
       timeout: 45_000,
       maxBuffer: 8 * 1024 * 1024,
-      // Windows npm `.cmd` shims require a shell to spawn.
-      shell: isWindowsCmdShim(bin),
+      encoding: 'buffer',
     });
+    result = spawnSync(invocation.file, invocation.args, invocation.options);
   } catch (error) {
     console.log(JSON.stringify({
       success: false,
@@ -80,6 +80,9 @@ export function listModels() {
     }));
     return;
   }
+
+  const stdout = decodeCliOutput(result.stdout);
+  const stderr = decodeCliOutput(result.stderr);
 
   if (result.error) {
     const hint = result.error.code === 'ENOENT'
@@ -90,16 +93,16 @@ export function listModels() {
   }
 
   if (result.status !== 0) {
-    const stderr = String(result.stderr || '').trim().slice(-800);
+    const errTail = stderr.trim().slice(-800);
     console.log(JSON.stringify({
       success: false,
-      error: `pi --list-models failed (code ${result.status})${stderr ? `: ${stderr}` : ''}`,
+      error: `pi --list-models failed (code ${result.status})${errTail ? `: ${errTail}` : ''}`,
       models: [],
     }));
     return;
   }
 
-  const models = parsePiModelsOutput(result.stdout || '');
+  const models = parsePiModelsOutput(stdout);
   // Keep a default entry so UI always has a selectable fallback.
   if (models.length === 0) {
     models.push({
