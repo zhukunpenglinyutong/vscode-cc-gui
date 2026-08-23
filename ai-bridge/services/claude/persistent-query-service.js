@@ -24,6 +24,7 @@ import { buildQuickFixPrompt } from '../quickfix-prompts.js';
 import { registerActiveQueryResult, removeSession } from './message-service.js';
 import { normalizePermissionMode } from './permission-mode.js';
 import { redactSecrets, truncateString } from './message-output-filter.js';
+import { extractResultError } from './message-utils.js';
 import {
   beginRuntimeTurn,
   cleanupStaleAnonymousRuntimes,
@@ -37,7 +38,11 @@ import {
   resetCachedQueryFn,
   setCachedQueryFn,
   touchRuntime,
+  createTurnSink,
+  emitTaskEvent,
+  waitForReaderQuiescent,
 } from './runtime-lifecycle.js';
+import { parseTaskNotificationXml, buildTaskNotificationEvent, extractTaskNotificationXml } from './task-notification-parser.js';
 import {
   SESSION_CLEANUP_INTERVAL_MS,
   clearActiveTurnRuntime,
@@ -62,6 +67,20 @@ import { generateSessionTitle } from '../session-title-service.js';
 import { getClaudeCliPathOverride } from '../../utils/claude-cli-path.js';
 
 const SUPPORTED_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+
+// Backstop for the foreign-result skip in executeTurn: that skip assumes a
+// real run always emits output before its result. If a turn legitimately
+// produces zero messages before its result, its own result is misclassified
+// as foreign and skipped — without this idle backstop the take() loop would
+// hang forever. When armed, any message arriving for the turn disarms it; on
+// expiry the turn is settled empty (see the skip branch below).
+const FOREIGN_RESULT_IDLE_BACKSTOP_MS = 60_000;
+// Marker set on the synthetic result the backstop pushes so the foreign-result
+// check lets it through and ends the turn.
+const IDLE_BACKSTOP_RESULT = Symbol('idleBackstopResult');
+// Test hook (see __testing): tests shrink the backstop instead of mocking
+// timers globally, which would also intercept the reader/settle helpers.
+let foreignResultIdleBackstopMs = FOREIGN_RESULT_IDLE_BACKSTOP_MS;
 
 function resolveReasoningEffort(params) {
   const effort = typeof params.reasoningEffort === 'string'
@@ -127,7 +146,7 @@ function buildQueryOptions(workingDirectory, sdkModelName, permissionMode, maxTh
     cwd: workingDirectory,
     permissionMode,
     model: sdkModelName,
-    maxTurns: 100,
+    maxTurns: 1000,
     enableFileCheckpointing: true,
     env: buildCliEnv(),
     settings: buildWebviewControlledSettingsOverride(modelId),
@@ -141,6 +160,10 @@ function buildQueryOptions(workingDirectory, sdkModelName, permissionMode, maxTh
     ),
     canUseTool,
     settingSources: ['user', 'project', 'local'],
+    // bypassPermissions requires this flag per SDK contract (sdk.d.ts: "Must be set to
+    // true when using permissionMode: 'bypassPermissions'"). Without it a future SDK
+    // version could silently drop bypass and change permission behavior.
+    ...(permissionMode === 'bypassPermissions' && { allowDangerouslySkipPermissions: true }),
     ...(mcpServers && { mcpServers }),
     ...(claudeCliOverride && { pathToClaudeCodeExecutable: claudeCliOverride }),
     systemPrompt: {
@@ -216,7 +239,7 @@ async function buildRequestContext(params, withAttachments, overrides = {}) {
 
   const userMessage = await buildUserMessage(params, withAttachments, requestedSessionId, resolvedModelId);
 
-  const runtimeSignature = buildRuntimeSignature(options, systemPromptAppend, streamingEnabled, runtimeSessionEpoch);
+  const runtimeSignature = buildRuntimeSignature(options, systemPromptAppend, streamingEnabled, runtimeSessionEpoch, modelId);
   console.log('[LIFECYCLE] buildRequestContext sessionId=' + (requestedSessionId || '(new)')
     + ' epoch=' + (runtimeSessionEpoch || '(none)')
     + ' signature=' + runtimeSignature);
@@ -245,88 +268,6 @@ const _sessionCleanupTimer = setInterval(async () => {
 // unref() so the timer does not prevent natural process exit
 _sessionCleanupTimer.unref();
 
-/**
- * Serialize query.next() so the idle task-notification drain and the next
- * executeTurn never race on the same async iterator. Prefetched messages from
- * the drain handoff are consumed first.
- */
-function nextQueryMessage(runtime) {
-  if (!runtime._nextChain) {
-    runtime._nextChain = Promise.resolve();
-  }
-  const result = runtime._nextChain.then(async () => {
-    if (Array.isArray(runtime.prefetchedMessages) && runtime.prefetchedMessages.length > 0) {
-      return runtime.prefetchedMessages.shift();
-    }
-    return runtime.query.next();
-  });
-  // Keep the chain alive even when a consumer drops the promise.
-  runtime._nextChain = result.then(() => undefined, () => undefined);
-  return result;
-}
-
-function isTaskLifecycleSystemMessage(msg) {
-  if (!msg || msg.type !== 'system') return false;
-  const subtype = msg.subtype;
-  return subtype === 'task_notification'
-    || subtype === 'task_started'
-    || subtype === 'task_progress'
-    || subtype === 'background_tasks_changed';
-}
-
-/**
- * Background agents (run_in_background) complete *after* the parent turn's
- * result message. The SDK pushes task_notification on the same query stream;
- * consumers must keep reading between turns or StatusPanel stays stuck on
- * "running" forever. This drain owns query.next() only while activeTurnCount
- * is 0 and hands off any message that arrives once a new turn has started.
- */
-function ensureIdleTaskDrain(runtime) {
-  if (!runtime || runtime.closed || runtime.idleTaskDrainActive) return;
-  runtime.idleTaskDrainActive = true;
-  void (async () => {
-    try {
-      while (!runtime.closed) {
-        if ((runtime.activeTurnCount || 0) > 0) {
-          return;
-        }
-        let next;
-        try {
-          next = await nextQueryMessage(runtime);
-        } catch {
-          return;
-        }
-        // A new turn may have started while we were awaiting next().
-        if ((runtime.activeTurnCount || 0) > 0) {
-          if (!Array.isArray(runtime.prefetchedMessages)) runtime.prefetchedMessages = [];
-          runtime.prefetchedMessages.push(next);
-          return;
-        }
-        if (next.done) return;
-
-        touchRuntime(runtime);
-        const msg = next.value;
-        if (isTaskLifecycleSystemMessage(msg)) {
-          // Always emit — bridge maps task_notification → window.onTaskEvent.
-          console.log('[MESSAGE]', JSON.stringify(msg));
-          if (msg.session_id) {
-            registerRuntimeSession(runtime, msg.session_id, { registerActiveQueryResult, removeSession });
-          }
-          continue;
-        }
-
-        // Non-task traffic between turns is rare; buffer for the next turn and
-        // stop draining so we do not mis-handle mid-turn frames while idle.
-        if (!Array.isArray(runtime.prefetchedMessages)) runtime.prefetchedMessages = [];
-        runtime.prefetchedMessages.push(next);
-        return;
-      }
-    } finally {
-      runtime.idleTaskDrainActive = false;
-    }
-  })();
-}
-
 async function executeTurn(runtime, requestContext, turnMeta) {
   if (!runtime || runtime.closed) {
     const err = new Error('Runtime is closed');
@@ -348,15 +289,52 @@ async function executeTurn(runtime, requestContext, turnMeta) {
   const turnBridgeRequestId = getRequestId() || null;
   runtime.activeBridgeRequestId = turnBridgeRequestId;
 
+  // Idle backstop timer armed when a foreign bare-success result is skipped
+  // (see the result branch below). Must be cleared on any turn activity and
+  // when the turn ends, or it would settle a later turn by mistake.
+  let foreignResultIdleTimer = null;
+  const disarmForeignResultIdleBackstop = () => {
+    if (foreignResultIdleTimer !== null) {
+      clearTimeout(foreignResultIdleTimer);
+      foreignResultIdleTimer = null;
+    }
+  };
+
   try {
     beginRuntimeTurn(runtime);
+    // Scope the abort flag to the turn that aborted: it is set by
+    // abortCurrentTurn and must not carry into a fresh turn started right
+    // after an interrupt, or sendInternal would misclassify the new turn's
+    // failures (e.g. "Runtime is closed" on a disposed runtime) as a graceful
+    // "User interrupted" and silently swallow the user's message.
+    runtime.abortRequested = false;
+
+    // Wait until the perpetual reader has drained the SDK pipe and parked with
+    // no CLI run in flight BEFORE opening the sink or sending the user message.
+    // Because the user message is not enqueued yet, nothing in the pipe can be a
+    // response to it, so anything still buffered is prior-turn tail (a still-
+    // in-flight background run_in_background, #1305) and routes inter-turn
+    // instead of into this turn's sink — where its output, and worse its closing
+    // result, would be misattributed and seed the one-behind shift (#1410). The
+    // CLI would queue our send behind an in-flight run anyway, so this adds no
+    // latency; it only aligns the daemon's accounting with the CLI's order.
+    // Resolves on quiescence, on dispose (abort stays responsive), or a 120s
+    // protocol-anomaly backstop.
+    await waitForReaderQuiescent(runtime);
+
+    // Create and register turnSink after beginRuntimeTurn to avoid race
+    // (ensures executeTurn is ready to consume before perpetual reader can push)
+    runtime.turnSink = createTurnSink();
+
     console.log('[MESSAGE_START]');
     runtime.inputStream.enqueue(requestContext.userMessage);
 
     while (true) {
       let next;
       try {
-        next = await nextQueryMessage(runtime);
+        // Receive message from perpetual reader via turnSink
+        // (perpetual reader owns runtime.query.next())
+        next = await runtime.turnSink.take();
       } catch (error) {
         const wrapped = new Error(error?.message || String(error));
         wrapped.runtimeTerminated = true;
@@ -372,9 +350,62 @@ async function executeTurn(runtime, requestContext, turnMeta) {
       touchRuntime(runtime);
       const msg = next.value;
 
+      // Any arriving message proves the pipe is alive, so disarm the idle
+      // backstop armed by the foreign-result skip below. The skip re-arms it
+      // when this message turns out to be another foreign bare result.
+      disarmForeignResultIdleBackstop();
+
       if (turnState.streamingEnabled && !turnState.streamStarted) {
         process.stdout.write('[STREAM_START]\n');
         turnState.streamStarted = true;
+      }
+
+      // Subagent (sidechain) messages carry a non-null parent_tool_use_id pointing
+      // at the main turn's Agent/Task tool_use. Their detailed thinking and tool
+      // calls belong to the sidechain transcript, which the frontend loads
+      // separately via onSubagentHistoryLoaded - so never emit them into the main
+      // session stream, otherwise the subagent's internals pollute the main chat.
+      // task_notification (type:'system') has no parent_tool_use_id and is preserved.
+      if (msg?.parent_tool_use_id) {
+        continue;
+      }
+
+      // In-turn task-notification: a background agent that finishes while the
+      // main turn is still live delivers its report as a <task-notification>
+      // XML, either in a plain user message's content or a queued_command
+      // attachment's prompt — not as an SDK event. Synthesize the
+      // task_notification the SDK no longer emits and continue, so the report
+      // reaches the frontend subagent card and the raw XML never leaks into the
+      // [MESSAGE] stream (which would only render as an opaque user message).
+      // The frontend also recovers these from history on its own.
+      // Only a parseable, terminal-status notification is consumed here: a
+      // message that merely contains the '<task-notification' substring (or a
+      // non-terminal envelope) falls through to normal message processing so
+      // its content is not silently swallowed.
+      const taskNotificationXml = extractTaskNotificationXml(msg);
+      if (taskNotificationXml !== null) {
+        const parsed = parseTaskNotificationXml(taskNotificationXml);
+        const event = buildTaskNotificationEvent(parsed);
+        if (event) {
+          if (runtime.sessionId) {
+            console.log('[LIFECYCLE] In-turn task-notification message for sessionId=' + runtime.sessionId + ', toolUseId=' + parsed.toolUseId + ', status=' + event.status);
+            emitTaskEvent(runtime.sessionId, event);
+          } else {
+            console.log('[LIFECYCLE] In-turn task-notification message for anonymous runtime, consuming silently');
+          }
+          continue;
+        }
+      }
+
+      // Substantive output (assistant / user / stream_event) belongs to THIS
+      // turn, so a later result is ours. A bare SUCCESS result arriving with
+      // sawTurnMessage still false is provably foreign (a real run emits output
+      // before its result) and is skipped below rather than ending the turn
+      // empty and seeding the one-behind shift. system/control messages are NOT
+      // counted: a turn almost always opens with a system session_id message,
+      // so counting it would defang the foreign-result skip in production.
+      if (msg?.type === 'assistant' || msg?.type === 'user' || msg?.type === 'stream_event') {
+        turnState.sawTurnMessage = true;
       }
 
       if (msg?.type === 'stream_event' && turnState.streamingEnabled) {
@@ -383,6 +414,7 @@ async function executeTurn(runtime, requestContext, turnMeta) {
         continue;
       }
 
+      // Preserve all existing message processing logic
       if (shouldOutputMessage(msg, turnState)) {
         console.log('[MESSAGE]', JSON.stringify(msg));
       }
@@ -404,8 +436,52 @@ async function executeTurn(runtime, requestContext, turnMeta) {
 
       if (msg?.type === 'result') {
         if (msg.is_error) {
-          throw new Error(msg.result || msg.message || 'API request failed');
+          // The SDK puts the real error text in msg.errors (array), not in
+          // result/message — extractResultError covers all three so the true
+          // failure reaches the UI instead of a generic fallback.
+          throw new Error(extractResultError(msg));
         }
+        // Defense in depth for the boundary the quiescence gate cannot close: a
+        // foreign run whose closing SUCCESS result is read only AFTER this sink
+        // opened. With no prior turn output (sawTurnMessage still false) it is
+        // provably not ours — a real run always emits output before its result —
+        // so skip it instead of ending the turn empty and seeding the one-behind
+        // shift. The background run still renders via the inter-turn
+        // session_updated path (#1305).
+        if (!turnState.sawTurnMessage && msg[IDLE_BACKSTOP_RESULT] !== true) {
+          console.log('[LIFECYCLE] Skipping foreign bare-success result (no prior turn output this turn)');
+          // The "real run emits output first" assumption fails for a turn that
+          // legitimately produces zero messages: its own result would be
+          // misclassified as foreign and skipped, leaving take() parked
+          // forever. Arm an idle backstop that settles the turn empty if no
+          // message belonging to this turn arrives in time.
+          foreignResultIdleTimer = setTimeout(() => {
+            foreignResultIdleTimer = null;
+            console.warn('[LIFECYCLE] Foreign-result idle backstop fired: no turn output within '
+              + foreignResultIdleBackstopMs + 'ms of skipping a foreign result; settling the turn empty'
+              + ' sessionId=' + (turnState.finalSessionId || runtime.sessionId || requestContext.requestedSessionId || '(none)')
+              + ' epoch=' + (requestContext.runtimeSessionEpoch || runtime.runtimeSessionEpoch || '(none)'));
+            // Unblock the parked take() with a sentinel result that bypasses
+            // the foreign check above and ends this turn with empty output.
+            runtime.turnSink?.push({ type: 'result', is_error: false, [IDLE_BACKSTOP_RESULT]: true });
+          }, foreignResultIdleBackstopMs);
+          // Do not unref: this timer is the only handle keeping a silent turn
+          // (and node:test) alive until the backstop settles it. Unref'ing it
+          // lets the event loop drain while executeTurn is still parked on
+          // take(), which cancels remaining tests with
+          // "Promise resolution is still pending but the event loop has already resolved".
+          continue;
+        }
+        // A task_notification for a background (run_in_background) Agent that
+        // settles AFTER this result cannot ride the in-turn [MESSAGE] stream:
+        // executeTurn breaks here and clears turnSink in the finally below
+        // (synchronously, before the perpetual reader's next query.next()
+        // resolves), so the perpetual reader routes that late event to the
+        // inter-turn daemon path (emitTaskEvent -> DaemonBridge "task_event"
+        // -> window.onTaskEvent). task_notification that settles BEFORE the
+        // result is still processed above in the in-turn [MESSAGE] stream.
+        // Both paths converge on window.onTaskEvent, which dedups by
+        // tool_use_id + observable fields - see DaemonBridge.handleDaemonEvent.
         break;
       }
     }
@@ -451,17 +527,15 @@ async function executeTurn(runtime, requestContext, turnMeta) {
       }
     }
   } finally {
+    disarmForeignResultIdleBackstop();
     endRuntimeTurn(runtime);
+    // Clear turnSink after endRuntimeTurn (reverse of creation order)
+    runtime.turnSink = null;
     // Only clear if this runtime still owns the pointer (not cleared by abort)
     if (runtime.activeBridgeRequestId === turnBridgeRequestId) {
       runtime.activeBridgeRequestId = null;
     }
     clearActiveTurnRuntimeIf(runtime);
-    // Parent turn is done — keep reading for late task_notification events from
-    // background agents that outlive this turn.
-    if (!runtime.closed) {
-      ensureIdleTaskDrain(runtime);
-    }
   }
 }
 
@@ -741,6 +815,9 @@ export async function setPermissionModePersistent(params = {}) {
   // Push to the SDK first. Only update local state on success — otherwise the
   // PreToolUse hook would read the new mode while the SDK still enforces the
   // old one, diverging until the next turn's applyDynamicControls resyncs.
+  // Leaving local state untouched keeps hook and SDK in agreement, and the
+  // Java side's settings write is harmless since the next send_message will
+  // re-apply the requested mode via buildRequestContext.
   if (typeof runtime.query?.setPermissionMode === 'function') {
     try {
       await runtime.query.setPermissionMode(targetPermissionMode);
@@ -751,6 +828,11 @@ export async function setPermissionModePersistent(params = {}) {
       return;
     }
   }
+  // Note: a narrow race exists between the await above and these assignments.
+  // If the in-progress turn ends mid-await and a new turn's applyDynamicControls
+  // resets currentPermissionMode, our assignment would clobber that newer value.
+  // The window is a single await tick and the next turn resyncs anyway, so we
+  // accept it rather than add a compare-and-swap against the runtime's epoch.
   runtime.currentPermissionMode = targetPermissionMode;
   if (runtime.permissionModeState) {
     runtime.permissionModeState.value = targetPermissionMode;
@@ -767,7 +849,18 @@ export async function abortCurrentTurn() {
   const runtime = getActiveTurnRuntime();
   if (!runtime) return;
   console.log('[LIFECYCLE] abortCurrentTurn epoch=' + (runtime.runtimeSessionEpoch || '(none)'));
+
+  // Clear turnSink first to stop incoming messages, then fail it to unblock waiting take()
+  const sinkToClose = runtime.turnSink;
+  runtime.turnSink = null;
+
+  if (sinkToClose) {
+    sinkToClose.fail(new Error('Turn aborted'));
+  }
+
+  // Mark abort after sink is cleared
   runtime.abortRequested = true;
+
   clearActiveTurnRuntime();
 
   try {
@@ -872,6 +965,11 @@ export const __testing = {
   },
   setQueryFn(queryFn) {
     setCachedQueryFn(queryFn);
+  },
+  setForeignResultIdleBackstopMs(ms) {
+    foreignResultIdleBackstopMs = typeof ms === 'number' && ms > 0
+      ? ms
+      : FOREIGN_RESULT_IDLE_BACKSTOP_MS;
   },
   async buildRequestContext(params = {}, withAttachments = false, overrides = {}) {
     return buildRequestContext(params, withAttachments, overrides);

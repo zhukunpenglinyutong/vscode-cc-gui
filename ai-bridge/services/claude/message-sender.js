@@ -31,7 +31,8 @@ import {
   truncateString,
   truncateErrorContent,
   emitUsageTag,
-  buildConfigErrorPayload
+  buildConfigErrorPayload,
+  extractResultError
 } from './message-utils.js';
 import { createPreToolUseHook } from './permission-mode.js';
 import { loadMcpServersConfigAsRecord } from './mcp-status/config-loader.js';
@@ -74,7 +75,7 @@ function buildQueryOptions({ workingDirectory, permissionMode, sdkModelName, max
     cwd: workingDirectory,
     permissionMode,
     model: sdkModelName,
-    maxTurns: 100,
+    maxTurns: 1000,
     enableFileCheckpointing: true,
     env: buildCliEnv(),
     settings: buildWebviewControlledSettingsOverride(modelId),
@@ -86,6 +87,10 @@ function buildQueryOptions({ workingDirectory, permissionMode, sdkModelName, max
     canUseTool,
     hooks: { PreToolUse: [{ hooks: [preToolUseHook] }] },
     settingSources: ['user', 'project', 'local'],
+    // bypassPermissions requires this flag per SDK contract (sdk.d.ts: "Must be set to
+    // true when using permissionMode: 'bypassPermissions'"). Without it a future SDK
+    // version could silently drop bypass and change permission behavior.
+    ...(permissionMode === 'bypassPermissions' && { allowDangerouslySkipPermissions: true }),
     ...(mcpServers && { mcpServers }),
     ...(claudeCliOverride && { pathToClaudeCodeExecutable: claudeCliOverride }),
     systemPrompt: {
@@ -151,6 +156,18 @@ function processStreamMessage(msg, state, logPrefix) {
   if (state.streamingEnabled && !state.streamStarted) {
     process.stdout.write('[STREAM_START]\n');
     state.streamStarted = true;
+  }
+
+  // Subagent (sidechain) messages carry a non-null parent_tool_use_id pointing
+  // at the main turn's Agent/Task tool_use. Their detailed thinking and tool
+  // calls belong to the sidechain transcript, which the frontend loads
+  // separately via onSubagentHistoryLoaded - so never emit them into the main
+  // session stream, otherwise the subagent's internals pollute the main chat.
+  // Mirrors the parent_tool_use_id gate in persistent-query-service.js, which is
+  // the active path in daemon mode; this branch covers the non-daemon CLI path
+  // (channel-manager.js) and tests, keeping both stream routes consistent.
+  if (msg?.parent_tool_use_id) {
+    return;
   }
 
   // Handle stream_event type (streaming deltas from SDK)
@@ -260,7 +277,9 @@ function processStreamMessage(msg, state, logPrefix) {
   // Error result detection
   if (msg.type === 'result' && msg.is_error) {
     console.error(`[DEBUG]${logPrefix ? ` ${logPrefix}` : ''} Received error result:`, JSON.stringify(msg));
-    throw new Error(msg.result || msg.message || 'API request failed');
+    // The SDK reports the real error text in msg.errors (array); extractResultError
+    // reads it so the actual failure surfaces instead of a generic fallback.
+    throw new Error(extractResultError(msg));
   }
 }
 

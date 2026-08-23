@@ -22,6 +22,15 @@ function createQueryFactory() {
   return {
     runtimes,
     queryFn({ prompt, options }) {
+      // A real SDK query stream blocks on next() while idle and only ends when
+      // the runtime is torn down. Returning {done:true} immediately makes the
+      // perpetual reader treat the stream as ended out-of-band and evict the
+      // runtime via disposeRuntime - which races acquireRuntime's ownership
+      // check (the runtime can be closed between createRuntime and the assert).
+      // Block on a promise that settles only when close() runs, so the reader
+      // idles like the real SDK between turns.
+      let closeReject;
+      const idle = new Promise((_, reject) => { closeReject = reject; });
       const runtime = {
         prompt,
         options,
@@ -31,9 +40,10 @@ function createQueryFactory() {
         setMaxThinkingTokens: async () => {},
         close() {
           this.closed = true;
+          closeReject(new Error('runtime closed'));
         },
-        async next() {
-          return { done: true, value: undefined };
+        next() {
+          return idle;
         }
       };
       runtimes.push(runtime);
@@ -52,6 +62,18 @@ function createSequencedQueryFactory(steps) {
     runtimes,
     queryFn({ prompt, options }) {
       let index = 0;
+      // Once the scripted steps are drained, a real SDK stream blocks on next()
+      // and only settles when close() runs. Parking here (instead of inventing
+      // an instant result) keeps the perpetual reader from hot-looping
+      // inter-turn results — those tick readerProgress forever and starve
+      // executeTurn's quiescence gate.
+      let closeReject;
+      const idle = new Promise((_, reject) => { closeReject = reject; });
+      // close() rejects idle even when the reader is parked on a scripted step
+      // rather than awaiting it (e.g. the abort test); attach a side no-op
+      // handler so that rejection never surfaces as an unhandledRejection.
+      // The reader's own await still observes the rejection.
+      idle.catch(() => {});
       const runtime = {
         prompt,
         options,
@@ -61,11 +83,12 @@ function createSequencedQueryFactory(steps) {
         setMaxThinkingTokens: async () => {},
         close() {
           this.closed = true;
+          closeReject(new Error('runtime closed'));
         },
         async next() {
           const step = steps[index++];
           if (!step) {
-            return { done: false, value: { type: 'result', is_error: false } };
+            return idle;
           }
           return typeof step === 'function' ? await step() : step;
         }
@@ -74,6 +97,18 @@ function createSequencedQueryFactory(steps) {
       return runtime;
     }
   };
+}
+
+/**
+ * Wait until executeTurn has cleared the reader-quiescence gate and opened the
+ * turn sink. Messages the perpetual reader routes before the sink exists are
+ * consumed inter-turn and never reach the turn, so tests must hold their
+ * scripted deliveries until the sink is up.
+ */
+async function waitForTurnSink(runtime) {
+  while (!runtime.turnSink && !runtime.closed) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 test.beforeEach(async () => {
@@ -244,6 +279,10 @@ test('active session runtime is not disposed by idle cleanup while a turn is exe
 
   const turnPromise = __testing.executeTurn(runtime, context);
   await enteredDeferred.promise;
+  // executeTurn opens its turnSink only after the reader-quiescence gate, so
+  // wait for the sink before delivering more messages — anything the reader
+  // routes earlier is consumed inter-turn and never reaches the turn.
+  await waitForTurnSink(runtime);
 
   await __testing.cleanupSessionRuntimes();
 
@@ -296,6 +335,8 @@ test('active anonymous runtime is not disposed by idle cleanup while a turn is e
 
   const turnPromise = __testing.executeTurn(runtime, context);
   await enteredDeferred.promise;
+  // See above: hold scripted deliveries until the turn sink exists.
+  await waitForTurnSink(runtime);
 
   await __testing.cleanupAnonymousRuntimes();
 
@@ -307,8 +348,15 @@ test('active anonymous runtime is not disposed by idle cleanup while a turn is e
 });
 
 test('executeTurn refreshes lastUsedAt while processing query events', async () => {
+  // Gate the first scripted message on the turn sink: the perpetual reader
+  // calls next() as soon as the runtime is created, so an instantly-resolving
+  // step would be routed inter-turn before executeTurn opens its sink.
+  const gate = createDeferred();
   const factory = createSequencedQueryFactory([
-    { done: false, value: { type: 'assistant', message: { content: [{ type: 'text', text: 'partial' }] } } },
+    async () => {
+      await gate.promise;
+      return { done: false, value: { type: 'assistant', message: { content: [{ type: 'text', text: 'partial' }] } } };
+    },
     { done: false, value: { type: 'result', is_error: false } }
   ]);
   __testing.setQueryFn(factory.queryFn);
@@ -322,7 +370,10 @@ test('executeTurn refreshes lastUsedAt while processing query events', async () 
   const runtime = await __testing.acquireRuntime(context);
   runtime.lastUsedAt = 1;
 
-  await __testing.executeTurn(runtime, context);
+  const turnPromise = __testing.executeTurn(runtime, context);
+  await waitForTurnSink(runtime);
+  gate.resolve();
+  await turnPromise;
 
   assert.ok(runtime.lastUsedAt > 1);
 });
@@ -347,10 +398,17 @@ test('abortCurrentTurn still disposes an active runtime explicitly', async () =>
   const runtime = await __testing.acquireRuntime(context);
   const turnPromise = __testing.executeTurn(runtime, context);
   await enteredDeferred.promise;
+  // Let executeTurn clear the quiescence gate and open its sink so abort's
+  // sink.fail('Turn aborted') is what settles the turn promise (otherwise the
+  // abort disposes the runtime first and the gate throws 'Runtime closed').
+  await waitForTurnSink(runtime);
 
   await __testing.abortCurrentTurn();
   nextDeferred.reject(new Error('runtime terminated'));
 
-  await assert.rejects(turnPromise, /runtime terminated/);
+  // abortCurrentTurn fails the turnSink with 'Turn aborted' before the reader's
+  // next() rejects, so the turn promise settles on the abort signal rather than
+  // the downstream 'runtime terminated' rejection.
+  await assert.rejects(turnPromise, /Turn aborted/);
   assert.equal(runtime.closed, true);
 });
