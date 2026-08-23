@@ -31,7 +31,8 @@ const DEFAULT_PROMPT_ENHANCER_CONFIG = {
   effectiveProvider: 'claude',
   resolutionSource: 'auto',
   models: {
-    claude: 'claude-sonnet-4-6',
+    // claude-sonnet-4-6/4-7 are retired - defaults must stay on live models (#1678, #1693).
+    claude: 'claude-sonnet-5',
     codex: 'gpt-5.5',
   },
   availability: {

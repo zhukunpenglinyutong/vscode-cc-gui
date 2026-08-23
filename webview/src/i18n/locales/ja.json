@@ -91,7 +91,6 @@
     "attachmentFile": "[添付ファイル: {{fileName}}]",
     "unknownFile": "Unknown file",
     "attachmentsUploaded": "[添付ファイルがアップロードされました]",
-    "streamingConnected": "AIに接続しました、質問を理解しています",
     "showEarlierMessages": "以前の{{count}}件のメッセージを表示",
     "totalDuration": "今回の応答時間",
     "tokenUsage": "入力 {{input}} / 出力 {{output}}",
@@ -124,7 +123,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "リポジトリのURLをクリップボードにコピーしました。ブラウザに貼り付けてアクセスできます ⭐",
     "openSourceBannerStarAria": "リポジトリのURLをコピーして GitHub でスター",
-    "streamingWorking": "{{provider}} が作業中です（思考またはツール実行）…",
     "cacheHitsWithRatio": "（キャッシュヒット {{tokens}}、{{ratio}}）",
     "planModeEnabled": "Plan モードを有効にしました",
     "commandProviderOnly": "{{command}} は {{provider}} プロバイダーでのみ利用できます",
@@ -234,7 +232,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -819,6 +818,10 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "マルチプロバイダーのモデルに対応した Oh My Pi ターミナルコーディングエージェント"
         }
       },
       "installDialog": {
@@ -989,6 +992,7 @@
   },
   "config": {
     "clickToCopy": "クリックしてコピー",
+    "officialDocs": "公式ドキュメント",
     "switch": "切り替え",
     "switchProvider": "プロバイダーを切り替え",
     "runtimeProvider": {
@@ -1285,7 +1289,9 @@
     "keepAllConfirmMessage": "現在の変更を新しい基準として保持します。今後の変更はゼロからカウントされます。",
     "discardAllSuccess": "すべての変更を元に戻しました",
     "discardAllFailed": "元に戻す失敗: {{error}}",
-    "keepAllSuccess": "すべて保持しました。変更記録をリセットしました"
+    "keepAllSuccess": "すべて保持しました。変更記録をリセットしました",
+    "multiAgentBadge": "複数エージェント",
+    "multiAgentEdited": "このセッションで {{count}} 個のエージェントがこのファイルを編集しました。ご注意ください"
   },
   "skills": {
     "title": "スキル",
@@ -1461,11 +1467,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Sonnet 4.6 のアップグレードモデル"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · デフォルトモデルを使用"
+        "description": "Sonnet 5 · デフォルトモデルを使用"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1525,12 +1527,6 @@
     "searchPlaceholder": "モデルを検索",
     "noModelsFound": "モデルが見つかりません",
     "hiddenModelCount": "+ {{count}} 件のモデルがあります。入力して検索してください。",
-    "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
-      }
-    },
     "cliLoadFailed": "Failed to load models. Click to retry."
   },
   "modes": {
@@ -1555,10 +1551,32 @@
       "description": "完全自動、すべての権限チェックをバイパス[注意して使用]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "デフォルト",
+      "tooltip": "選択したモデルを使用（または OMP auto）",
+      "description": "モデルドロップダウンで選択したモデルを使用します。Auto の場合は OMP CLI のデフォルトを使用します。"
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "高速モデルロール (omp --model smol)",
+      "description": "omp の smol ロールに設定されたモデルでこの会話を実行します。モデルドロップダウンを上書きします。"
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "推論モデルロール (omp --model slow)",
+      "description": "omp の slow ロールに設定されたモデルでこの会話を実行します。モデルドロップダウンを上書きします。"
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "プランニングモデルロール (omp --model plan)",
+      "description": "omp の plan ロールに設定されたモデルでこの会話を実行します。モデルドロップダウンを上書きします。"
+    }
+  },
   "codexModes": {
     "default": {
       "label": "Suggest (approval)",
-      "tooltip": "Codex approval_policy=untrusted – prompts before editing files or running shell commands.",
+      "tooltip": "Codex approval_policy=on-request – prompts before editing files or running shell commands.",
       "description": "Safest option. Every write or command requires your approval."
     },
     "plan": {
@@ -1598,6 +1616,9 @@
     },
     "pi": {
       "label": "PI CLI"
+    },
+    "omp": {
+      "label": "OMP CLI"
     },
     "beta": {
       "badge": "Beta",

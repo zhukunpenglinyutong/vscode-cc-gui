@@ -63,8 +63,6 @@ interface MessageListProps {
   onCollapsedCountChange?: (count: number) => void;
   onNavigateToProviderSettings?: () => void;
   onNavigateToDependencySettings?: () => void;
-  /** Current active provider id; forwarded to MessageItem for streaming-connect label. */
-  currentProvider?: string;
 }
 
 export const MessageList = memo(forwardRef<MessageListRevealHandle, MessageListProps>(function MessageList({
@@ -83,7 +81,6 @@ export const MessageList = memo(forwardRef<MessageListRevealHandle, MessageListP
   onCollapsedCountChange,
   onNavigateToProviderSettings,
   onNavigateToDependencySettings,
-  currentProvider,
 }, ref) {
   // Number of earlier messages revealed beyond VISIBLE_MESSAGE_WINDOW. Grows in
   // page-size chunks as the user clicks "show earlier", avoiding a single huge
@@ -187,7 +184,6 @@ export const MessageList = memo(forwardRef<MessageListRevealHandle, MessageListP
             onNavigateToProviderSettings={onNavigateToProviderSettings}
             onNavigateToDependencySettings={onNavigateToDependencySettings}
             toolResultSignature={toolResultSignature}
-            currentProvider={currentProvider}
           />
         );
       })}

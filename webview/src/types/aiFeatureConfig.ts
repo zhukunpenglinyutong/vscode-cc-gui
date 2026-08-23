@@ -2,7 +2,8 @@ export type AiFeatureProvider = 'claude' | 'codex';
 export type AiFeatureResolutionSource = 'manual' | 'auto' | 'unavailable';
 
 export const DEFAULT_AI_FEATURE_MODELS = {
-  claude: 'claude-sonnet-4-6',
+  // claude-sonnet-4-6/4-7 are retired — defaults must stay on live models.
+  claude: 'claude-sonnet-5',
   codex: 'gpt-5.5',
 } as const;
 

@@ -43,6 +43,7 @@ export interface UseMessageSenderOptions {
   permissionMode: PermissionMode;
   reasoningEffort: ReasoningEffort;
   codexFastMode: CodexFastMode;
+  dshPreset?: string;
   streamingEnabledSetting: boolean;
   selectedAgent: SelectedAgent | null;
   currentSessionId: string | null;
@@ -81,6 +82,7 @@ export function useMessageSender({
   permissionMode,
   reasoningEffort,
   codexFastMode,
+  dshPreset,
   streamingEnabledSetting,
   selectedAgent,
   currentSessionId,
@@ -331,6 +333,7 @@ export function useMessageSender({
           ...sessionResumePayload,
           ...reasoningEffortPayload,
           ...contextBarPayload,
+          ...(currentProvider === 'dsh' ? { dshPreset: dshPreset || '' } : {}),
           codexFastMode,
         });
         sendBridgeEvent('send_message_with_attachments', payload);
@@ -346,6 +349,7 @@ export function useMessageSender({
           ...sessionResumePayload,
           ...reasoningEffortPayload,
           ...contextBarPayload,
+          ...(currentProvider === 'dsh' ? { dshPreset: dshPreset || '' } : {}),
           codexFastMode,
         });
         sendBridgeEvent('send_message', fallbackPayload);
@@ -361,6 +365,7 @@ export function useMessageSender({
         ...sessionResumePayload,
         ...reasoningEffortPayload,
         ...contextBarPayload,
+        ...(currentProvider === 'dsh' ? { dshPreset: dshPreset || '' } : {}),
         codexFastMode,
       });
       sendBridgeEvent('send_message', payload);
@@ -371,6 +376,7 @@ export function useMessageSender({
     contextBarFile,
     currentProvider,
     currentSessionId,
+    dshPreset,
     longContextEnabled,
     selectedModel,
     reasoningEffort,

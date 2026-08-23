@@ -8,10 +8,19 @@ import {
   resolveSubagentSidechainFile,
 } from './subagentSidechain';
 import { loadCodexHistoryRowsFromFile, summarizeCodexHistoryRows, transformCodexHistoryRows } from './codexHistoryTransform';
+import {
+  CodexSubagentHistoryLoader,
+  PendingException as CodexSubagentPendingException,
+  MAX_STATUS_REQUESTS as CODEX_MAX_SUBAGENT_STATUS_REQUESTS,
+  type SubagentStatusRequest,
+} from './codexSubagentHistoryLoader';
 import { imageBlockFromLocalPath, restoreClaudeImageReferencesInContent } from './claudeImageRestore';
+import { filterDeadBranchEntries, isClaudeNoResponsePlaceholder } from './claudeConversationChain';
 import { codemossConfigPath, readCodemossConfigFile, writeCodemossConfigFile } from './codemossJsonStore';
 import { codexImageTagRegex, imagePathFromCodexImageTagMatch, stripCodexInlineImageTags as stripCodexInlineImageTagsText } from './codexImageTags';
 import { GrokHistoryReader } from './GrokHistoryReader';
+import { OmpHistoryReader } from './OmpHistoryReader';
+import { DshHistoryReader } from './DshHistoryReader';
 import { hasLocalHistorySupport, isCliOnlyProvider } from '../../cli/cliTools';
 
 const USER_INPUT_BY_SESSION_KEY = 'ccg.userInputBySession';
@@ -48,6 +57,9 @@ export class HistoryService {
   private readonly log: vscode.OutputChannel;
   private readonly callWebviewJson: CallWebviewJson;
   private readonly getWorkspacePath: () => string;
+  private codexSubagentLoader: CodexSubagentHistoryLoader | null = null;
+  private readonly inFlightCodexSubagentRequests = new Set<string>();
+  private readonly inFlightCodexStatusSessions = new Set<string>();
 
   constructor(
     context: vscode.ExtensionContext,
@@ -395,6 +407,15 @@ export class HistoryService {
       this.loadGrokHistoryData(webview);
       return;
     }
+    if (provider === 'omp') {
+      this.loadOmpHistoryData(webview);
+      return;
+    }
+    if (provider === 'dsh') {
+      // DSH history lives in the persistent host — fetched over RPC, async.
+      void this.loadDshHistoryData(webview);
+      return;
+    }
     // Kimi / OpenCode / PI: chat works, but there is no local history reader yet.
     // Must not fall through to Claude's ~/.claude/projects scan — that incorrectly
     // shows Claude sessions under other CLI providers.
@@ -534,6 +555,52 @@ export class HistoryService {
     this.loadHistoryData(provider, webview);
   }
 
+  private async loadDshHistoryData(webview: vscode.Webview): Promise<void> {
+    try {
+      const favorites = this.getFavorites();
+      const vscTitles: Record<string, string> = this.context.globalState.get('ccg.historyTitles') ?? {};
+      const reader = new DshHistoryReader(this.context);
+      const result = await reader.getSessionsForProject(this.getWorkspacePath());
+      const toIso = (value: unknown): string => {
+        const ms = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+        return ms > 0 ? new Date(ms).toISOString() : new Date(0).toISOString();
+      };
+      const sessions = result.sessions.map((session: any) => ({
+        sessionId: session.sessionId,
+        // Prefer user-renamed titles so list and chat header stay in sync.
+        title: vscTitles[session.sessionId] || session.title,
+        messageCount: session.messageCount ?? 0,
+        lastTimestamp: toIso(session.lastTimestamp),
+        firstTimestamp: toIso(session.firstTimestamp),
+        cwd: session.cwd,
+        provider: 'dsh',
+        isFavorited: Boolean(favorites[session.sessionId]),
+        favoritedAt: favorites[session.sessionId]?.favoritedAt,
+      }));
+      webview.postMessage({
+        type: 'history_data',
+        content: JSON.stringify({
+          success: result.success,
+          sessions,
+          total: sessions.length,
+          favorites,
+          error: result.error,
+        }),
+      });
+    } catch (error: any) {
+      this.log.appendLine(`[BRIDGE] loadDshHistoryData error: ${error?.message || error}`);
+      webview.postMessage({
+        type: 'history_data',
+        content: JSON.stringify({
+          success: false,
+          sessions: [],
+          total: 0,
+          error: String(error?.message || error),
+        }),
+      });
+    }
+  }
+
   private loadGrokHistoryData(webview: vscode.Webview): void {
     try {
       const favorites = this.getFavorites();
@@ -577,6 +644,50 @@ export class HistoryService {
     }
   }
 
+  private loadOmpHistoryData(webview: vscode.Webview): void {
+    try {
+      const favorites = this.getFavorites();
+      const vscTitles: Record<string, string> = this.context.globalState.get('ccg.historyTitles') ?? {};
+      const reader = new OmpHistoryReader();
+      const workspace = this.getWorkspacePath();
+      const result = reader.getSessionsForProject(workspace);
+      const sessions = (result.sessions || []).map((session) => ({
+        sessionId: session.sessionId,
+        // Prefer user-renamed titles so list and chat header stay in sync.
+        title: vscTitles[session.sessionId] || session.title,
+        messageCount: session.messageCount,
+        lastTimestamp: new Date(session.lastTimestamp).toISOString(),
+        firstTimestamp: new Date(session.firstTimestamp).toISOString(),
+        cwd: session.cwd,
+        provider: 'omp',
+        isFavorited: Boolean(favorites[session.sessionId]),
+        favoritedAt: favorites[session.sessionId]?.favoritedAt,
+        fileSize: session.fileSize,
+      }));
+      webview.postMessage({
+        type: 'history_data',
+        content: JSON.stringify({
+          success: result.success,
+          sessions,
+          total: sessions.length,
+          favorites,
+          error: result.error,
+        }),
+      });
+    } catch (error: any) {
+      this.log.appendLine(`[BRIDGE] loadOmpHistoryData error: ${error?.message || error}`);
+      webview.postMessage({
+        type: 'history_data',
+        content: JSON.stringify({
+          success: false,
+          sessions: [],
+          total: 0,
+          error: String(error?.message || error),
+        }),
+      });
+    }
+  }
+
   loadSession(sessionId: string, provider: string | undefined, webview: vscode.Webview): void {
     if (!this.isValidSessionId(sessionId)) {
       this.log.appendLine(`[BRIDGE] loadSession rejected invalid sessionId="${sessionId}"`);
@@ -584,9 +695,25 @@ export class HistoryService {
       return;
     }
 
-    const knownProviders = new Set(['claude', 'codex', 'grok', 'kimi', 'opencode', 'pi']);
+    const knownProviders = new Set(['claude', 'codex', 'grok', 'kimi', 'opencode', 'pi', 'omp', 'dsh']);
     const normalizedProvider = provider && knownProviders.has(provider) ? provider : undefined;
     this.log.appendLine(`[BRIDGE] loadSession called: sessionId="${sessionId}" provider="${normalizedProvider ?? 'auto'}"`);
+
+    if (normalizedProvider === 'dsh') {
+      // DSH history is served by the host over RPC — async reader, never local files.
+      void (async () => {
+        try {
+          const reader = new DshHistoryReader(this.context);
+          const messages = await reader.getSessionMessages(sessionId);
+          this.log.appendLine(`[BRIDGE] loadSession: loaded ${messages.length} messages from dsh history`);
+          webview.postMessage({ type: 'session_messages', content: JSON.stringify(messages) });
+        } catch (e: any) {
+          this.log.appendLine(`[BRIDGE] loadSession dsh error: ${e?.message || e}`);
+          webview.postMessage({ type: 'session_messages', content: JSON.stringify([]) });
+        }
+      })();
+      return;
+    }
 
     if (normalizedProvider === 'grok') {
       try {
@@ -597,6 +724,20 @@ export class HistoryService {
         return;
       } catch (e: any) {
         this.log.appendLine(`[BRIDGE] loadSession grok error: ${e?.message || e}`);
+        webview.postMessage({ type: 'session_messages', content: JSON.stringify([]) });
+        return;
+      }
+    }
+
+    if (normalizedProvider === 'omp') {
+      try {
+        const reader = new OmpHistoryReader();
+        const messages = reader.getSessionMessages(sessionId, this.getWorkspacePath());
+        this.log.appendLine(`[BRIDGE] loadSession: loaded ${messages.length} messages from omp history`);
+        webview.postMessage({ type: 'session_messages', content: JSON.stringify(messages) });
+        return;
+      } catch (e: any) {
+        this.log.appendLine(`[BRIDGE] loadSession omp error: ${e?.message || e}`);
         webview.postMessage({ type: 'session_messages', content: JSON.stringify([]) });
         return;
       }
@@ -667,8 +808,31 @@ export class HistoryService {
 
   deleteHistorySession(content: string, webview: vscode.Webview): void {
     try {
-      const sessionId = typeof content === 'string' && content.startsWith('{')
-        ? JSON.parse(content).sessionId : content.trim();
+      const parsed = typeof content === 'string' && content.startsWith('{')
+        ? JSON.parse(content) : null;
+      const sessionId = parsed ? parsed.sessionId : content.trim();
+      const parsedProvider = parsed ? String(parsed.provider || '').trim() : '';
+      if (parsedProvider === 'dsh') {
+        // DSH "delete" is a host-side archive — the event log stays in $DSH_HOME.
+        void (async () => {
+          try {
+            const archived = await new DshHistoryReader(this.context).deleteSession(String(sessionId || '').trim());
+            this.log.appendLine(`[HISTORY] Archive DSH session ${sessionId}: ${archived ? 'ok' : 'failed'}`);
+            webview.postMessage({ type: 'delete_history_session_result', content: JSON.stringify({ success: archived, sessionId }) });
+          } catch (e: any) {
+            this.log.appendLine(`[HISTORY] Archive DSH session ${sessionId} error: ${e?.message || e}`);
+            webview.postMessage({ type: 'delete_history_session_result', content: JSON.stringify({ success: false, sessionId, error: e?.message || String(e) }) });
+          }
+        })();
+        return;
+      }
+      if (parsedProvider === 'omp') {
+        // OMP sessions are plain jsonl files under ~/.omp/agent/sessions/.
+        const deleted = new OmpHistoryReader().deleteSession(String(sessionId || '').trim(), this.getWorkspacePath());
+        this.log.appendLine(`[HISTORY] Delete OMP session ${sessionId}: ${deleted ? 'ok' : 'not found'}`);
+        webview.postMessage({ type: 'delete_history_session_result', content: JSON.stringify({ success: deleted, sessionId }) });
+        return;
+      }
       const deleted = this.deleteSessionFiles(sessionId);
       webview.postMessage({ type: 'delete_history_session_result', content: JSON.stringify({ success: deleted, sessionId }) });
     } catch (e: any) {
@@ -789,6 +953,14 @@ export class HistoryService {
     const sessionId = String(payload.sessionId ?? payload.leafSessionId ?? payload.sidechainSessionId ?? '').trim();
     const toolUseId = payload.toolUseId ? String(payload.toolUseId) : undefined;
     const agentId = payload.agentId ? String(payload.agentId) : undefined;
+    const agentPath = payload.agentPath ? String(payload.agentPath) : undefined;
+    const provider = payload.provider ? String(payload.provider) : undefined;
+
+    if (provider === 'codex') {
+      this.loadCodexSubagentSession(webview, { sessionId, toolUseId, agentId, agentPath, provider });
+      return;
+    }
+
     try {
       // Claude Code stores background-agent transcripts beside the parent session:
       //   ~/.claude/projects/<project>/<sessionId>/subagents/agent-<agentId>.jsonl
@@ -797,26 +969,168 @@ export class HistoryService {
       // recover after a missed live task_notification.
       const sidechain = this.readSubagentSidechainMessages(sessionId, agentId);
       const messages = sidechain.messages;
+      // Omit `messages` when nothing was found: the webview merges responses
+      // and an empty array would wipe a previously loaded transcript.
       this.callWebviewJson(webview, 'onSubagentHistoryLoaded', {
         success: messages.length > 0,
         completed: sidechain.completed,
+        status: messages.length > 0 ? (sidechain.completed ? 'completed' : 'running') : 'running',
         sessionId,
+        provider,
         toolUseId,
         agentId,
-        messages,
+        agentPath,
+        ...(messages.length > 0 && { messages }),
         error: messages.length > 0 ? undefined : 'Subagent session not found',
       });
     } catch (e: any) {
       this.callWebviewJson(webview, 'onSubagentHistoryLoaded', {
         success: false,
         completed: false,
+        status: 'error',
         sessionId,
+        provider,
         toolUseId,
         agentId,
-        messages: [],
+        agentPath,
         error: e.message,
       });
     }
+  }
+
+  /**
+   * Codex subagent transcripts live in rollout files under ~/.codex/sessions;
+   * the loader resolves the child thread from the parent's sub_agent_activity
+   * events (or a legacy agentPath scan) and converts the turn to frontend
+   * messages. Pending (not-yet-written) lookups come back as status 'running'
+   * so the webview keeps polling instead of locking in an error.
+   */
+  private loadCodexSubagentSession(
+    webview: vscode.Webview,
+    request: {
+      sessionId: string;
+      toolUseId?: string;
+      agentId?: string;
+      agentPath?: string;
+      provider?: string;
+    },
+  ): void {
+    const { sessionId, toolUseId, agentId, agentPath, provider } = request;
+    const requestKey = `codex:${sessionId}:${toolUseId ?? ''}:${agentPath ?? ''}`;
+    if (!this.inFlightCodexSubagentRequests.add(requestKey)) {
+      return;
+    }
+    const base = { sessionId, provider, toolUseId, agentId, agentPath };
+    try {
+      const result = this.getCodexSubagentLoader().load(sessionId, toolUseId, agentPath, { imageBlockFromLocalPath });
+      this.callWebviewJson(webview, 'onSubagentHistoryLoaded', {
+        ...base,
+        success: true,
+        completed: result.status === 'completed',
+        status: result.status,
+        agentId: result.agentThreadId ?? agentId,
+        agentPath: result.agentPath ?? agentPath,
+        messages: result.messages,
+        error: result.error,
+      });
+    } catch (e: any) {
+      const pending = e instanceof CodexSubagentPendingException;
+      if (!pending) {
+        this.log.appendLine(`[SubagentHistory] Failed to load Codex subagent log: ${e?.message || e}`);
+      }
+      this.callWebviewJson(webview, 'onSubagentHistoryLoaded', {
+        ...base,
+        success: false,
+        completed: false,
+        status: pending ? 'running' : 'error',
+        error: e?.message || 'Unknown error',
+      });
+    } finally {
+      this.inFlightCodexSubagentRequests.delete(requestKey);
+    }
+  }
+
+  /**
+   * Batched lightweight Codex subagent lifecycle statuses (no transcript).
+   * Backs the webview's useCodexSubagentStatusPolling loop; responses are
+   * delivered via onSubagentStatusesLoaded.
+   */
+  loadSubagentStatuses(content: string, webview: vscode.Webview): void {
+    const payload = this.safeJson<any>(content, {});
+    const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+    const provider = typeof payload.provider === 'string' ? payload.provider : undefined;
+    const requestId = typeof payload.requestId === 'string' ? payload.requestId : undefined;
+    const response: Record<string, unknown> = { sessionId, provider, requestId, statuses: [] };
+
+    const send = () => this.callWebviewJson(webview, 'onSubagentStatusesLoaded', response);
+
+    let agents: SubagentStatusRequest[];
+    try {
+      if (!sessionId || !/^[A-Za-z0-9_-]+$/.test(sessionId)) {
+        throw new Error('Invalid sessionId');
+      }
+      if (!requestId || !/^[A-Za-z0-9_:-]{1,256}$/.test(requestId)) {
+        throw new Error('Invalid requestId');
+      }
+      if (provider !== 'codex') {
+        throw new Error('Invalid provider');
+      }
+      if (!Array.isArray(payload.agents)) {
+        throw new Error('Invalid agents');
+      }
+      if (payload.agents.length > CODEX_MAX_SUBAGENT_STATUS_REQUESTS) {
+        throw new Error('Too many agents');
+      }
+      agents = payload.agents.map((agent: any): SubagentStatusRequest => {
+        if (!agent || typeof agent !== 'object') {
+          throw new Error('Invalid agent request');
+        }
+        return {
+          toolUseId: typeof agent.toolUseId === 'string' ? agent.toolUseId : undefined,
+          agentPath: typeof agent.agentPath === 'string' ? agent.agentPath : undefined,
+          agentId: typeof agent.agentId === 'string' ? agent.agentId : undefined,
+        };
+      });
+    } catch (e: any) {
+      response.success = false;
+      response.error = e?.message || 'Invalid request';
+      send();
+      return;
+    }
+
+    if (!this.inFlightCodexStatusSessions.add(sessionId)) {
+      response.success = false;
+      response.error = 'Codex subagent status request already in progress';
+      send();
+      return;
+    }
+    try {
+      const results = this.getCodexSubagentLoader().loadStatuses(sessionId, agents);
+      response.success = true;
+      response.statuses = results.map((result) => ({
+        ...(result.toolUseId != null && { toolUseId: result.toolUseId }),
+        ...(result.agentPath != null && { agentPath: result.agentPath }),
+        ...(result.agentId != null && { agentId: result.agentId }),
+        success: result.success,
+        completed: result.status === 'completed',
+        status: result.status,
+        ...(result.error != null && { error: result.error }),
+      }));
+    } catch (e: any) {
+      this.log.appendLine(`[SubagentHistory] Failed to load Codex subagent statuses: ${e?.message || e}`);
+      response.success = false;
+      response.error = e?.message || 'Unknown error';
+    } finally {
+      this.inFlightCodexStatusSessions.delete(sessionId);
+    }
+    send();
+  }
+
+  private getCodexSubagentLoader(): CodexSubagentHistoryLoader {
+    if (!this.codexSubagentLoader) {
+      this.codexSubagentLoader = new CodexSubagentHistoryLoader(this.getCodexSessionsDir());
+    }
+    return this.codexSubagentLoader;
   }
 
   /**
@@ -999,9 +1313,20 @@ export class HistoryService {
     const userInputsAsTyped = restoreUserInput ? this.getStoredUserInputs(sessionId) : [];
     let userInputIdx = 0;
 
-    for (const line of fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean)) {
+    const rawEntries: any[] = [];
+    for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+      if (!line) continue;
       try {
-        const msg = JSON.parse(line);
+        rawEntries.push(JSON.parse(line));
+      } catch { /* skip */ }
+    }
+
+    // The CLI never deletes rewound messages; it forks the conversation in
+    // place via parentUuid, leaving the discarded branch on disk as a dead
+    // chain. A linear read would render it as live conversation, so filter to
+    // the effective chain first (mirrors jetbrains-cc-gui's conversation-chain).
+    for (const msg of filterDeadBranchEntries(rawEntries)) {
+      try {
         let row = this.sessionMessageFromClaudeJsonlLine(msg);
         if (row?.type === 'user' && userInputIdx < userInputsAsTyped.length) {
           const inner = row.raw.message;
@@ -1089,6 +1414,10 @@ export class HistoryService {
     } else {
       return null;
     }
+
+    // Claude Code uses this assistant placeholder for commands that do not need
+    // a response (e.g. compact); mirrors jetbrains-cc-gui's MessageParser.
+    if (isClaudeNoResponsePlaceholder(msg.type, textOnly)) return null;
 
     const hasBlocks =
       Array.isArray(c) &&

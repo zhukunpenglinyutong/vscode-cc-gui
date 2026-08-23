@@ -5,6 +5,9 @@ import * as vscode from 'vscode';
 import { BridgeContext, BridgeHandler, BridgeMessage } from '../types';
 import { parseJson, postJson } from './helpers';
 import { ProviderStore } from '../services/ProviderStore';
+import { attachToggleCorrelation, extractToggleCorrelation } from './skillToggleCorrelation';
+import { isToggleSkillPathAllowed } from './codexSkillTogglePath';
+import { CODEX_CONFIG_NOT_AUTHORIZED_ERROR } from './codexMcpMutation';
 
 type SkillScope = 'global' | 'local' | 'user' | 'repo';
 
@@ -50,7 +53,18 @@ export class SkillHandler implements BridgeHandler {
         return true;
       }
       case 'toggle_skill': {
-        const result = this.toggleSkill(content);
+        // Every result echoes id/requestId/name so the webview can match the
+        // in-flight request (and ignore stale/late responses) — JetBrains
+        // `attachToggleCorrelation` parity.
+        let result: Record<string, unknown>;
+        try {
+          result = attachToggleCorrelation(this.toggleSkill(content), parseJson<any>(content, {}));
+        } catch (error) {
+          result = attachToggleCorrelation(
+            { success: false, error: error instanceof Error ? error.message : String(error) },
+            extractToggleCorrelation(content),
+          );
+        }
         postJson(webview, 'skill_toggle_result', result);
         postJson(webview, 'update_skills', this.getAllSkills());
         return true;
@@ -441,6 +455,12 @@ export class SkillHandler implements BridgeHandler {
     if (!this.isPathInsideAny(skillDir, this.validCodexSkillBaseDirs())) {
       return { success: false, name, error: 'Skill directory is not inside a valid skills directory' };
     }
+    // JetBrains parity: deleting a skill managed under ~/.codex/skills touches
+    // the Codex-owned config area, so it requires local config authorization.
+    const codexSkillsDir = path.join(homedir(), '.codex', 'skills');
+    if (this.isPathInside(skillDir, codexSkillsDir) && !this.isCodexLocalConfigAuthorized()) {
+      return { success: false, name, error: CODEX_CONFIG_NOT_AUTHORIZED_ERROR };
+    }
 
     const skillPath = this.findSkillMarkdown(skillDir);
     try {
@@ -467,13 +487,13 @@ export class SkillHandler implements BridgeHandler {
       return { success: false, name, error: 'Skill path is required for toggle operation' };
     }
     if (!this.isCodexLocalConfigAuthorized()) {
-      return { success: false, name, error: 'Codex local config access is not authorized' };
+      return { success: false, name, error: CODEX_CONFIG_NOT_AUTHORIZED_ERROR };
     }
-    if (!this.isSkillMarkdownPath(skillPath)) {
-      return { success: false, name, error: 'Skill path must point to a SKILL.md file' };
-    }
-    if (!this.isPathInsideAny(path.dirname(skillPath), this.validCodexSkillBaseDirs())) {
-      return { success: false, name, error: 'Skill path is not inside a valid skills directory' };
+    // JetBrains `isToggleSkillPathAllowed` parity: the target must be an
+    // existing, non-symlink SKILL.md inside a configured skills scan directory.
+    const scanDirs = this.getCodexSkillScanDirs(this.context.getWorkspacePath()).map((dir) => dir.path);
+    if (!isToggleSkillPathAllowed(skillPath, scanDirs)) {
+      return { success: false, name, error: 'Skill path must point to an existing SKILL.md inside a configured skills directory' };
     }
 
     try {
@@ -530,6 +550,9 @@ export class SkillHandler implements BridgeHandler {
   }
 
   private removeCodexSkillConfigEntry(skillPath: string): void {
+    // Writes to the Codex-owned config.toml are gated like the Java
+    // cleanupConfigTomlEntry (isCodexConfigManagementAllowed).
+    if (!this.isCodexLocalConfigAuthorized()) return;
     const configPath = this.codexConfigTomlPath();
     if (!fs.existsSync(configPath)) return;
     const content = fs.readFileSync(configPath, 'utf8');

@@ -36,16 +36,8 @@ export interface MessageItemProps {
   onNavigateToProviderSettings?: () => void;
   onNavigateToDependencySettings?: () => void;
   toolResultSignature?: string;
-  /** Current active provider id (e.g. 'claude', 'codex'); drives the streaming-connect label. */
-  currentProvider?: string;
   /** Show opt-in detailed footer extras such as turn cost and cache-hit ratio. */
   detailedOutputEnabled?: boolean;
-}
-
-/** Map provider id to a human-readable label used in UI text. */
-function getProviderDisplayName(providerId?: string): string {
-  if (providerId === 'codex') return 'Codex';
-  return 'AI';
 }
 
 type GroupedBlock =
@@ -352,11 +344,9 @@ export const MessageItem = memo(function MessageItem({
   onNavigateToProviderSettings,
   onNavigateToDependencySettings,
   toolResultSignature: _toolResultSignature,
-  currentProvider,
   detailedOutputEnabled = false,
 }: MessageItemProps): React.ReactElement {
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
-  const [showStreamingConnectHint, setShowStreamingConnectHint] = useState(false);
 
   // Track timeout to properly cleanup on unmount
   const copyTimeoutRef = useRef<number | null>(null);
@@ -450,23 +440,6 @@ export const MessageItem = memo(function MessageItem({
     blocks.length === 0 &&
     !(message.content && message.content.trim().length > 0);
 
-  // Phase the empty-slot copy so a long tool-only turn is not mistaken for a hang:
-  //   0–3s  : connected / understanding
-  //   3s+   : working (tools / thinking may have no visible cards yet)
-  const [emptySlotPhase, setEmptySlotPhase] = useState<'connecting' | 'working'>('connecting');
-
-  useEffect(() => {
-    if (!isEmptyStreamingPlaceholder) {
-      setShowStreamingConnectHint(false);
-      setEmptySlotPhase('connecting');
-      return;
-    }
-    setShowStreamingConnectHint(true);
-    setEmptySlotPhase('connecting');
-    const workingTimer = window.setTimeout(() => setEmptySlotPhase('working'), 3000);
-    return () => window.clearTimeout(workingTimer);
-  }, [isEmptyStreamingPlaceholder]);
-
   // Ref to track the last auto-expanded thinking block index to avoid overriding user interaction
   const lastAutoExpandedIndexRef = useRef<number>(-1);
 
@@ -541,22 +514,6 @@ export const MessageItem = memo(function MessageItem({
             />
           )}
         </>
-      );
-    }
-
-    if (isEmptyStreamingPlaceholder) {
-      const statusKey = emptySlotPhase === 'working'
-        ? 'chat.streamingWorking'
-        : 'chat.streamingConnected';
-      return (
-        <div className="streaming-connect-status" data-phase={emptySlotPhase}>
-          <span className="streaming-connect-spinner" aria-hidden="true" />
-          <span className="streaming-connect-text">
-            {showStreamingConnectHint
-              ? t(statusKey, { provider: getProviderDisplayName(currentProvider) })
-              : t('chat.streamingConnected', { provider: getProviderDisplayName(currentProvider) })}
-          </span>
-        </div>
       );
     }
 
@@ -682,9 +639,8 @@ export const MessageItem = memo(function MessageItem({
       }
 
       if (grouped.type === 'agent_group') {
-        const agentToolId = grouped.agentBlock.type === 'tool_use' ? grouped.agentBlock.id : undefined;
         return (
-          <div key={`agentgroup-${agentToolId ?? grouped.startIndex}`} className="content-block">
+          <div key={`${messageKey}-agentgroup-${grouped.startIndex}`} className="content-block">
             <AgentGroupBlock
               agentBlock={grouped.agentBlock}
               followingBlocks={grouped.followingBlocks}
@@ -720,7 +676,9 @@ export const MessageItem = memo(function MessageItem({
     });
   };
 
-  if (isEmptyStreamingPlaceholder && !showStreamingConnectHint) {
+  // Empty streaming slot renders nothing in the bubble — the list-level
+  // WaitingIndicator ("generating response…") already covers this state.
+  if (isEmptyStreamingPlaceholder) {
     return <></>;
   }
 

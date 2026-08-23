@@ -425,6 +425,38 @@
     font-size: 14px;
   }
 }
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-secondary);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-primary, var(--border-secondary));
+    color: var(--text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  :global(.codicon) {
+    font-size: 14px;
+  }
+}
 .moreComing {
   margin: 10px 0 0;
   padding: 0 4px;
@@ -617,5 +649,32 @@
   /* Hide meta on very narrow panels so name + actions stay one line */
   .cliMeta {
     display: none;
+  }
+}
+
+.dshGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dshCard {
+  margin: 0;
+  border-color: var(--border-primary, var(--border-secondary));
+}
+
+.dshAutoStart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  input {
+    margin: 0;
+    accent-color: var(--interactive-primary, #4f8ef7);
   }
 }

@@ -91,7 +91,6 @@
     "attachmentFile": "[अटैचमेंट: {{fileName}}]",
     "unknownFile": "Unknown file",
     "attachmentsUploaded": "[अटैचमेंट अपलोड हो गए]",
-    "streamingConnected": "AI कनेक्ट हो गया, आपके प्रश्न को समझ रहा है",
     "showEarlierMessages": "{{count}} पुराने संदेश दिखाएं",
     "totalDuration": "इस जवाब में लगा समय",
     "tokenUsage": "{{input}} इन / {{output}} आउट",
@@ -124,7 +123,6 @@
     "openSourceBannerStar": "Star",
     "openSourceBannerStarToast": "रिपॉजिटरी लिंक क्लिपबोर्ड पर कॉपी हो गया — ब्राउज़र में पेस्ट करके खोलें ⭐",
     "openSourceBannerStarAria": "रिपॉजिटरी लिंक कॉपी करें और GitHub पर स्टार करें",
-    "streamingWorking": "{{provider}} काम कर रहा है — सोच रहा है या उपकरण चला रहा है…",
     "cacheHitsWithRatio": "(कैश हिट {{tokens}}, {{ratio}})",
     "planModeEnabled": "Plan मोड सक्षम",
     "commandProviderOnly": "{{command}} केवल {{provider}} प्रदाता के लिए उपलब्ध है",
@@ -234,7 +232,8 @@
         "providerUnavailable": "Currently unavailable",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "Currently using automatic selection: {{provider}}",
         "currentProviderManual": "Currently using manually selected provider: {{provider}}",
@@ -814,6 +813,10 @@
         "pi": {
           "name": "PI CLI",
           "description": "Minimal terminal coding agent with multi-provider model support"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "मल्टी-प्रोवाइडर मॉडल सपोर्ट वाला Oh My Pi टर्मिनल कोडिंग एजेंट"
         }
       },
       "installDialog": {
@@ -984,6 +987,7 @@
   },
   "config": {
     "clickToCopy": "कॉपी करने के लिए क्लिक करें",
+    "officialDocs": "आधिकारिक दस्तावेज़",
     "switch": "स्विच",
     "switchProvider": "प्रदाता स्विच करें",
     "runtimeProvider": {
@@ -1279,7 +1283,9 @@
     "keepAllConfirmMessage": "वर्तमान परिवर्तनों को आधार के रूप में स्वीकार करें। भविष्य के परिवर्तन शून्य से ट्रैक किए जाएंगे।",
     "discardAllSuccess": "सभी परिवर्तन हटा दिए गए",
     "discardAllFailed": "हटाना विफल: {{error}}",
-    "keepAllSuccess": "सभी परिवर्तन रखे गए, ट्रैकिंग रीसेट"
+    "keepAllSuccess": "सभी परिवर्तन रखे गए, ट्रैकिंग रीसेट",
+    "multiAgentBadge": "मल्टी-एजेंट",
+    "multiAgentEdited": "इस सत्र में {{count}} एजेंटों ने इस फ़ाइल को संपादित किया — सावधानी से देखें"
   },
   "skills": {
     "title": "Skills",
@@ -1449,11 +1455,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Sonnet 4.6 का अपग्रेड मॉडल"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · डिफ़ॉल्ट अनुशंसित मॉडल"
+        "description": "Sonnet 5 · डिफ़ॉल्ट अनुशंसित मॉडल"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1519,12 +1521,6 @@
     "searchPlaceholder": "मॉडल खोजें",
     "noModelsFound": "कोई मॉडल नहीं मिला",
     "hiddenModelCount": "+ {{count}} और मॉडल. खोजने के लिए टाइप करें.",
-    "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
-      }
-    },
     "cliLoadFailed": "Failed to load models. Click to retry."
   },
   "modes": {
@@ -1549,10 +1545,32 @@
       "description": "Fully automated, bypassing all permission checks [Use with caution]"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "डिफ़ॉल्ट",
+      "tooltip": "चयनित मॉडल का उपयोग करें (या OMP auto)",
+      "description": "मॉडल ड्रॉपडाउन में चुने गए मॉडल का उपयोग करता है, या Auto पर सेट होने पर OMP CLI डिफ़ॉल्ट का उपयोग करता है।"
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "तेज़ मॉडल रोल (omp --model smol)",
+      "description": "इस वार्तालाप को omp की smol भूमिका के लिए कॉन्फ़िगर किए गए मॉडल के साथ चलाता है। मॉडल ड्रॉपडाउन को ओवरराइड करता है।"
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "रीज़निंग मॉडल रोल (omp --model slow)",
+      "description": "इस वार्तालाप को omp की slow भूमिका के लिए कॉन्फ़िगर किए गए मॉडल के साथ चलाता है। मॉडल ड्रॉपडाउन को ओवरराइड करता है।"
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "प्लानिंग मॉडल रोल (omp --model plan)",
+      "description": "इस वार्तालाप को omp की plan भूमिका के लिए कॉन्फ़िगर किए गए मॉडल के साथ चलाता है। मॉडल ड्रॉपडाउन को ओवरराइड करता है।"
+    }
+  },
   "codexModes": {
     "default": {
       "label": "Suggest (approval)",
-      "tooltip": "Codex approval_policy=untrusted – prompts before editing files or running shell commands.",
+      "tooltip": "Codex approval_policy=on-request – prompts before editing files or running shell commands.",
       "description": "Safest option. Every write or command requires your approval."
     },
     "plan": {
@@ -1592,6 +1610,9 @@
     },
     "pi": {
       "label": "PI CLI"
+    },
+    "omp": {
+      "label": "OMP CLI"
     },
     "beta": {
       "badge": "Beta",

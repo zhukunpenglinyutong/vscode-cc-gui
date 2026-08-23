@@ -3,9 +3,9 @@
  * Detection only — the plugin never auto-installs these binaries.
  */
 
-export type CliToolId = 'grok' | 'kimi' | 'opencode' | 'pi';
+export type CliToolId = 'grok' | 'kimi' | 'opencode' | 'pi' | 'omp' | 'dsh';
 
-export const CLI_ONLY_PROVIDERS = new Set<string>(['grok', 'kimi', 'opencode', 'pi']);
+export const CLI_ONLY_PROVIDERS = new Set<string>(['grok', 'kimi', 'opencode', 'pi', 'omp', 'dsh']);
 
 export function isCliOnlyProvider(providerId: string | null | undefined): boolean {
   return !!providerId && CLI_ONLY_PROVIDERS.has(providerId);
@@ -15,13 +15,15 @@ export function isRuntimeProvider(providerId: string | null | undefined): boolea
   return providerId === 'claude' || providerId === 'codex' || isCliOnlyProvider(providerId);
 }
 
-/** Providers with a first-class local history reader in HistoryService. */
-export const HISTORY_SUPPORTED_PROVIDERS = new Set<string>(['claude', 'codex', 'grok']);
+/** Providers with a first-class history reader (local files or, for DSH, host RPC). */
+export const HISTORY_SUPPORTED_PROVIDERS = new Set<string>(['claude', 'codex', 'grok', 'omp', 'dsh']);
 
 /**
  * True when the history panel can list/load sessions for this runtime.
  * Kimi / OpenCode / PI chat works, but they have no local history index yet —
- * they must not fall through to Claude/Codex session stores.
+ * they must not fall through to Claude/Codex session stores. DSH history is
+ * served by the persistent `dsh web` host over RPC (never local files); OMP
+ * history is read from `~/.omp/agent/sessions/` (PI-fork jsonl layout).
  */
 export function hasLocalHistorySupport(providerId: string | null | undefined): boolean {
   return !!providerId && HISTORY_SUPPORTED_PROVIDERS.has(providerId);
@@ -73,6 +75,21 @@ export const CLI_TOOL_DEFINITIONS: CliToolDefinition[] = [
     binaryName: 'pi',
     envKeys: ['PI_BIN', 'PI_PATH', 'PI_CLI_PATH'],
     homeBinDirs: ['.pi/bin', '.local/bin'],
+  },
+  {
+    id: 'omp',
+    displayName: 'OMP CLI',
+    binaryName: 'omp',
+    envKeys: ['OMP_BIN', 'OMP_PATH', 'OMP_CLI_PATH'],
+    homeBinDirs: ['.omp/bin', '.local/bin'],
+  },
+  {
+    id: 'dsh',
+    displayName: 'DeepSeek Harness',
+    binaryName: 'dsh',
+    envKeys: ['DSH_BIN', 'DSH_PATH', 'DSH_CLI_PATH'],
+    // Hermes (the DSH-native installer) keeps node + dsh together.
+    homeBinDirs: ['.hermes/node/bin', '.dsh/bin', '.local/bin'],
   },
 ];
 

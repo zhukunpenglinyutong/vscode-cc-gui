@@ -24,6 +24,7 @@ import { WindowEventHandler } from './bridge/handlers/WindowEventHandler';
 import { PromptEnhancerHandler } from './bridge/handlers/PromptEnhancerHandler';
 import { NodeProcessHandler } from './bridge/handlers/NodeProcessHandler';
 import { ContextUsageHandler } from './bridge/handlers/ContextUsageHandler';
+import { ClaudePlanUsageHandler } from './bridge/handlers/ClaudePlanUsageHandler';
 import { RewindHandler } from './bridge/handlers/RewindHandler';
 import { UndoFileHandler } from './bridge/handlers/UndoFileHandler';
 import { UsageStatisticsHandler } from './bridge/handlers/UsageStatisticsHandler';
@@ -48,6 +49,9 @@ import type { RuntimeProviderId } from './bridge/types';
 import { isRuntimeProvider } from './cli/cliTools';
 import { CliStatusHandler } from './bridge/handlers/CliStatusHandler';
 import { CliModelsHandler } from './bridge/handlers/CliModelsHandler';
+import { DshHostHandler } from './bridge/handlers/DshHostHandler';
+import { getDshSettings } from './bridge/services/DshSettingsStore';
+import { guardWorkingDirectory } from './bridge/pathUtils';
 import { createDebugGatedOutputChannel } from './debugOutputChannel';
 import {
   formatNodeRequirementError,
@@ -55,6 +59,7 @@ import {
   readNodeVersion,
 } from './nodeRequirements';
 import { planClaudeSettingsSync } from './bridge/services/claudeSettingsSync';
+import { cacheClaudeRateLimitInfo } from './bridge/services/claudePlanUsageService';
 import { dedupeTextChunks } from './bridge/services/textChunkDedupe';
 
 type MessageCallback = (event: string, content: string) => void;
@@ -361,6 +366,9 @@ export class BridgeServer {
         loadSubagentSession: (content, webview) => {
           this._historyService.loadSubagentSession(content, webview);
         },
+        loadSubagentStatuses: (content, webview) => {
+          this._historyService.loadSubagentStatuses(content, webview);
+        },
         convertToCliSession: (content, webview) => {
           this._historyService.convertToCliSession(content, webview);
         },
@@ -409,6 +417,7 @@ export class BridgeServer {
     dispatcher.register(new PromptEnhancerHandler(bridgeContext));
     dispatcher.register(new NodeProcessHandler(bridgeContext));
     dispatcher.register(new ContextUsageHandler(bridgeContext));
+    dispatcher.register(new ClaudePlanUsageHandler(bridgeContext));
     dispatcher.register(new RewindHandler(bridgeContext));
     dispatcher.register(new UndoFileHandler(this._diffService));
     dispatcher.register(new UsageStatisticsHandler(bridgeContext));
@@ -425,6 +434,7 @@ export class BridgeServer {
     dispatcher.register(new DependencyHandler(bridgeContext));
     dispatcher.register(new CliStatusHandler(bridgeContext));
     dispatcher.register(new CliModelsHandler(bridgeContext));
+    dispatcher.register(new DshHostHandler(bridgeContext));
     this._log.appendLine(`[BRIDGE] Registered ${dispatcher.getHandlerCount()} modular handlers`);
     return dispatcher;
   }
@@ -702,6 +712,8 @@ export class BridgeServer {
       kimi: 'Kimi',
       opencode: 'OpenCode',
       pi: 'PI',
+      omp: 'OMP',
+      dsh: 'DSH',
     };
     const provider = providerLabels[this._activeProvider] ?? this._activeProvider;
     const model = this._selectedModel ? ` ${this._selectedModel}` : '';
@@ -1044,19 +1056,33 @@ export class BridgeServer {
         ? (providerFromPayload as RuntimeProviderId)
         : this._activeProvider;
 
+    // Keep the Grok ACP daemon's long-lived cwd inside the workspace: a deleted
+    // or out-of-project directory would otherwise root the persistent runtime
+    // outside the project (mirrors jetbrains PathUtils.guardWorkingDirectory).
+    if (activeProvider === 'grok') {
+      const guardedCwd = guardWorkingDirectory(params.cwd, this._workspacePath);
+      if (guardedCwd !== null && guardedCwd !== params.cwd) {
+        this._log.appendLine(`[BRIDGE] grok cwd guard: ${params.cwd} -> ${guardedCwd}`);
+        params.cwd = guardedCwd;
+      }
+    }
+
     // Map webview event names → daemon method names
     const METHOD_MAP: Record<string, string> = {
       'send_message':                  `${activeProvider}.send`,
       // Claude has a dedicated multimodal send; Grok/Codex/etc. share `.send`
-      // and must read `params.attachments` themselves (Grok uses --prompt-file).
+      // and must read `params.attachments` themselves (Grok embeds image blocks
+      // into the ACP prompt payload).
       'send_message_with_attachments':
         activeProvider === 'claude'
           ? 'claude.sendWithAttachments'
           : `${activeProvider}.send`,
-      'preconnect':                    'claude.preconnect',
+      // Grok has a persistent ACP runtime with the same lifecycle commands as
+      // Claude's persistent query runtime; route them to the grok namespace.
+      'preconnect':                    activeProvider === 'grok' ? 'grok.preconnect' : 'claude.preconnect',
       'abort':                         'abort',
-      'reset_runtime':                 'claude.resetRuntime',
-      'get_context_usage':             'claude.getContextUsage',
+      'reset_runtime':                 activeProvider === 'grok' ? 'grok.resetRuntime' : 'claude.resetRuntime',
+      'get_context_usage':             activeProvider === 'grok' ? 'grok.getContextUsage' : 'claude.getContextUsage',
       'rewind_files':                  'claude.rewindFiles',
       'get_dependency_status':         'status',
       'heartbeat':                     'heartbeat',
@@ -1110,6 +1136,15 @@ export class BridgeServer {
       this._fillSelectedText(params);
       if (activeProvider === 'codex') {
         params.sandboxMode = params.sandboxMode ?? this.getCodexSandboxMode();
+      }
+      if (activeProvider === 'dsh') {
+        // DSH connection settings ride each send as explicit params — the
+        // long-lived daemon never mutates process.env per request.
+        const dsh = getDshSettings();
+        params.dshBin = params.dshBin ?? dsh.bin;
+        params.dshHost = params.dshHost ?? dsh.host;
+        params.dshPort = params.dshPort ?? dsh.port;
+        params.dshAutoStart = params.dshAutoStart ?? dsh.autoStart;
       }
       // Ensure daemon routing receives the active provider even if the webview
       // omitted it (CLI providers rely on this for session continuity).
@@ -1178,12 +1213,13 @@ export class BridgeServer {
   }
 
   /**
-   * Push permission mode to the live Claude runtime so mid-turn tool calls honor it.
-   * Codex rebuilds thread options per turn, so only Claude is hot-swapped.
+   * Push permission mode to the live runtime so mid-turn tool calls honor it.
+   * Codex rebuilds thread options per turn, so only Claude and Grok (persistent
+   * ACP runtime) are hot-swapped.
    */
   private _pushPermissionModeLive(mode: string): void {
     const provider = this.getActiveProvider();
-    if (provider !== 'claude') {
+    if (provider !== 'claude' && provider !== 'grok') {
       return;
     }
     const sessionId = this._activeSessionId || undefined;
@@ -1202,7 +1238,7 @@ export class BridgeServer {
     const params: Record<string, unknown> = { permissionMode: mode };
     if (sessionId) params.sessionId = sessionId;
     if (runtimeSessionEpoch) params.runtimeSessionEpoch = runtimeSessionEpoch;
-    const msg = JSON.stringify({ id, method: 'claude.setPermissionMode', params }) + '\n';
+    const msg = JSON.stringify({ id, method: `${provider}.setPermissionMode`, params }) + '\n';
     this._bridgeProcess.stdin.write(msg);
   }
 
@@ -1654,6 +1690,14 @@ export class BridgeServer {
               `[STREAM] id=${msg.id} task_notification tool_use_id=${parsed.tool_use_id ?? ''} status=${parsed.status ?? ''}`,
             );
           }
+          // Claude subscription usage: the SDK emits rate_limit_event during turns
+          // (real Anthropic / OAuth backends only — proxies never send it). Cache the
+          // rate_limit_info so get_claude_plan_usage polls can surface utilization +
+          // reset in the ContextBar plan-usage indicator.
+          if (parsed.type === 'rate_limit_event' && parsed.rate_limit_info && typeof parsed.rate_limit_info === 'object') {
+            cacheClaudeRateLimitInfo(parsed.rate_limit_info);
+            this._log.appendLine(`[STREAM] id=${msg.id} cached Claude rate_limit_event`);
+          }
         } catch { /* ignore */ }
         webview.postMessage({ type: 'message_data', content: payload });
       } else if (line.startsWith('[SEND_ERROR] ') || line.startsWith('[ERROR] ')) {
@@ -1925,6 +1969,33 @@ export class BridgeServer {
         webview.postMessage({ type: 'update_codex_mcp_server_status', content: JSON.stringify(statusList) });
       } else {
         webview.postMessage({ type: 'update_codex_mcp_servers', content: JSON.stringify(servers) });
+      }
+      return true;
+    }
+
+    // Codex mutation receipts (from the `codex mcp` CLI ops). Success fires the
+    // matching webview callback only after config.toml was written; failures
+    // surface a clear error instead of a false-positive toast.
+    if (line.startsWith('[MCP_SERVER_MUTATED]')) {
+      const payload = this._safeJson<any>(this._tagPayload(line, '[MCP_SERVER_MUTATED]'), null);
+      if (payload) {
+        if (payload.ok) {
+          const callbackByOp: Record<string, string> = {
+            add: 'codexMcpServerAdded',
+            update: 'codexMcpServerUpdated',
+            rename: 'codexMcpServerUpdated',
+            remove: 'codexMcpServerDeleted',
+            toggle: 'codexMcpServerToggled',
+          };
+          const fn = callbackByOp[String(payload.op)];
+          if (fn === 'codexMcpServerDeleted') {
+            this._callWebviewArgs(webview, fn, [payload.name ?? payload.id ?? '']);
+          } else if (fn) {
+            this._callWebviewJson(webview, fn, payload);
+          }
+        } else {
+          this._callWebviewArgs(webview, 'showError', [payload.error ?? 'Codex MCP operation failed']);
+        }
       }
       return true;
     }

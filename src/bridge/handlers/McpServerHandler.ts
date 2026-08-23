@@ -3,6 +3,8 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { BridgeContext, BridgeHandler, BridgeMessage } from '../types';
 import { callWindowFunction, parseJson, postJson } from './helpers';
+import { ProviderStore } from '../services/ProviderStore';
+import { CODEX_CONFIG_NOT_AUTHORIZED_ERROR, planCodexMcpMutation } from './codexMcpMutation';
 
 /**
  * MCP server management, backed by each provider's NATIVE config file:
@@ -36,7 +38,36 @@ export class McpServerHandler implements BridgeHandler {
     'validate_codex_mcp_server',
   ] as const;
 
-  constructor(private readonly context: BridgeContext) {}
+  private readonly providerStore: ProviderStore;
+
+  constructor(private readonly context: BridgeContext) {
+    this.providerStore = new ProviderStore(context.extensionContext, {
+      syncProviderToDisk: () => {},
+    });
+  }
+
+  /**
+   * Mirrors the JetBrains `isCodexConfigManagementAllowed` gate: Codex config
+   * writes (and reads of the Codex-owned config.toml) are only allowed once the
+   * user authorized local config access. Fail closed on any error.
+   */
+  private isCodexConfigManagementAllowed(): boolean {
+    try {
+      return this.providerStore.isCodexLocalConfigAuthorized();
+    } catch (error) {
+      this.context.log.appendLine(`[McpServerHandler] Failed to read Codex config management state: ${error}`);
+      return false;
+    }
+  }
+
+  /** Gate for Codex mutation events; reports a clear error to the webview. */
+  private requireCodexConfigManagement(webview: BridgeMessage['webview']): boolean {
+    if (this.isCodexConfigManagementAllowed()) {
+      return true;
+    }
+    callWindowFunction(webview, 'showError', CODEX_CONFIG_NOT_AUTHORIZED_ERROR);
+    return false;
+  }
 
   handle({ event, content, webview }: BridgeMessage): boolean {
     const isCodex = event.includes('codex');
@@ -45,6 +76,11 @@ export class McpServerHandler implements BridgeHandler {
         postJson(webview, 'update_mcp_servers', this.readClaudeServers());
         return true;
       case 'get_codex_mcp_servers':
+        // Unauthorized reads return an empty list (JetBrains parity), never the daemon.
+        if (!this.isCodexConfigManagementAllowed()) {
+          postJson(webview, 'update_codex_mcp_servers', []);
+          return true;
+        }
         this.context.callbacks.sendDaemonRequest(event, 'codex.mcpList', {}, webview);
         return true;
 
@@ -54,6 +90,10 @@ export class McpServerHandler implements BridgeHandler {
         }, webview);
         return true;
       case 'get_codex_mcp_server_status':
+        if (!this.isCodexConfigManagementAllowed()) {
+          postJson(webview, 'update_codex_mcp_server_status', []);
+          return true;
+        }
         // Reuse the native list; the daemon tags it `[MCP_SERVER_LIST]` and the
         // extension maps it to a status payload for this request event.
         this.context.callbacks.sendDaemonRequest(event, 'codex.mcpList', {}, webview);
@@ -67,6 +107,14 @@ export class McpServerHandler implements BridgeHandler {
           return true;
         }
         if (isCodex) {
+          if (!this.isCodexConfigManagementAllowed()) {
+            callWindowFunction(webview, 'updateMcpServerTools', {
+              serverId,
+              tools: [],
+              error: CODEX_CONFIG_NOT_AUTHORIZED_ERROR,
+            });
+            return true;
+          }
           // The daemon resolves the server config from ~/.codex/config.toml.
           this.context.callbacks.sendDaemonRequest(event, 'codex.getMcpServerTools', { serverId }, webview);
         } else {
@@ -93,30 +141,21 @@ export class McpServerHandler implements BridgeHandler {
         return true;
 
       case 'add_codex_mcp_server':
-      case 'update_codex_mcp_server': {
-        const payload = parseJson<any>(content, {});
-        const name = payload.id || payload.name;
-        const server = payload.server || {
-          command: payload.command,
-          args: payload.args,
-          env: payload.env,
-          url: payload.url,
-          type: payload.type,
-        };
-        this.context.callbacks.sendDaemonRequest(event, 'codex.mcpAdd', { name, config: server }, webview);
-        return true;
-      }
-      case 'delete_codex_mcp_server': {
-        const { id, name } = parseJson<any>(content, {});
-        this.context.callbacks.sendDaemonRequest(event, 'codex.mcpRemove', { name: id || name }, webview);
-        return true;
-      }
+      case 'update_codex_mcp_server':
+      case 'delete_codex_mcp_server':
       case 'toggle_codex_mcp_server': {
-        const payload = parseJson<any>(content, {});
-        this.context.callbacks.sendDaemonRequest(event, 'codex.mcpSetEnabled', {
-          name: payload.id || payload.name,
-          enabled: payload.enabled !== false,
-        }, webview);
+        // Authorization gate (JetBrains `requireCodexConfigManagement` parity):
+        // unauthorized writes are rejected with a clear error before any daemon
+        // call, so ~/.codex/config.toml is never touched.
+        if (!this.requireCodexConfigManagement(webview)) {
+          return true;
+        }
+        const decision = planCodexMcpMutation(event, parseJson<any>(content, {}), true);
+        if (decision.kind === 'denied') {
+          callWindowFunction(webview, 'showError', decision.error);
+          return true;
+        }
+        this.context.callbacks.sendDaemonRequest(event, decision.method, decision.params, webview);
         return true;
       }
 

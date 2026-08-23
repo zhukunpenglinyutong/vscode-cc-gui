@@ -560,7 +560,10 @@ export class SettingsStore {
 
   private resolveAiFeatureConfig(raw: any, defaultProvider: 'claude' | 'codex'): any {
     const models = {
-      claude: raw?.models?.claude || 'claude-sonnet-4-6',
+      // claude-sonnet-4-6/4-7 are retired — defaults must stay on live models,
+      // and persisted retired ids self-heal on read instead of failing every
+      // generation with an empty response.
+      claude: normalizeRetiredClaudeModelId(raw?.models?.claude) || 'claude-sonnet-5',
       codex: raw?.models?.codex || 'gpt-5.5',
     };
     const availability = {
@@ -577,6 +580,29 @@ export class SettingsStore {
       availability,
     };
   }
+}
+
+/**
+ * Retired Claude model ids → their live replacement, mirroring the webview's
+ * LEGACY_CLAUDE_MODEL_ID_ALIASES. A config saved while the default was a
+ * retired model keeps that dead id forever; migrating on read self-heals
+ * persisted values without rewriting stored settings.
+ */
+const RETIRED_CLAUDE_MODEL_IDS: Record<string, string> = {
+  'claude-sonnet-4-6': 'claude-sonnet-5',
+  'claude-sonnet-4-7': 'claude-sonnet-5',
+  'claude-opus-4-6': 'claude-opus-4-8',
+};
+
+function normalizeRetiredClaudeModelId(model: unknown): string | undefined {
+  if (typeof model !== 'string') return undefined;
+  const trimmed = model.trim();
+  if (!trimmed) return undefined;
+  const oneM = /\[1m\]$/i.test(trimmed);
+  const base = trimmed.replace(/\[1m\]$/i, '');
+  const migrated = RETIRED_CLAUDE_MODEL_IDS[base];
+  if (!migrated) return trimmed;
+  return oneM ? `${migrated}[1m]` : migrated;
 }
 
 export function dirnameOrWorkspace(filePath: string, workspacePath: string): string {

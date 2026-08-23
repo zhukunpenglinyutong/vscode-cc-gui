@@ -103,6 +103,9 @@ interface Window {
    */
   onSubagentHistoryLoaded?: (json: string) => void;
 
+  /** Batched lightweight Codex subagent lifecycle status callback. */
+  onSubagentStatusesLoaded?: (json: string) => void;
+
   /**
    * SDK-to-CLI session conversion result callback.
    * Called by the Java backend after attempting to convert entrypoint from "sdk-cli" to "cli".
@@ -281,11 +284,49 @@ interface Window {
   updateCliStatus?: (json: string) => void;
 
   /**
-   * Dynamic CLI model catalog (Kimi / OpenCode / PI)
+   * Dynamic CLI model catalog (Kimi / OpenCode / PI / DSH)
    */
   setCliModels?: (
-    dataOrStr: string | { provider?: string; models?: unknown; success?: boolean; error?: string }
+    dataOrStr: string | { provider?: string; models?: unknown; success?: boolean; error?: string; defaultModel?: unknown;
+      /** Dynamic model roles (omp); description = resolved model selector. */
+      roles?: unknown }
   ) => void;
+
+  /**
+   * DSH host lifecycle status. The extension pushes JSON after
+   * `get_dsh_status` / `start_dsh_host` / `stop_dsh_host` /
+   * `save_dsh_settings:<json>` via channel-manager `dsh status|ensureHost|stopHost`.
+   */
+  updateDshStatus?: (
+    dataOrStr:
+      | string
+      | {
+          success?: boolean;
+          provider?: string;
+          installed?: boolean;
+          version?: string | null;
+          bin?: string;
+          origin?: string;
+          hostRunning?: boolean;
+          ownership?: 'spawned' | 'adopted' | null;
+          error?: string;
+          describe?: {
+            version?: string;
+            provider?: string;
+            model?: string;
+            attachedSessions?: number;
+          };
+          settings?: {
+            bin?: string;
+            host?: string;
+            port?: number;
+            autoStart?: boolean;
+          };
+        }
+  ) => void;
+
+  /** User-installed DSH agent preset ids discovered from the DSH home. */
+  __INITIAL_DSH_PRESETS__?: string[];
 
   updateThinkingEnabled?: (json: string) => void;
 
@@ -373,6 +414,12 @@ interface Window {
    * Update custom Claude CLI path
    */
   updateClaudeCliPath?: (path: string) => void;
+
+  /**
+   * Claude plan-usage snapshot pushed back for get_claude_plan_usage polls
+   * (JSON string; see useClaudePlanUsage / ClaudePlanUsageHandler).
+   */
+  updateClaudePlanUsage?: (json: string) => void;
 
   /**
    * Update working directory configuration

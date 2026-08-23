@@ -67,11 +67,17 @@ html {
     background: transparent !important;
 }
 
+/* 滚动条滑块默认透明，鼠标悬停到可滚动容器上时才显示（:hover 对子元素生效，
+ * 悬停容器内任意内容或滚动条轨道本身都会触发），保持界面干净 */
 @{tt-exclude}::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb) !important;
+    background-color: transparent !important;
     border-radius: 5px !important;
     border: 2px solid transparent !important;
     background-clip: content-box !important;
+}
+
+@{tt-exclude}:hover::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb) !important;
 }
 
 @{tt-exclude}::-webkit-scrollbar-thumb:hover {

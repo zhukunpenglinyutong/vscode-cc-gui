@@ -52,3 +52,30 @@ test('handles a quoted section header', () => {
   const out = setMcpEnabledInToml(toml, 'my-server', false);
   assert.ok(out.includes('[mcp_servers."my-server"]\nenabled = false'));
 });
+
+import { planMcpRename } from './codex-mcp-admin.js';
+
+test('planMcpRename allows renaming an existing server onto a free name', () => {
+  assert.deepEqual(planMcpRename(['old', 'keep'], 'old', 'new'), { ok: true });
+});
+
+test('planMcpRename allows a same-name rename (plain update path guard)', () => {
+  assert.deepEqual(planMcpRename(['srv'], 'srv', 'srv'), { ok: true });
+});
+
+test('planMcpRename rejects a missing old server', () => {
+  const plan = planMcpRename(['keep'], 'ghost', 'new');
+  assert.equal(plan.ok, false);
+  assert.match(plan.error, /'ghost' not found/);
+});
+
+test('planMcpRename rejects renaming onto an existing name (config left unchanged)', () => {
+  const plan = planMcpRename(['old', 'existing'], 'old', 'existing');
+  assert.equal(plan.ok, false);
+  assert.match(plan.error, /'existing' already exists/);
+});
+
+test('planMcpRename requires both names', () => {
+  assert.equal(planMcpRename(['a'], '', 'b').ok, false);
+  assert.equal(planMcpRename(['a'], 'a', '').ok, false);
+});

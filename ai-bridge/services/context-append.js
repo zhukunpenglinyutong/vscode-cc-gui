@@ -2,8 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const PROMPT_VALUE_MAX_LEN = 256;
-const MAX_FILE_BYTES = 64 * 1024;
-const MAX_TOTAL_BYTES = 160 * 1024;
 const MAX_RUNTIME_CHARS = 24 * 1024;
 
 function sanitizePromptValue(value) {
@@ -64,10 +62,9 @@ function normalizeFileTagPath(tag) {
   return String(tag.absolutePath || tag.displayPath || '').trim();
 }
 
-function readFileTagContents(fileTags, alreadyIncluded = new Set()) {
+function collectFileTagReferences(fileTags, alreadyIncluded = new Set()) {
   if (!Array.isArray(fileTags)) return [];
-  const files = [];
-  let totalBytes = 0;
+  const references = [];
 
   for (const tag of fileTags) {
     const tagPath = normalizeFileTagPath(tag);
@@ -75,41 +72,24 @@ function readFileTagContents(fileTags, alreadyIncluded = new Set()) {
       continue;
     }
     const cleanPath = tagPath.replace(/#L\d+(-\d+)?$/, '');
+    const lineRef = tagPath.slice(cleanPath.length);
     if (alreadyIncluded.has(cleanPath) || alreadyIncluded.has(path.resolve(cleanPath))) {
       continue;
     }
-    try {
-      const stat = fs.statSync(cleanPath);
-      if (!stat.isFile() || stat.size <= 0) continue;
-      const remaining = MAX_TOTAL_BYTES - totalBytes;
-      if (remaining <= 0) break;
-      const bytesToRead = Math.min(MAX_FILE_BYTES, remaining, stat.size);
-      const fd = fs.openSync(cleanPath, 'r');
-      try {
-        const buffer = Buffer.alloc(bytesToRead);
-        const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, 0);
-        const content = buffer.subarray(0, bytesRead).toString('utf8');
-        files.push({
-          path: cleanPath,
-          displayPath: tag.displayPath || cleanPath,
-          language: languageFromPath(cleanPath),
-          content,
-          truncated: stat.size > bytesRead,
-        });
-        alreadyIncluded.add(cleanPath);
-        totalBytes += bytesRead;
-      } finally {
-        fs.closeSync(fd);
-      }
-    } catch {
-      // Ignore unreadable tags; the IDE side already treats context as best effort.
-    }
+    // Path/line references only: CLI providers are agentic and read files
+    // themselves. Never inline file content here — it bloats every prompt
+    // and can overflow the 32,767-char Windows command-line limit.
+    references.push({
+      path: cleanPath,
+      displayPath: (tag.displayPath || cleanPath) + lineRef,
+    });
+    alreadyIncluded.add(cleanPath);
   }
 
-  return files;
+  return references;
 }
 
-function readActiveFileContent(filePath, alreadyIncluded = new Set()) {
+function readActiveFile(filePath, alreadyIncluded = new Set()) {
   const cleanPath = normalizeFilePath(filePath);
   if (!cleanPath || alreadyIncluded.has(cleanPath) || alreadyIncluded.has(path.resolve(cleanPath))) {
     return null;
@@ -117,28 +97,14 @@ function readActiveFileContent(filePath, alreadyIncluded = new Set()) {
   try {
     const stat = fs.statSync(cleanPath);
     if (!stat.isFile() || stat.size <= 0) return null;
-    const bytesToRead = Math.min(MAX_FILE_BYTES, stat.size);
-    const fd = fs.openSync(cleanPath, 'r');
-    try {
-      const buffer = Buffer.alloc(bytesToRead);
-      const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, 0);
-      return {
-        path: cleanPath,
-        displayPath: cleanPath,
-        language: languageFromPath(cleanPath),
-        content: buffer.subarray(0, bytesRead).toString('utf8'),
-        truncated: stat.size > bytesRead,
-      };
-    } finally {
-      fs.closeSync(fd);
-    }
+    return { path: cleanPath, displayPath: cleanPath };
   } catch {
     return null;
   }
 }
 
-function buildReferencedFilesSection(files) {
-  if (!files.length) return '';
+function buildReferencedFilesSection(files, tagReferences = []) {
+  if (!files.length && !tagReferences.length) return '';
   let prompt = '\n\n## Referenced Files\n\n';
   prompt += 'The following files were referenced by the user:\n\n';
 
@@ -155,6 +121,14 @@ function buildReferencedFilesSection(files) {
     if (file.truncated) {
       prompt += '\n[File content truncated]\n';
     }
+  }
+
+  if (tagReferences.length) {
+    for (const ref of tagReferences) {
+      prompt += `- \`${sanitizePromptValue(ref.displayPath)}\`\n`;
+    }
+    prompt += '\nRead them with your file tools as needed; ';
+    prompt += 'the user expects answers based on their content.\n';
   }
 
   return prompt;
@@ -195,21 +169,15 @@ function buildActiveFileSection(openedFiles, alreadyIncluded = new Set()) {
   const activeFile = openedFiles.active;
   if (!activeFile || typeof activeFile !== 'string') return '';
 
-  const file = readActiveFileContent(activeFile, alreadyIncluded);
+  // Reference the active file by path only (no inlined content); the agent
+  // reads it with its own file tools as needed.
+  const file = readActiveFile(activeFile, alreadyIncluded);
   if (!file) return '';
 
   let prompt = "\n\n## User's Current IDE Context\n\n";
-  prompt += "The user is viewing this file in their IDE. This is the PRIMARY SUBJECT of the user's question.\n\n";
-  prompt += `### \`${sanitizePromptValue(file.displayPath || file.path)}\`\n\n`;
-  prompt += '```' + sanitizePromptValue(file.language || languageFromPath(file.path)) + '\n';
-  prompt += file.content;
-  if (!file.content.endsWith('\n')) {
-    prompt += '\n';
-  }
-  prompt += '```\n\n';
-  if (file.truncated) {
-    prompt += '[File content truncated]\n\n';
-  }
+  prompt += 'The user is viewing this file in their IDE. ';
+  prompt += `This is the PRIMARY SUBJECT of the user's question: \`${sanitizePromptValue(activeFile)}\`\n\n`;
+  prompt += 'Read it with your file tools as needed.\n';
   return prompt;
 }
 
@@ -256,12 +224,12 @@ export function buildContextAppend(openedFiles = null, fileTags = null) {
   for (const file of referencedFiles) {
     includedPaths.add(file.path);
   }
-  referencedFiles.push(...readFileTagContents(fileTags, includedPaths));
+  const tagReferences = collectFileTagReferences(fileTags, includedPaths);
 
   const runtimeContexts = runtimeContextsFromOpenedFiles(openedFiles);
   const sections = [
     buildWorkspaceSection(openedFiles),
-    buildReferencedFilesSection(referencedFiles),
+    buildReferencedFilesSection(referencedFiles, tagReferences),
     buildSelectionSection(openedFiles),
     buildActiveFileSection(openedFiles, includedPaths),
     buildRuntimeContextSection(runtimeContexts),

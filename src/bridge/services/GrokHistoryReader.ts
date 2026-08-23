@@ -15,13 +15,23 @@ export interface GrokSessionInfo {
 }
 
 /**
- * Reads Grok CLI history from ~/.grok/sessions/<url-encoded-cwd>/<sessionId>/.
+ * Reads Grok CLI history from
+ * $GROK_HOME/sessions/<url-encoded-cwd>/<sessionId>/{summary.json,chat_history.jsonl}
+ * (default home ~/.grok; often ~/.antig-grok when GROK_HOME is set — all
+ * candidate homes are scanned, primary first).
  */
 export class GrokHistoryReader {
-  private readonly sessionsRoot: string;
+  /** Ordered session roots (primary GROK_HOME first, then fallbacks). */
+  private readonly sessionsRoots: string[];
 
-  constructor(sessionsRoot?: string) {
-    this.sessionsRoot = sessionsRoot ?? this.defaultSessionsRoot();
+  constructor(sessionsRoot?: string | string[]) {
+    if (Array.isArray(sessionsRoot)) {
+      this.sessionsRoots = [...sessionsRoot];
+    } else if (typeof sessionsRoot === 'string' && sessionsRoot) {
+      this.sessionsRoots = [sessionsRoot];
+    } else {
+      this.sessionsRoots = this.defaultSessionsRoots();
+    }
   }
 
   getSessionsForProject(projectPath: string): {
@@ -51,19 +61,27 @@ export class GrokHistoryReader {
   }
 
   listSessionsForProject(projectPath: string): GrokSessionInfo[] {
-    if (!fs.existsSync(this.sessionsRoot)) return [];
     const encoded = this.encodeCwd(projectPath);
     const canon = this.encodeCwd(this.canonicalizePath(projectPath));
     const dirs = new Set([encoded, canon].filter(Boolean));
     const sessions: GrokSessionInfo[] = [];
+    const seen = new Set<string>();
 
-    for (const dir of dirs) {
-      const cwdDir = path.join(this.sessionsRoot, dir);
-      if (!fs.existsSync(cwdDir) || !fs.statSync(cwdDir).isDirectory()) continue;
-      for (const entry of fs.readdirSync(cwdDir, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue;
-        const info = this.readSessionSummary(path.join(cwdDir, entry.name), projectPath);
-        if (info) sessions.push(info);
+    for (const sessionsRoot of this.sessionsRoots) {
+      if (!fs.existsSync(sessionsRoot)) continue;
+      for (const dir of dirs) {
+        const cwdDir = path.join(sessionsRoot, dir);
+        if (!fs.existsSync(cwdDir) || !fs.statSync(cwdDir).isDirectory()) continue;
+        for (const entry of fs.readdirSync(cwdDir, { withFileTypes: true })) {
+          if (!entry.isDirectory()) continue;
+          const info = this.readSessionSummary(path.join(cwdDir, entry.name), projectPath);
+          // Prefer the first root that owns a given sessionId when the same id
+          // appears in multiple homes (should be rare).
+          if (info && !seen.has(info.sessionId)) {
+            seen.add(info.sessionId);
+            sessions.push(info);
+          }
+        }
       }
     }
 
@@ -79,16 +97,23 @@ export class GrokHistoryReader {
   }
 
   listAllSessions(): GrokSessionInfo[] {
-    if (!fs.existsSync(this.sessionsRoot)) return [];
     const sessions: GrokSessionInfo[] = [];
-    for (const cwdEntry of fs.readdirSync(this.sessionsRoot, { withFileTypes: true })) {
-      if (!cwdEntry.isDirectory()) continue;
-      const cwdDir = path.join(this.sessionsRoot, cwdEntry.name);
-      const cwd = this.decodeCwd(cwdEntry.name);
-      for (const sessionEntry of fs.readdirSync(cwdDir, { withFileTypes: true })) {
-        if (!sessionEntry.isDirectory()) continue;
-        const info = this.readSessionSummary(path.join(cwdDir, sessionEntry.name), cwd);
-        if (info) sessions.push(info);
+    const seen = new Set<string>();
+    for (const sessionsRoot of this.sessionsRoots) {
+      if (!fs.existsSync(sessionsRoot)) continue;
+      for (const cwdEntry of fs.readdirSync(sessionsRoot, { withFileTypes: true })) {
+        if (!cwdEntry.isDirectory()) continue;
+        if (cwdEntry.name.startsWith('.') || cwdEntry.name.endsWith('.sqlite') || cwdEntry.name.endsWith('.db')) continue;
+        const cwdDir = path.join(sessionsRoot, cwdEntry.name);
+        const cwd = this.decodeCwd(cwdEntry.name);
+        for (const sessionEntry of fs.readdirSync(cwdDir, { withFileTypes: true })) {
+          if (!sessionEntry.isDirectory()) continue;
+          const info = this.readSessionSummary(path.join(cwdDir, sessionEntry.name), cwd);
+          if (info && !seen.has(info.sessionId)) {
+            seen.add(info.sessionId);
+            sessions.push(info);
+          }
+        }
       }
     }
     return sessions.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
@@ -590,20 +615,32 @@ export class GrokHistoryReader {
   private resolveSessionDir(sessionId: string, cwd?: string): string | undefined {
     if (!this.isValidSessionId(sessionId)) return undefined;
     if (cwd) {
-      for (const encoded of [this.encodeCwd(cwd), this.encodeCwd(this.canonicalizePath(cwd))]) {
-        const direct = path.join(this.sessionsRoot, encoded, sessionId);
-        if (fs.existsSync(direct) && fs.statSync(direct).isDirectory()) return direct;
+      const encoded = this.encodeCwd(cwd);
+      const encodedCanon = this.encodeCwd(this.canonicalizePath(cwd));
+      for (const sessionsRoot of this.sessionsRoots) {
+        for (const dir of [encoded, encodedCanon]) {
+          const direct = path.join(sessionsRoot, dir, sessionId);
+          if (fs.existsSync(direct) && fs.statSync(direct).isDirectory()) return direct;
+        }
       }
     }
     return this.findSessionDirById(sessionId) ?? undefined;
   }
 
   private findSessionDirById(sessionId: string): string | null {
-    if (!fs.existsSync(this.sessionsRoot)) return null;
-    for (const cwdEntry of fs.readdirSync(this.sessionsRoot, { withFileTypes: true })) {
-      if (!cwdEntry.isDirectory()) continue;
-      const candidate = path.join(this.sessionsRoot, cwdEntry.name, sessionId);
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate;
+    for (const sessionsRoot of this.sessionsRoots) {
+      if (!fs.existsSync(sessionsRoot)) continue;
+      let cwdEntries: fs.Dirent[];
+      try {
+        cwdEntries = fs.readdirSync(sessionsRoot, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const cwdEntry of cwdEntries) {
+        if (!cwdEntry.isDirectory()) continue;
+        const candidate = path.join(sessionsRoot, cwdEntry.name, sessionId);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate;
+      }
     }
     return null;
   }
@@ -658,8 +695,14 @@ export class GrokHistoryReader {
     fs.rmSync(target, { recursive: true, force: true });
   }
 
-  private defaultSessionsRoot(): string {
-    const home = process.env.GROK_HOME?.trim() || path.join(os.homedir(), '.grok');
-    return path.join(home, 'sessions');
+  private defaultSessionsRoots(): string[] {
+    // GrokLocalAuthResolver.resolveGrokHomeCandidates equivalent: the effective
+    // GROK_HOME first (e.g. ~/.antig-grok), then the default ~/.grok — sessions
+    // may exist in either when the user switches homes.
+    const homes: string[] = [];
+    const grokHome = process.env.GROK_HOME?.trim();
+    if (grokHome) homes.push(grokHome);
+    homes.push(path.join(os.homedir(), '.grok'));
+    return [...new Set(homes)].map((home) => path.join(home, 'sessions'));
   }
 }

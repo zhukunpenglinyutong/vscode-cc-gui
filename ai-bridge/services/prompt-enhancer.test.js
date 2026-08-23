@@ -14,7 +14,7 @@ test('resolvePromptEnhancerRuntimeConfig prefers Codex when auto mode has both p
       effectiveProvider: 'codex',
       resolutionSource: 'auto',
       models: {
-        claude: 'claude-sonnet-4-6',
+        claude: 'claude-sonnet-5',
         codex: 'gpt-5.5',
       },
       availability: {
@@ -47,6 +47,13 @@ test('resolvePromptEnhancerRuntimeConfig throws a strict error when manual provi
     }),
     /Claude Code.*unavailable/i
   );
+});
+
+test('resolvePromptEnhancerRuntimeConfig defaults to a live Claude model in legacy mode', () => {
+  // claude-sonnet-4-6/4-7 are retired; the fallback default must be live (#1693).
+  const resolved = resolvePromptEnhancerRuntimeConfig({});
+  assert.equal(resolved.provider, 'claude');
+  assert.equal(resolved.model, 'claude-sonnet-5');
 });
 
 // ---------- extractAppendedDelta ----------

@@ -37,7 +37,7 @@ test('buildContextAppend includes referenced file content and runtime context', 
   assert.match(prompt, /Last command: npm test/);
 });
 
-test('buildContextAppend reads fileTags and avoids duplicate openedFiles references', () => {
+test('buildContextAppend references fileTags by path only and avoids duplicate openedFiles references', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccg-context-tags-'));
   const first = path.join(tmpDir, 'first.js');
   const second = path.join(tmpDir, 'second.js');
@@ -55,11 +55,17 @@ test('buildContextAppend reads fileTags and avoids duplicate openedFiles referen
   }, [
     { displayPath: 'first.js', absolutePath: first },
     { displayPath: 'second.js', absolutePath: second },
+    { displayPath: 'with-lines.js', absolutePath: `${tmpDir}/with-lines.js#L3-7` },
     { displayPath: 'terminal://zsh', absolutePath: 'terminal://zsh' },
   ]);
 
+  // Extension-supplied referenced files keep their inline content.
   assert.equal((prompt.match(/const first = true/g) || []).length, 1);
-  assert.match(prompt, /const second = true/);
+  // File tags are path/line references only — never inlined content.
+  assert.doesNotMatch(prompt, /const second = true/);
+  assert.match(prompt, /- `second\.js`/);
+  assert.match(prompt, /- `with-lines\.js#L3-7`/);
+  assert.match(prompt, /Read them with your file tools as needed/);
   assert.doesNotMatch(prompt, /terminal:\/\/zsh/);
 });
 
@@ -78,7 +84,7 @@ test('buildContextAppend does not inject single-workspace metadata by itself', (
   assert.equal(prompt, '');
 });
 
-test('buildContextAppend uses IDEA-style active file context', () => {
+test('buildContextAppend references the active file by path without inlining content', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccg-context-active-'));
   const filePath = path.join(tmpDir, 'active.ts');
   fs.writeFileSync(filePath, 'export const active = true;\n', 'utf8');
@@ -91,5 +97,7 @@ test('buildContextAppend uses IDEA-style active file context', () => {
 
   assert.doesNotMatch(prompt, /<ide-context>/);
   assert.match(prompt, /## User's Current IDE Context/);
-  assert.match(prompt, /export const active = true/);
+  assert.match(prompt, /PRIMARY SUBJECT/);
+  assert.match(prompt, /Read it with your file tools as needed/);
+  assert.doesNotMatch(prompt, /export const active = true/);
 });

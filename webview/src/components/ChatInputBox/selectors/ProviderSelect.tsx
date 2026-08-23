@@ -186,6 +186,7 @@ export const ProviderSelect = ({ value, onChange, compact = false }: ProviderSel
         message={t('providers.beta.message', {
           defaultValue: 'This feature is still in Beta. If you encounter any bugs, please report them to the author promptly.',
         })}
+        confirmText={t('common.gotIt', { defaultValue: 'Got it' })}
         onClose={betaNotice.close}
       />
     </>

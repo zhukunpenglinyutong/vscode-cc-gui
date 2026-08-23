@@ -92,7 +92,6 @@
     "attachmentFile": "[附件: {{fileName}}]",
     "unknownFile": "未知文件",
     "attachmentsUploaded": "[已上传附件]",
-    "streamingConnected": "AI 已成功连接，正在理解问题",
     "streamStallTimeout": "已连续 {{seconds}} 秒没有收到模型响应，已自动结束本轮。可在 设置 → 行为 中调整「流式无响应超时」。",
     "showEarlierMessages": "显示之前的 {{count}} 条消息",
     "totalDuration": "本次耗时",
@@ -126,7 +125,6 @@
     "openSourceBannerStar": "点个 Star",
     "openSourceBannerStarToast": "已复制仓库地址到剪切板，复制到浏览器即可访问 ⭐",
     "openSourceBannerStarAria": "复制仓库地址并前往 GitHub 点 Star",
-    "streamingWorking": "{{provider}} 正在工作中（思考或执行工具）…",
     "cacheHitsWithRatio": "（缓存命中 {{tokens}}，{{ratio}}）",
     "planModeEnabled": "已启用 Plan 模式",
     "commandProviderOnly": "{{command}} 仅支持 {{provider}} 供应商",
@@ -249,7 +247,8 @@
         "providerUnavailable": "当前不可用",
         "provider": {
           "claude": "Claude Code",
-          "codex": "Codex"
+          "codex": "Codex",
+          "grok": "Grok CLI"
         },
         "currentProviderAuto": "当前使用自动选择：{{provider}}",
         "currentProviderManual": "当前使用手动选择的 provider：{{provider}}",
@@ -1019,6 +1018,14 @@
         "pi": {
           "name": "PI CLI",
           "description": "极简终端编码代理，支持多提供商模型"
+        },
+        "omp": {
+          "name": "OMP CLI",
+          "description": "支持多提供商模型的 Oh My Pi 终端编码代理"
+        },
+        "dsh": {
+          "name": "DeepSeek Harness",
+          "description": "DeepSeek 终端智能体宿主（常驻 dsh web）"
         }
       },
       "installDialog": {
@@ -1036,7 +1043,24 @@
       "listTitle": "本地 CLI 工具",
       "summary": "{{installed}} / {{total}} 已安装",
       "moreComingSoon": "即将支持更多",
-      "copyPath": "复制路径"
+      "copyPath": "复制路径",
+      "dsh": {
+        "cardTitle": "DeepSeek Harness (DSH)",
+        "hint": "DSH 由本机一个常驻 dsh web 宿主承载所有会话；插件会接管已在运行的宿主，而不会重复启动。",
+        "state": {
+          "checking": "检测中…",
+          "notInstalled": "未安装",
+          "notRunning": "未运行",
+          "connected": "已连接"
+        },
+        "adopted": "已接管",
+        "adoptedHint": "已接管正在运行的宿主；插件不会停止它。",
+        "openWebUi": "打开 DSH Web UI",
+        "startHost": "立即启动",
+        "stopHost": "关闭（仅限插件启动的宿主）",
+        "stopHostShort": "关闭宿主",
+        "autoStart": "需要时自动启动"
+      }
     }
   },
   "history": {
@@ -1192,6 +1216,7 @@
   },
   "config": {
     "clickToCopy": "点击复制",
+    "officialDocs": "官方文档",
     "switch": "切换",
     "switchProvider": "切换供应商",
     "runtimeProvider": {
@@ -1511,6 +1536,7 @@
   "subagent": {
     "process": {
       "title": "Agent 进程",
+      "prompt": "提示词",
       "thought": "思考",
       "filesRead_one": "读取 {{count}} 个文件",
       "filesRead_other": "读取 {{count}} 个文件",
@@ -1555,7 +1581,9 @@
     "keepAllConfirmMessage": "将当前改动作为新基准，后续改动从零开始记录。",
     "discardAllSuccess": "已撤销所有文件更改",
     "discardAllFailed": "撤销失败: {{error}}",
-    "keepAllSuccess": "已保存全部，改动记录已重置"
+    "keepAllSuccess": "已保存全部，改动记录已重置",
+    "multiAgentBadge": "多 Agent",
+    "multiAgentEdited": "本会话有 {{count}} 个 Agent 修改过此文件，请留意合并冲突"
   },
   "skills": {
     "title": "Skills",
@@ -1754,11 +1782,7 @@
       },
       "sonnet5": {
         "label": "Sonnet 5",
-        "description": "Sonnet 5 · Sonnet 4.6 升级模型"
-      },
-      "sonnet47": {
-        "label": "Sonnet 4.7",
-        "description": "Sonnet 4.7 · 默认推荐模型"
+        "description": "Sonnet 5 · 默认推荐模型"
       },
       "opus5": {
         "label": "Opus 5",
@@ -1819,9 +1843,9 @@
     "noModelsFound": "未找到模型",
     "hiddenModelCount": "+ 还有 {{count}} 个模型。输入以搜索。",
     "grok": {
-      "grok45": {
-        "label": "Grok 4.5",
-        "description": "xAI Grok 4.5"
+      "grok46": {
+        "label": "Grok 4.6",
+        "description": "xAI Grok 4.6"
       }
     },
     "cliLoadFailed": "加载模型失败，点击重试"
@@ -1848,10 +1872,32 @@
       "description": "完全自动化，绕过所有权限检查【谨慎使用】"
     }
   },
+  "ompModes": {
+    "default": {
+      "label": "默认",
+      "tooltip": "使用所选模型（或 OMP auto）",
+      "description": "使用模型下拉框中选择的模型；设为 Auto 时使用 OMP CLI 默认模型。"
+    },
+    "smol": {
+      "label": "Smol",
+      "tooltip": "快速模型角色 (omp --model smol)",
+      "description": "使用为 omp 的 smol 角色配置的模型运行此对话。覆盖模型下拉框的选择。"
+    },
+    "slow": {
+      "label": "Slow",
+      "tooltip": "推理模型角色 (omp --model slow)",
+      "description": "使用为 omp 的 slow 角色配置的模型运行此对话。覆盖模型下拉框的选择。"
+    },
+    "plan": {
+      "label": "Plan",
+      "tooltip": "规划模型角色 (omp --model plan)",
+      "description": "使用为 omp 的 plan 角色配置的模型运行此对话。覆盖模型下拉框的选择。"
+    }
+  },
   "codexModes": {
     "default": {
       "label": "建议模式",
-      "tooltip": "Codex approval_policy=untrusted：执行命令或写文件前都会弹窗确认。",
+      "tooltip": "Codex approval_policy=on-request：执行命令或写文件前都会弹窗确认。",
       "description": "最安全的选择，每一步都需要你亲自批准。"
     },
     "plan": {
@@ -1892,10 +1938,16 @@
     "pi": {
       "label": "PI CLI"
     },
+    "omp": {
+      "label": "OMP CLI"
+    },
     "beta": {
       "badge": "Beta",
       "title": "Beta 功能",
       "message": "此功能仍处于 Beta 阶段。如果遇到使用 Bug，请及时反馈给作者。"
+    },
+    "dsh": {
+      "label": "DeepSeek Harness"
     }
   },
   "promptEnhancer": {
@@ -2113,6 +2165,32 @@
           "step1": "2. 打开「依赖管理」重装最新版 SDK："
         }
       }
+    }
+  },
+  "dshPresets": {
+    "title": "选择 DeepSeek Harness Agent 预设",
+    "none": {
+      "label": "默认",
+      "description": "dsh 默认 headless 组合（完整工具集）"
+    },
+    "standard": {
+      "label": "标准模式",
+      "description": "功能完整的标准编码工具集"
+    },
+    "code": {
+      "label": "PTC 模式",
+      "description": "标准能力加 Code Mode"
+    },
+    "minimal": {
+      "label": "极简模式",
+      "description": "仅提供 bash 与 str_replace_editor"
+    },
+    "cordis": {
+      "label": "创造模式",
+      "description": "标准能力加组合编排能力"
+    },
+    "user": {
+      "description": "安装在 DSH 主目录中的自定义预设"
     }
   }
 }

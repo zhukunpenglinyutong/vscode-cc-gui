@@ -1,9 +1,8 @@
+import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import type { ClaudeMessage, ClaudeContentBlock, ToolResultBlock } from '../types';
 import type { SubagentHistoryResponse } from '../types';
-import {
-  collectFileOperationsFromSubagentHistories,
-  findSidechainToolResult,
-} from './useFileChanges';
+import { useFileChanges } from './useFileChanges';
 
 function sidechainHistory(messages: unknown[]): SubagentHistoryResponse {
   return {
@@ -15,172 +14,152 @@ function sidechainHistory(messages: unknown[]): SubagentHistoryResponse {
   };
 }
 
-describe('findSidechainToolResult', () => {
-  it('finds tool_result in history-style raw.message.content rows', () => {
-    const messages = [
-      {
-        type: 'assistant',
-        raw: {
-          message: {
-            content: [
-              { type: 'tool_use', id: 'write-1', name: 'Write', input: { file_path: '/a.txt', content: 'hi' } },
-            ],
-          },
-        },
-      },
-      {
-        type: 'user',
-        raw: {
-          message: {
-            content: [
-              { type: 'tool_result', tool_use_id: 'write-1', content: 'ok' },
-            ],
-          },
-        },
-      },
-    ];
+function getContentBlocks(message: ClaudeMessage): ClaudeContentBlock[] {
+  const raw = message.raw;
+  if (!raw || typeof raw === 'string') return [];
+  const content = (raw as { content?: unknown }).content;
+  return Array.isArray(content) ? (content as ClaudeContentBlock[]) : [];
+}
 
-    const result = findSidechainToolResult(messages, 'write-1');
-    expect(result).toMatchObject({ type: 'tool_result', tool_use_id: 'write-1' });
-  });
-});
+function makeFindToolResult(messages: ClaudeMessage[]) {
+  return (toolUseId?: string): ToolResultBlock | null => {
+    if (!toolUseId) return null;
+    for (const msg of messages) {
+      const raw = msg.raw;
+      if (!raw || typeof raw === 'string') continue;
+      const content = (raw as { content?: unknown[] }).content;
+      if (!Array.isArray(content)) continue;
+      const hit = content.find(
+        (b): b is ToolResultBlock =>
+          Boolean(b)
+          && (b as ToolResultBlock).type === 'tool_result'
+          && (b as ToolResultBlock).tool_use_id === toolUseId,
+      );
+      if (hit) return hit;
+    }
+    return null;
+  };
+}
 
-describe('collectFileOperationsFromSubagentHistories', () => {
-  it('collects Write tools from background agent sidechains', () => {
-    const histories = {
+function writeToolUseRaw(id: string, filePath: string, content: string) {
+  return {
+    type: 'assistant',
+    raw: {
+      message: {
+        content: [
+          { type: 'tool_use', id, name: 'Write', input: { file_path: filePath, content } },
+        ],
+      },
+    },
+  };
+}
+
+function toolResultRaw(toolUseId: string, isError = false) {
+  return {
+    type: 'user',
+    raw: {
+      message: {
+        content: [
+          { type: 'tool_result', tool_use_id: toolUseId, is_error: isError, content: isError ? 'denied' : 'ok' },
+        ],
+      },
+    },
+  };
+}
+
+describe('useFileChanges with subagent sidechain histories', () => {
+  it('finds tool_use/tool_result in history-style raw.message.content rows', () => {
+    const subagentHistories: Record<string, SubagentHistoryResponse> = {
       'parent-tool-1': sidechainHistory([
-        {
-          type: 'assistant',
-          raw: {
-            message: {
-              content: [
-                {
-                  type: 'tool_use',
-                  id: 'write-a',
-                  name: 'Write',
-                  input: {
-                    file_path: '/Users/me/project/subagent-a.txt',
-                    content: '来自子代理A',
-                  },
-                },
-              ],
-            },
-          },
-        },
-        {
-          type: 'user',
-          raw: {
-            message: {
-              content: [
-                { type: 'tool_result', tool_use_id: 'write-a', content: 'Wrote file' },
-              ],
-            },
-          },
-        },
+        writeToolUseRaw('write-1', '/a.txt', 'hi'),
+        toolResultRaw('write-1'),
       ]),
     };
 
-    const map = collectFileOperationsFromSubagentHistories(histories);
-    expect(map.size).toBe(1);
-    expect(map.has('/Users/me/project/subagent-a.txt')).toBe(true);
-    const ops = map.get('/Users/me/project/subagent-a.txt')!;
-    expect(ops).toHaveLength(1);
-    expect(ops[0].toolName).toBe('write');
-    expect(ops[0].newString).toBe('来自子代理A');
-    expect(ops[0].additions).toBeGreaterThan(0);
+    const { result } = renderHook(() =>
+      useFileChanges({
+        messages: [],
+        getContentBlocks,
+        findToolResult: makeFindToolResult([]),
+        subagentHistories,
+      }),
+    );
+
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0].filePath).toBe('/a.txt');
+  });
+
+  it('collects Write tools from background agent sidechains', () => {
+    const subagentHistories: Record<string, SubagentHistoryResponse> = {
+      'parent-tool-1': sidechainHistory([
+        writeToolUseRaw('write-a', '/Users/me/project/subagent-a.txt', '来自子代理A'),
+        toolResultRaw('write-a'),
+      ]),
+    };
+
+    const { result } = renderHook(() =>
+      useFileChanges({
+        messages: [],
+        getContentBlocks,
+        findToolResult: makeFindToolResult([]),
+        subagentHistories,
+      }),
+    );
+
+    expect(result.current).toHaveLength(1);
+    const file = result.current[0];
+    expect(file.filePath).toBe('/Users/me/project/subagent-a.txt');
+    expect(file.operations).toHaveLength(1);
+    expect(file.operations[0].toolName).toBe('write');
+    expect(file.operations[0].newString).toBe('来自子代理A');
+    expect(file.additions).toBeGreaterThan(0);
   });
 
   it('skips failed writes and empty histories', () => {
-    const histories = {
-      empty: { success: true, messages: [] } satisfies SubagentHistoryResponse,
+    const subagentHistories: Record<string, SubagentHistoryResponse> = {
+      empty: { success: true, messages: [] },
       failed: sidechainHistory([
-        {
-          type: 'assistant',
-          raw: {
-            message: {
-              content: [
-                {
-                  type: 'tool_use',
-                  id: 'write-fail',
-                  name: 'Write',
-                  input: { file_path: '/x.txt', content: 'nope' },
-                },
-              ],
-            },
-          },
-        },
-        {
-          type: 'user',
-          raw: {
-            message: {
-              content: [
-                { type: 'tool_result', tool_use_id: 'write-fail', is_error: true, content: 'denied' },
-              ],
-            },
-          },
-        },
+        writeToolUseRaw('write-fail', '/x.txt', 'nope'),
+        toolResultRaw('write-fail', true),
       ]),
     };
 
-    const map = collectFileOperationsFromSubagentHistories(histories);
-    expect(map.size).toBe(0);
+    const { result } = renderHook(() =>
+      useFileChanges({
+        messages: [],
+        getContentBlocks,
+        findToolResult: makeFindToolResult([]),
+        subagentHistories,
+      }),
+    );
+
+    expect(result.current).toHaveLength(0);
   });
 
-  it('merges multiple subagent writes into one map', () => {
-    const histories = {
+  it('merges writes from multiple subagents', () => {
+    const subagentHistories: Record<string, SubagentHistoryResponse> = {
       a: sidechainHistory([
-        {
-          type: 'assistant',
-          raw: {
-            message: {
-              content: [
-                {
-                  type: 'tool_use',
-                  id: 'w1',
-                  name: 'Write',
-                  input: { file_path: '/subagent-a.txt', content: 'A' },
-                },
-              ],
-            },
-          },
-        },
-        {
-          type: 'user',
-          raw: {
-            message: {
-              content: [{ type: 'tool_result', tool_use_id: 'w1', content: 'ok' }],
-            },
-          },
-        },
+        writeToolUseRaw('w1', '/subagent-a.txt', 'A'),
+        toolResultRaw('w1'),
       ]),
       b: sidechainHistory([
-        {
-          type: 'assistant',
-          raw: {
-            message: {
-              content: [
-                {
-                  type: 'tool_use',
-                  id: 'w2',
-                  name: 'Write',
-                  input: { file_path: '/subagent-b.txt', content: 'B' },
-                },
-              ],
-            },
-          },
-        },
-        {
-          type: 'user',
-          raw: {
-            message: {
-              content: [{ type: 'tool_result', tool_use_id: 'w2', content: 'ok' }],
-            },
-          },
-        },
+        writeToolUseRaw('w2', '/subagent-b.txt', 'B'),
+        toolResultRaw('w2'),
       ]),
     };
 
-    const map = collectFileOperationsFromSubagentHistories(histories);
-    expect([...map.keys()].sort()).toEqual(['/subagent-a.txt', '/subagent-b.txt']);
+    const { result } = renderHook(() =>
+      useFileChanges({
+        messages: [],
+        getContentBlocks,
+        findToolResult: makeFindToolResult([]),
+        subagentHistories,
+      }),
+    );
+
+    expect(result.current.map((f) => f.filePath).sort()).toEqual([
+      '/subagent-a.txt',
+      '/subagent-b.txt',
+    ]);
   });
 });

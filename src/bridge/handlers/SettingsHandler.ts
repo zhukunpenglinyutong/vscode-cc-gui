@@ -92,7 +92,9 @@ export class SettingsHandler implements BridgeHandler {
           provider === 'grok' ||
           provider === 'kimi' ||
           provider === 'opencode' ||
-          provider === 'pi'
+          provider === 'pi' ||
+          provider === 'omp' ||
+          provider === 'dsh'
         ) {
           this.context.callbacks.setActiveProvider(provider);
         }

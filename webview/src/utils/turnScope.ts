@@ -31,12 +31,63 @@ export function sliceLatestConversationTurn(messages: ClaudeMessage[]): ClaudeMe
 }
 
 /**
- * When the parent turn settles, promote stuck in_progress todos to completed.
- * Todos do not outlive the turn the way background agents do — an unfinished
- * in_progress item after end_turn is almost always a missed TodoWrite update.
+ * Decide which message slice feeds the StatusPanel-derived lists (subagents,
+ * todos). While a turn is streaming, the scope narrows to the latest turn so
+ * settled sync tool progress from older turns does not clutter the panel; once
+ * settled, the full conversation is shown. A run_in_background agent is the
+ * exception: it starts in an older turn but keeps running after that turn
+ * settles, and its terminal report lands in a later turn. Narrowing would drop
+ * the agent's card while the user waits for it to return, so a session that
+ * contains any async agent keeps the full conversation in scope.
  */
-export function finalizeTodosForSettledTurn(todos: TodoItem[], isStreaming: boolean): TodoItem[] {
-  if (isStreaming) return todos;
+export function computeStatusScopeMessages(
+  streamingActive: boolean,
+  hasAsyncAgents: boolean,
+  latestTurnMessages: ClaudeMessage[],
+  messages: ClaudeMessage[],
+  latestTurnHasToolUse: boolean,
+): ClaudeMessage[] {
+  if (!streamingActive) return messages;
+  if (hasAsyncAgents) return messages;
+  return latestTurnMessages.length > 0 && latestTurnHasToolUse ? latestTurnMessages : messages;
+}
+
+function findConversationTurnStartAt(messages: ClaudeMessage[], messageIndex: number): number {
+  for (let i = Math.min(messageIndex, messages.length - 1); i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.type !== 'user' || isToolResultOnlyUserMessage(message)) continue;
+    return i;
+  }
+  return -1;
+}
+
+/**
+ * Keep the most recent user turn that contains at least one extracted subagent.
+ * Invalid Codex spawn calls are filtered before this helper runs, so a later
+ * noise-only turn cannot hide the previous turn's valid agents.
+ */
+export function selectLatestSubagentTurn(
+  messages: ClaudeMessage[],
+  subagents: SubagentInfo[],
+): SubagentInfo[] {
+  if (subagents.length === 0) return [];
+
+  let latestTurnStart = Number.NEGATIVE_INFINITY;
+  const turnStarts = subagents.map((subagent) => {
+    const turnStart = findConversationTurnStartAt(messages, subagent.messageIndex);
+    latestTurnStart = Math.max(latestTurnStart, turnStart);
+    return turnStart;
+  });
+
+  return subagents.filter((_, index) => turnStarts[index] === latestTurnStart);
+}
+
+export function finalizeTodosForSettledTurn(
+  todos: TodoItem[],
+  isStreaming: boolean,
+  currentProvider: string,
+): TodoItem[] {
+  if (isStreaming || currentProvider === 'codex') return todos;
   return todos.map((todo) => (
     todo.status === 'in_progress'
       ? { ...todo, status: 'completed' }
@@ -44,20 +95,11 @@ export function finalizeTodosForSettledTurn(todos: TodoItem[], isStreaming: bool
   ));
 }
 
-/**
- * When the parent turn settles, only force-complete *sync* subagents that are
- * still marked running (orphan tool_use without a tool_result).
- *
- * Async agents (run_in_background:true) intentionally outlive the parent turn:
- * their launch tool_result is only an ACK, and terminal status arrives later
- * via task_notification / sidechain history. Force-completing them here made
- * StatusPanel show "2/2 completed" while the inline cards were still spinning.
- */
-export function finalizeSubagentsForSettledTurn(subagents: SubagentInfo[], isStreaming: boolean): SubagentInfo[] {
-  if (isStreaming) return subagents;
-  return subagents.map((subagent) => (
-    subagent.status === 'running' && !subagent.isAsync
-      ? { ...subagent, status: 'completed' }
-      : subagent
-  ));
+export function finalizeSubagentsForSettledTurn(subagents: SubagentInfo[], _isStreaming: boolean): SubagentInfo[] {
+  // A settled main turn is not evidence that a run_in_background agent ended:
+  // the launch turn completes while the sidechain may still be running. Async
+  // agents are finalized only by task_notification or by a sidechain transcript
+  // ending in assistant/end_turn (resolved in useSubagents). Sync agents already
+  // derive their terminal state from the Agent tool_result.
+  return subagents;
 }

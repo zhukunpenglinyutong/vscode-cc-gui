@@ -33,6 +33,12 @@ describe('modelIconMapping', () => {
     expect(resolveIconVendor('opencode-go')).toBe('opencode');
   });
 
+  it('resolves runtime CLI provider icons without falling back to Claude', () => {
+    expect(resolveIconVendor('opencode')).toBe('opencode');
+    expect(resolveIconVendor('pi')).toBe('pi');
+    expect(resolveIconVendor('omp')).toBe('omp');
+  });
+
   it('resolves vendor from the provider base URL host', () => {
     expect(resolveVendorFromBaseUrl('https://open.bigmodel.cn/api/anthropic')).toBe('zhipu');
     expect(resolveVendorFromBaseUrl('https://api.moonshot.cn/anthropic')).toBe('kimi');

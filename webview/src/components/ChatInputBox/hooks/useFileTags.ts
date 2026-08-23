@@ -11,6 +11,7 @@ import {
   getVirtualCursorPosition,
   setVirtualCursorPosition,
 } from '../utils/virtualCursorUtils.js';
+import { looksLikePathSegment } from '../../../utils/pathSegment.js';
 import type { FileTagInfo } from '../types.js';
 
 interface FileMatch {
@@ -167,11 +168,37 @@ export function useFileTags({
           continue;
         }
 
-        // Fall back to simple pattern matching for paths not in pathMappingRef
-        // This handles absolute paths and paths with line numbers
-        // Match pattern: @[non-space-non-@-chars](space|newline|end)
+        // Fall back to simple pattern matching for paths not in pathMappingRef.
+        // This handles absolute paths and paths with line numbers.
+        // The helper scans forward allowing spaces when the next segment
+        // looks like a path continuation (contains a path separator: \ or /,
+        // or ends with a file extension — e.g. a filename with spaces).
         const remainingText = currentText.substring(i);
-        const simpleMatch = remainingText.match(/^@([^\s@]+?)(\s|$)/);
+        const afterAt = remainingText.slice(1); // text after '@'
+        let endPos = 0;
+        while (endPos < afterAt.length) {
+          const ch = afterAt[endPos];
+          if (ch === '\n' || ch === '\r' || ch === '@') break;
+          if (ch === ' ' || ch === '\t') {
+            // Peek ahead: if next segment has a path separator or file
+            // extension, the space is inside the path — include it.
+            const peekRemainder = afterAt.slice(endPos + 1);
+            if (peekRemainder.length > 0 && peekRemainder[0] !== ' '
+              && peekRemainder[0] !== '\t' && peekRemainder[0] !== '\n'
+              && peekRemainder[0] !== '\r' && peekRemainder[0] !== '@'
+              && looksLikePathSegment(peekRemainder.split(/\s/)[0])
+            ) {
+              endPos++; // include the space, continue scanning
+              continue;
+            }
+            break;
+          }
+          endPos++;
+        }
+        const fallbackPath = afterAt.slice(0, endPos);
+        const simpleMatch = fallbackPath.length > 0
+          ? ['@' + fallbackPath + (remainingText[endPos + 1] === ' ' ? ' ' : ''), fallbackPath] as const
+          : null;
 
         if (simpleMatch) {
           matches.push({

@@ -14,6 +14,7 @@ import type {
   ChatInputBoxProps,
   PermissionMode,
 } from './types.js';
+import { DEFAULT_CLAUDE_MODEL_ID } from './types.js';
 import { ChatInputBoxHeader } from './ChatInputBoxHeader.js';
 import { ChatInputBoxFooter } from './ChatInputBoxFooter.js';
 import { ResizeHandles } from './ResizeHandles.js';
@@ -60,7 +61,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
   (
     {
       isLoading = false,
-      selectedModel = 'claude-sonnet-4-6',
+      selectedModel = DEFAULT_CLAUDE_MODEL_ID,
       permissionMode = 'bypassPermissions',
       currentProvider = 'claude',
       usagePercentage = 0,
@@ -83,6 +84,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       onReasoningChange,
       codexFastMode = 'normal',
       onCodexFastModeChange,
+      dshPreset,
+      onDshPresetChange,
       activeFile,
       selectedLines,
       onClearContext,
@@ -713,6 +716,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           onProviderSelect={onProviderSelect}
           onReasoningChange={onReasoningChange}
           onCodexFastModeChange={onCodexFastModeChange}
+          dshPreset={dshPreset}
+          onDshPresetChange={onDshPresetChange}
           onEnhancePrompt={handleEnhancePrompt}
           alwaysThinkingEnabled={alwaysThinkingEnabled}
           onToggleThinking={onToggleThinking}

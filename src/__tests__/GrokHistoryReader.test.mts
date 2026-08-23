@@ -320,3 +320,50 @@ describe('GrokHistoryReader', () => {
     assert.ok(blocks.some((b) => b?.type === 'image'));
   });
 });
+
+describe('GrokHistoryReader multi-root (GROK_HOME candidates)', () => {
+  it('scans fallback roots and dedupes sessionIds across roots', () => {
+    // Session only present in the secondary home (e.g. ~/.grok while
+    // GROK_HOME points at ~/.antig-grok) must still be found.
+    const secondaryRoot = path.join(tmpRoot, 'sessions-secondary');
+    fs.mkdirSync(secondaryRoot, { recursive: true });
+    const encoded = encodeURIComponent(projectPath);
+    const dir = path.join(secondaryRoot, encoded, 'sess-secondary');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'chat_history.jsonl'),
+      JSON.stringify({ type: 'user', content: [{ type: 'text', text: '<user_query>\nhi\n</user_query>' }] }) + '\n',
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(dir, 'summary.json'),
+      JSON.stringify({
+        generated_title: 'Secondary Session',
+        num_chat_messages: 1,
+        created_at: '2026-08-10T00:00:00.000Z',
+        updated_at: '2026-08-10T01:00:00.000Z',
+      }),
+      'utf8',
+    );
+
+    // Same sessionId in both roots — primary root's copy wins, listed once.
+    writeChat('sess-dup', [
+      { type: 'user', content: [{ type: 'text', text: '<user_query>\ndup\n</user_query>' }] },
+    ]);
+    const dupDirSecondary = path.join(secondaryRoot, encoded, 'sess-dup');
+    fs.mkdirSync(dupDirSecondary, { recursive: true });
+
+    const reader = new GrokHistoryReader([sessionsRoot, secondaryRoot]);
+    const all = reader.listAllSessions();
+    const ids = all.map((s) => s.sessionId);
+    assert.ok(ids.includes('sess-secondary'));
+    assert.equal(ids.filter((id) => id === 'sess-dup').length, 1);
+
+    const messages = reader.getSessionMessages('sess-secondary', projectPath);
+    assert.equal(messages.length, 1);
+
+    try {
+      fs.rmSync(secondaryRoot, { recursive: true, force: true });
+    } catch { /* ignore */ }
+  });
+});
