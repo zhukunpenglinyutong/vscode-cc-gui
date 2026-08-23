@@ -99,3 +99,4 @@ settings.local.json
 .turbo/
 .vite/
 .npm-cache
+.workflow

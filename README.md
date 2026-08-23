@@ -70,3 +70,9 @@ Thanks to everyone who has helped make CC GUI better.
 These names are used solely to describe third-party products and technologies that this extension is compatible with or integrates. They do **not** imply any affiliation, endorsement, or sponsorship by the respective rights holders.
 
 Claude®, Claude Code, Codex, ChatGPT, OpenAI, Visual Studio Code, and related marks are trademarks of their respective owners. They are used here only to describe interoperability. This project is not affiliated with or endorsed by those trademark owners.
+
+---
+
+## Star History
+
+[![Star History](https://star-history.dera.page/svg?repos=zhukunpenglinyutong/vscode-cc-gui&type=date&legend=top-left)](https://star-history.dera.page/#zhukunpenglinyutong/vscode-cc-gui&type=date&legend=top-left)
