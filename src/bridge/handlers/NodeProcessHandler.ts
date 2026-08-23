@@ -1,12 +1,14 @@
 import * as vscode from 'vscode';
 import { BridgeContext, BridgeHandler, BridgeMessage } from '../types';
 import { callWindowFunction, parseJson } from './helpers';
+import {
+  ProcessSnapshotRow,
+  classifyProcess,
+  collectProtectedPids,
+  providerForCommand,
+} from './nodeProcessUtils';
 
-interface ProcessSnapshotRow {
-  pid: number;
-  ppid: number;
-  command: string;
-}
+export type { ProcessSnapshotRow } from './nodeProcessUtils';
 
 const OWNED_PROCESS_HINTS = ['daemon.js', 'channel-manager.js'];
 
@@ -76,9 +78,10 @@ export class NodeProcessHandler implements BridgeHandler {
 
   private async killAllOrphans(webview: vscode.Webview): Promise<void> {
     const processes = await this.snapshot();
+    const protectedPids = this.collectProtectedPids(processes);
     let killed = 0;
     let error: string | undefined;
-    for (const proc of processes.filter((item) => this.classify(item) === 'ORPHAN')) {
+    for (const proc of processes.filter((item) => this.classify(item, protectedPids) === 'ORPHAN')) {
       if (!this.canKillPid(proc.pid)) continue;
       try {
         process.kill(proc.pid, 'SIGTERM');
@@ -118,11 +121,12 @@ export class NodeProcessHandler implements BridgeHandler {
 
   private buildSnapshot(rows: ProcessSnapshotRow[]): Record<string, unknown> {
     const now = Date.now();
+    const protectedPids = this.collectProtectedPids(rows);
     let daemon = 0;
     let channel = 0;
     let orphan = 0;
     const processes = rows.map((row) => {
-      const kind = this.classify(row);
+      const kind = this.classify(row, protectedPids);
       if (kind === 'DAEMON') daemon++;
       else if (kind === 'CHANNEL') channel++;
       else orphan++;
@@ -152,24 +156,16 @@ export class NodeProcessHandler implements BridgeHandler {
     };
   }
 
-  private classify(row: ProcessSnapshotRow): 'DAEMON' | 'CHANNEL' | 'ORPHAN' {
-    if (row.pid === this.context.callbacks.getBridgeProcessPid()) {
-      return 'DAEMON';
-    }
-    if (row.command.includes('channel-manager.js')) {
-      return 'CHANNEL';
-    }
-    return 'ORPHAN';
+  private classify(row: ProcessSnapshotRow, protectedPids: ReadonlySet<number>): 'DAEMON' | 'CHANNEL' | 'ORPHAN' {
+    return classifyProcess(row, this.context.callbacks.getBridgeProcessPid(), protectedPids);
+  }
+
+  private collectProtectedPids(rows: ProcessSnapshotRow[]): Set<number> {
+    return collectProtectedPids(rows, this.context.callbacks.getBridgeProcessPid());
   }
 
   private providerForCommand(command: string): string | undefined {
-    if (command.includes('codex')) return 'codex';
-    if (command.includes('claude')) return 'claude';
-    if (command.includes('grok')) return 'grok';
-    if (command.includes('kimi')) return 'kimi';
-    if (command.includes('opencode')) return 'opencode';
-    if (/\bpi\b/.test(command) || command.includes(' pi ')) return 'pi';
-    return undefined;
+    return providerForCommand(command);
   }
 
   private isRelevantProcess(row: ProcessSnapshotRow, rows: ProcessSnapshotRow[]): boolean {

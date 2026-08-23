@@ -6,15 +6,20 @@ import { BridgeContext, BridgeHandler, BridgeMessage } from '../types';
 import { callWindowFunction } from './helpers';
 import { NodeDetector } from '../../nodeDetector';
 import { isCliOnlyProvider } from '../../cli/cliTools';
+import { getDshSettings } from '../services/DshSettingsStore';
 
 const CHANNEL_SCRIPT = 'channel-manager.js';
 const TIMEOUT_MS = 50_000;
 const MAX_OUTPUT_CHARS = 64_000;
-const LIST_MODEL_PROVIDERS = new Set(['kimi', 'opencode', 'pi']);
+const LIST_MODEL_PROVIDERS = new Set(['grok', 'kimi', 'opencode', 'pi', 'omp', 'dsh']);
 
 /**
- * Lists models for headless CLI providers (Kimi / OpenCode / PI) via channel-manager.
+ * Lists models for headless CLI providers (Kimi / OpenCode / PI / OMP / DSH) via channel-manager.
  * Frontend: sendBridgeEvent('get_cli_models', provider) → window.setCliModels(...)
+ *
+ * DSH differs: its catalog is runtime-only (Host RPC `llm.models` against the
+ * persistent `dsh web`), so the saved connection settings are passed on stdin
+ * and the env key enables stdin mode.
  */
 export class CliModelsHandler implements BridgeHandler {
   readonly supportedEvents = ['get_cli_models'] as const;
@@ -53,7 +58,7 @@ export class CliModelsHandler implements BridgeHandler {
       const args = [script, provider, 'listModels'];
       this.context.log.appendLine(`[CliModels] Listing models for ${provider}: ${node} ${args.join(' ')}`);
 
-      const output = await this.runProcess(node, args, bridgeDir);
+      const output = await this.runProcess(node, args, bridgeDir, provider);
       const payload = this.extractJsonObject(output);
       if (!payload) {
         this.pushError(webview, provider, `No model list JSON in ${provider} listModels output`);
@@ -70,15 +75,29 @@ export class CliModelsHandler implements BridgeHandler {
     }
   }
 
-  private runProcess(node: string, args: string[], cwd: string): Promise<string> {
+  private runProcess(node: string, args: string[], cwd: string, provider: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let settled = false;
       let output = '';
+      // DSH reads its connection settings from a stdin JSON payload.
+      const isDsh = provider === 'dsh';
       const child = cp.spawn(node, args, {
         cwd,
-        env: process.env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        env: isDsh ? { ...process.env, DSH_USE_STDIN: 'true' } : process.env,
+        stdio: isDsh ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
       });
+
+      if (isDsh && child.stdin) {
+        const settings = getDshSettings();
+        child.stdin.on('error', () => { /* child gone before stdin flush */ });
+        child.stdin.write(JSON.stringify({
+          dshBin: settings.bin,
+          dshHost: settings.host,
+          dshPort: settings.port,
+          dshAutoStart: settings.autoStart,
+        }) + '\n');
+        child.stdin.end();
+      }
 
       const timer = setTimeout(() => {
         if (settled) return;

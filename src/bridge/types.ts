@@ -11,7 +11,7 @@ export interface BridgeHandler {
   handle(message: BridgeMessage): Promise<boolean> | boolean;
 }
 
-export type RuntimeProviderId = 'claude' | 'codex' | 'grok' | 'kimi' | 'opencode' | 'pi';
+export type RuntimeProviderId = 'claude' | 'codex' | 'grok' | 'kimi' | 'opencode' | 'pi' | 'omp' | 'dsh';
 
 export interface BridgeCallbacks {
   setActiveProvider(provider: RuntimeProviderId): void;
@@ -31,6 +31,7 @@ export interface BridgeCallbacks {
   deleteHistoryTitle(content: string, webview: vscode.Webview): void;
   toggleFavoriteSession(content: string, webview: vscode.Webview): void;
   loadSubagentSession(content: string, webview: vscode.Webview): void;
+  loadSubagentStatuses(content: string, webview: vscode.Webview): void;
   convertToCliSession(content: string, webview: vscode.Webview): void;
   getUsageStatistics(content: string, webview: vscode.Webview): void;
   writeClipboard(content: string): Promise<void>;

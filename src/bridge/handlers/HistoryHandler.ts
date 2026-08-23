@@ -14,6 +14,7 @@ export class HistoryHandler implements BridgeHandler {
     'delete_title',
     'deep_search_history',
     'load_subagent_session',
+    'load_subagent_statuses',
     'convert_to_cli_session',
   ] as const;
 
@@ -57,6 +58,9 @@ export class HistoryHandler implements BridgeHandler {
         return true;
       case 'load_subagent_session':
         this.context.callbacks.loadSubagentSession(content, webview);
+        return true;
+      case 'load_subagent_statuses':
+        this.context.callbacks.loadSubagentStatuses(content, webview);
         return true;
       case 'convert_to_cli_session':
         this.context.callbacks.convertToCliSession(content, webview);

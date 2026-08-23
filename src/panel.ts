@@ -1,8 +1,36 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { BridgeServer } from './bridge';
 import { clampTitle, extractTitleUpdate, resolveTabTitle } from './panelHelpers';
+
+/**
+ * User-installed DSH agent preset ids under <dshHome>/.agent-presets/<id>/.
+ * dshHome is `${DSH_HOME:-$HOME/.dsh}` — the same root the `dsh-agent-presets`
+ * plugin scans. A directory counts as a preset when it ships an
+ * `agent.cordis.yml` composition. Mirrors ai-bridge preset-overlay.js.
+ */
+function discoverUserDshPresetIds(): string[] {
+  const dshHome = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
+  const root = path.join(dshHome, '.agent-presets');
+  const ids: string[] = [];
+  try {
+    for (const dirent of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!dirent.isDirectory()) continue;
+      try {
+        if (fs.existsSync(path.join(root, dirent.name, 'agent.cordis.yml'))) {
+          ids.push(dirent.name);
+        }
+      } catch {
+        // Unreadable subdir — skip.
+      }
+    }
+  } catch {
+    // Root missing or unreadable — no user presets.
+  }
+  return ids.sort();
+}
 
 export class CcGuiPanel implements vscode.WebviewViewProvider {
   /** Primary/secondary sidebar webviews (left Activity Bar + right Secondary Side Bar). */
@@ -231,12 +259,18 @@ export class CcGuiPanel implements vscode.WebviewViewProvider {
     const languageConfig = this.bridge.getLanguageConfig();
     const languageSeed = JSON.stringify(languageConfig);
 
+    // User-installed DSH agent presets (scanned from the same root the
+    // dsh-agent-presets plugin uses), seeded before the frontend bundle starts.
+    const dshPresetSeed = JSON.stringify(discoverUserDshPresetIds());
+
     // Inject VSCode bridge before </head>
     const bridgeScript = `
     <script>
       (function() {
         // Host language (manual override or vscode.env.language) — read by i18n before React mounts
         window.__pendingLanguageConfig = ${languageSeed};
+        // User-installed DSH agent preset ids discovered from the DSH home
+        window.__INITIAL_DSH_PRESETS__ = ${dshPresetSeed};
 
         const vscode = acquireVsCodeApi();
         window.sendToJava = function(payload) {

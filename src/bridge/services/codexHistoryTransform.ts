@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import { codexImageTagRegex, imagePathFromCodexImageTagMatch } from './codexImageTags.ts';
+import { extractUpdatePlanFromResponseItemPayload, normalizeUpdatePlanInput } from './codexPlanParser.ts';
 
 export interface CodexHistoryImageLoader {
   imageBlockFromLocalPath(filePath: string): Record<string, unknown> | null;
@@ -38,6 +39,10 @@ export function transformCodexHistoryRows(
   // rows. They are attached to the next `event_msg / user_message` row (which carries the text).
   let pendingUserImageBlocks: PendingUserImageBlocks | null = null;
   let lastUserMessageWithoutImagesIndex = -1;
+  // custom_tool_call exec wrappers whose latest tools.update_plan literal was
+  // replayed as an update_plan tool_use; matching custom_tool_call_output rows
+  // (keyed by call_id) become their tool_result.
+  const replayedPlanCallIds = new Set<string>();
 
   const flushPendingImagesToPreviousUser = () => {
     if (!pendingUserImageBlocks || lastUserMessageWithoutImagesIndex < 0) return;
@@ -184,6 +189,47 @@ export function transformCodexHistoryRows(
         type: 'user',
         content: '[tool_result]',
         raw: { message: { role: 'user', content: [block] } },
+        timestamp,
+      });
+      continue;
+    }
+
+    if (payloadType === 'custom_tool_call') {
+      // Replay tools.update_plan(...) snapshots out of exec scripts so cold
+      // history loads show the same plan as the live stream. Other custom
+      // tool calls (apply_patch etc.) have no history replay here.
+      const planInput = extractUpdatePlanFromResponseItemPayload(payload);
+      const callId = getResponseItemCallId(payload);
+      if (!planInput || !callId) continue;
+      replayedPlanCallIds.add(callId);
+      messages.push({
+        type: 'assistant',
+        content: '[tool_use]',
+        raw: { message: { role: 'assistant', content: [{
+          type: 'tool_use',
+          id: `codex_plan_${callId}`,
+          name: 'update_plan',
+          input: planInput,
+        }] } },
+        timestamp,
+      });
+      continue;
+    }
+
+    if (payloadType === 'custom_tool_call_output') {
+      const callId = getResponseItemCallId(payload);
+      if (!callId || !replayedPlanCallIds.has(callId)) continue;
+      const output = extractCustomToolOutputText(payload.output);
+      const isError = isExplicitToolError(payload, output);
+      messages.push({
+        type: 'user',
+        content: '[tool_result]',
+        raw: { message: { role: 'user', content: [{
+          type: 'tool_result',
+          tool_use_id: `codex_plan_${callId}`,
+          is_error: isError,
+          content: isError ? 'Plan update failed' : 'Plan updated',
+        }] } },
         timestamp,
       });
     }
@@ -455,6 +501,37 @@ function convertCodexFunctionCallOutputPayload(payload: CodexPayload): Record<st
   };
 }
 
+function getResponseItemCallId(payload: CodexPayload): string {
+  const id = payload?.call_id ?? payload?.id;
+  return typeof id === 'string' && id.trim() ? id : '';
+}
+
+function extractCustomToolOutputText(output: unknown): string {
+  if (typeof output === 'string') return output;
+  if (Array.isArray(output)) {
+    return output.map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item.text === 'string') return item.text;
+      return JSON.stringify(item ?? '');
+    }).join('\n');
+  }
+  if (output && typeof output === 'object' && typeof (output as Record<string, unknown>).text === 'string') {
+    return (output as Record<string, unknown>).text as string;
+  }
+  return JSON.stringify(output ?? '');
+}
+
+/**
+ * Mirrors CodexMessageConverter.isExplicitToolError: plan outputs are short
+ * status texts, so an any-line error-prefix match is safe (unlike apply_patch
+ * output, which may echo command output containing e.g. "exit code: 1").
+ */
+function isExplicitToolError(payload: CodexPayload, output: string): boolean {
+  if (payload.status === 'error' || payload.is_error === true) return true;
+  return /(?:^|\n)\s*(?:error:|failed to parse|permission denied|command denied|script failed\b|script error:|exit code:\s*[1-9]\d*)/i
+    .test(output);
+}
+
 function parseToolArguments(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return { ...(value as Record<string, unknown>) };
@@ -537,40 +614,6 @@ function normalizeMcpToolInput(server: string, tool: string, args: Record<string
   }
 
   return input;
-}
-
-function normalizeUpdatePlanInput(input: Record<string, unknown>): Record<string, unknown> {
-  const normalized = { ...input };
-  const plan = Array.isArray(normalized.plan) ? normalized.plan : [];
-  normalized.plan = plan
-    .map((item) => {
-      if (!item || typeof item !== 'object') return null;
-      const row = item as Record<string, unknown>;
-      const content =
-        (typeof row.content === 'string' && row.content.trim()) ? row.content.trim() :
-        (typeof row.step === 'string' && row.step.trim()) ? row.step.trim() :
-        (typeof row.title === 'string' && row.title.trim()) ? row.title.trim() :
-        (typeof row.text === 'string' && row.text.trim()) ? row.text.trim() :
-        '';
-      if (!content) return null;
-      return {
-        ...row,
-        content,
-        step: content,
-        status: normalizePlanStatus(row.status),
-      };
-    })
-    .filter(Boolean);
-  return normalized;
-}
-
-function normalizePlanStatus(status: unknown): string {
-  const value = typeof status === 'string' ? status.trim().toLowerCase() : '';
-  if (value === 'completed' || value === 'done') return 'completed';
-  if (value === 'in_progress' || value === 'in-progress' || value === 'active' || value === 'running') {
-    return 'in_progress';
-  }
-  return 'pending';
 }
 
 function stringifyToolOutput(value: unknown): string {

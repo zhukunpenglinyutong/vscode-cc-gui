@@ -229,4 +229,145 @@ describe('transformCodexHistoryRows', () => {
       { type: 'tool_result', tool_use_id: 'call-1', is_error: false, content: 'file contents' },
     ]);
   });
+
+  it('replays a nested update_plan from a custom_tool_call exec script', () => {
+    const messages = transformCodexHistoryRows([
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:00.000Z',
+        payload: {
+          type: 'custom_tool_call',
+          call_id: 'plan-1',
+          name: 'exec',
+          input: 'const r = await tools.update_plan({'
+            + 'explanation:"Implement and verify",'
+            + 'plan:['
+            + '{step:"Inspect current behavior",status:"completed"},'
+            + "{step:'Implement parser',status:'in_progress'},"
+            + '{step:`Run tests`,status:"pending"}'
+            + ']}); text(r);',
+        },
+      },
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:01.000Z',
+        payload: { type: 'custom_tool_call_output', call_id: 'plan-1', output: '{}' },
+      },
+    ], imageLoader);
+
+    assert.equal(messages.length, 2);
+    const toolUse = messages[0].raw.message.content[0];
+    assert.equal(toolUse.type, 'tool_use');
+    assert.equal(toolUse.name, 'update_plan');
+    assert.equal(toolUse.id, 'codex_plan_plan-1');
+    assert.deepEqual(toolUse.input, {
+      explanation: 'Implement and verify',
+      plan: [
+        { step: 'Inspect current behavior', status: 'completed', content: 'Inspect current behavior' },
+        { step: 'Implement parser', status: 'in_progress', content: 'Implement parser' },
+        { step: 'Run tests', status: 'pending', content: 'Run tests' },
+      ],
+    });
+    const toolResult = messages[1].raw.message.content[0];
+    assert.equal(toolResult.tool_use_id, 'codex_plan_plan-1');
+    assert.equal(toolResult.is_error, false);
+    assert.equal(toolResult.content, 'Plan updated');
+  });
+
+  it('preserves an explicit empty plan snapshot from history', () => {
+    const messages = transformCodexHistoryRows([
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:00.000Z',
+        payload: {
+          type: 'custom_tool_call',
+          call_id: 'plan-empty',
+          name: 'exec',
+          input: 'await tools.update_plan({ /* clear */ plan: [], });',
+        },
+      },
+    ], imageLoader);
+
+    assert.equal(messages.length, 1);
+    const toolUse = messages[0].raw.message.content[0];
+    assert.equal(toolUse.name, 'update_plan');
+    assert.deepEqual(toolUse.input.plan, []);
+  });
+
+  it('rejects dynamic update_plan expressions in history instead of evaluating them', () => {
+    const messages = transformCodexHistoryRows([
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:00.000Z',
+        payload: {
+          type: 'custom_tool_call',
+          call_id: 'plan-dynamic',
+          name: 'exec',
+          input: "await tools.update_plan({plan:[{step:buildStep(),status:'pending'}]});",
+        },
+      },
+    ], imageLoader);
+
+    assert.equal(messages.length, 0);
+  });
+
+  it('ignores update_plan text inside strings and comments in history', () => {
+    const messages = transformCodexHistoryRows([
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:00.000Z',
+        payload: {
+          type: 'custom_tool_call',
+          call_id: 'plan-docs',
+          name: 'exec',
+          input: 'const example = "tools.update_plan({plan:[{step:\'Fake\'}]})";'
+            + '// tools.update_plan({plan:[{step:"Fake"}]})\n'
+            + '/* tools.update_plan({plan:[{step:"Fake"}]}) */',
+        },
+      },
+    ], imageLoader);
+
+    assert.equal(messages.length, 0);
+  });
+
+  it('marks a failed plan output as an error tool_result', () => {
+    const messages = transformCodexHistoryRows([
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:00.000Z',
+        payload: {
+          type: 'custom_tool_call',
+          call_id: 'plan-fail',
+          name: 'exec',
+          input: 'await tools.update_plan({plan:[{step:"Only",status:"pending"}]});',
+        },
+      },
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:01.000Z',
+        payload: {
+          type: 'custom_tool_call_output',
+          call_id: 'plan-fail',
+          output: 'Script failed\nExit code: 1',
+        },
+      },
+    ], imageLoader);
+
+    assert.equal(messages.length, 2);
+    const toolResult = messages[1].raw.message.content[0];
+    assert.equal(toolResult.is_error, true);
+    assert.equal(toolResult.content, 'Plan update failed');
+  });
+
+  it('drops a custom_tool_call_output that has no replayed plan call', () => {
+    const messages = transformCodexHistoryRows([
+      {
+        type: 'response_item',
+        timestamp: '2026-07-23T02:00:01.000Z',
+        payload: { type: 'custom_tool_call_output', call_id: 'orphan', output: '{}' },
+      },
+    ], imageLoader);
+
+    assert.equal(messages.length, 0);
+  });
 });
