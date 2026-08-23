@@ -7,6 +7,7 @@ import {
   listCodexMcpServers,
   addCodexMcpServer,
   removeCodexMcpServer,
+  renameCodexMcpServer,
   setCodexMcpServerEnabled
 } from '../services/codex/codex-mcp-admin.js';
 
@@ -73,15 +74,19 @@ export async function handleCodexCommand(command, args, stdinData) {
       break;
 
     case 'mcpAdd':
-      await addCodexMcpServer(stdinData?.name || args[0], stdinData?.config || null);
+      await addCodexMcpServer(stdinData?.name || args[0], stdinData?.config || null, stdinData?.op || 'add');
       break;
 
     case 'mcpRemove':
-      await removeCodexMcpServer(stdinData?.name || args[0]);
+      await removeCodexMcpServer(stdinData?.name || args[0], stdinData?.op || 'remove');
+      break;
+
+    case 'mcpRename':
+      await renameCodexMcpServer(stdinData?.oldName, stdinData?.name || args[0], stdinData?.config || null);
       break;
 
     case 'mcpSetEnabled':
-      await setCodexMcpServerEnabled(stdinData?.name || args[0], stdinData?.enabled !== false);
+      await setCodexMcpServerEnabled(stdinData?.name || args[0], stdinData?.enabled !== false, stdinData?.op || 'toggle');
       break;
 
     default:
@@ -90,5 +95,5 @@ export async function handleCodexCommand(command, args, stdinData) {
 }
 
 export function getCodexCommandList() {
-  return ['send', 'getMcpServerTools', 'mcpList', 'mcpAdd', 'mcpRemove', 'mcpSetEnabled'];
+  return ['send', 'getMcpServerTools', 'mcpList', 'mcpAdd', 'mcpRemove', 'mcpRename', 'mcpSetEnabled'];
 }

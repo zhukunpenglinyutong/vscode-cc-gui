@@ -85,6 +85,16 @@ function printServerList(servers) {
 }
 
 /**
+ * Report a mutation outcome so the extension can fire the matching webview
+ * callback (codexMcpServerAdded/Updated/Deleted/Toggled) only after the CLI
+ * actually wrote config.toml — and surface a clear error when it did not.
+ * `op` is one of add/update/rename/remove/toggle.
+ */
+function printMutationResult(result) {
+  console.log('[MCP_SERVER_MUTATED]' + JSON.stringify(result));
+}
+
+/**
  * Resolve a single server's config from the native config.toml, or null.
  * Used when probing tools without a config supplied by the caller.
  */
@@ -129,7 +139,7 @@ function buildAddArgs(name, config) {
 }
 
 /** Add/update a Codex MCP server, then emit the refreshed list. */
-export async function addCodexMcpServer(name, config) {
+export async function addCodexMcpServer(name, config, op = 'add') {
   try {
     if (!name) throw new Error('Missing server name');
     // `codex mcp add` errors if the name already exists; replace by removing first.
@@ -138,24 +148,90 @@ export async function addCodexMcpServer(name, config) {
     if (result.code !== 0) {
       throw new Error(result.stderr.trim() || `codex mcp add exited with code ${result.code}`);
     }
+    printMutationResult({ ok: true, op, name, id: name });
     printServerList(await readServerList());
   } catch (error) {
     console.error('[CODEX_MCP_ADD_ERROR]', error.message);
+    printMutationResult({ ok: false, op, name, error: error.message });
     await listCodexMcpServers();
   }
 }
 
 /** Remove a Codex MCP server, then emit the refreshed list. */
-export async function removeCodexMcpServer(name) {
+export async function removeCodexMcpServer(name, op = 'remove') {
   try {
     if (!name) throw new Error('Missing server name');
     const result = await runCodexMcp(['remove', name]);
     if (result.code !== 0) {
       throw new Error(result.stderr.trim() || `codex mcp remove exited with code ${result.code}`);
     }
+    printMutationResult({ ok: true, op, name, id: name });
     printServerList(await readServerList());
   } catch (error) {
     console.error('[CODEX_MCP_REMOVE_ERROR]', error.message);
+    printMutationResult({ ok: false, op, name, error: error.message });
+    await listCodexMcpServers();
+  }
+}
+
+/**
+ * Validate a rename against the current server names. Exported for unit tests.
+ * Mirrors the JetBrains CodexMcpServerManager.renameMcpServer guards: the old
+ * entry must exist and the new id must be free — otherwise config.toml is left
+ * untouched.
+ */
+export function planMcpRename(serverNames, oldName, newName) {
+  if (!oldName || !newName) {
+    return { ok: false, error: 'Old and new server names are required' };
+  }
+  if (!serverNames.includes(oldName)) {
+    return { ok: false, error: `MCP server '${oldName}' not found` };
+  }
+  if (oldName !== newName && serverNames.includes(newName)) {
+    return { ok: false, error: `MCP server '${newName}' already exists` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Rename + update a Codex MCP server in one op, then emit the refreshed list.
+ * The CLI has no rename subcommand, so this is remove(old) + add(new); if the
+ * add fails, the old entry is restored best-effort so a failed rename never
+ * drops the server.
+ */
+export async function renameCodexMcpServer(oldName, newName, config) {
+  const op = 'rename';
+  try {
+    const servers = await readServerList();
+    const plan = planMcpRename(servers.map((s) => s.name), oldName, newName);
+    if (!plan.ok) throw new Error(plan.error);
+    const existing = servers.find((s) => s.name === oldName);
+
+    // Validate the config and build both add invocations BEFORE removing
+    // anything: a bad/missing config must abort the rename with the old entry
+    // intact (buildAddArgs throws synchronously on invalid configs). When no
+    // config is supplied, fall back to the existing server config.
+    const effectiveConfig = config ?? existing.server;
+    const addArgs = buildAddArgs(newName, effectiveConfig);
+    const rollbackArgs = buildAddArgs(oldName, existing.server);
+
+    const removeResult = await runCodexMcp(['remove', oldName]);
+    if (removeResult.code !== 0) {
+      throw new Error(removeResult.stderr.trim() || `codex mcp remove exited with code ${removeResult.code}`);
+    }
+    const addResult = await runCodexMcp(['add', ...addArgs]);
+    if (addResult.code !== 0) {
+      // Best-effort rollback so a failed rename never drops the old entry.
+      try {
+        await runCodexMcp(['add', ...rollbackArgs]);
+      } catch { /* rollback is best-effort */ }
+      throw new Error(addResult.stderr.trim() || `codex mcp add exited with code ${addResult.code}`);
+    }
+    printMutationResult({ ok: true, op, name: newName, id: newName, oldId: oldName });
+    printServerList(await readServerList());
+  } catch (error) {
+    console.error('[CODEX_MCP_RENAME_ERROR]', error.message);
+    printMutationResult({ ok: false, op, name: newName, oldId: oldName, error: error.message });
     await listCodexMcpServers();
   }
 }
@@ -165,7 +241,7 @@ export async function removeCodexMcpServer(name) {
  * in place, then emit the refreshed list. The CLI has no enable/disable command,
  * so this is the only native way to persist the state.
  */
-export async function setCodexMcpServerEnabled(name, enabled) {
+export async function setCodexMcpServerEnabled(name, enabled, op = 'toggle') {
   try {
     if (!name) throw new Error('Missing server name');
     const file = codexConfigPath();
@@ -175,9 +251,11 @@ export async function setCodexMcpServerEnabled(name, enabled) {
     if (updated !== original) {
       writeConfigAtomically(file, updated);
     }
+    printMutationResult({ ok: true, op, name, id: name, enabled: enabled !== false });
     printServerList(await readServerList());
   } catch (error) {
     console.error('[CODEX_MCP_TOGGLE_ERROR]', error.message);
+    printMutationResult({ ok: false, op, name, error: error.message });
     await listCodexMcpServers();
   }
 }

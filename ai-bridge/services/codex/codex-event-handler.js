@@ -22,6 +22,7 @@ import {
   parseApplyPatchToOperations,
 } from './codex-patch-parser.js';
 import { emitFileChangeItemAsTools } from './codex-file-change-emit.js';
+import { extractUpdatePlanFromResponseItemPayload } from './codex-plan-parser.js';
 import {
   truncateForDisplay, getStableItemId, extractCommand,
   smartToolName, smartDescription, mapCommandToolNameToPermissionToolName,
@@ -213,6 +214,78 @@ function handleFunctionCallOutputPayload(payload, state) {
   return true;
 }
 
+function getResponseItemCallId(payload) {
+  const id = payload?.call_id ?? payload?.id;
+  return typeof id === 'string' && id.trim() ? id : '';
+}
+
+/**
+ * custom_tool_call exec wrappers carry tools.update_plan(...) scripts. Extract
+ * the latest literal plan snapshot and surface it as a regular update_plan
+ * tool_use so the plan renders like any other todo list. Returns true only
+ * when the payload was a plan call (other custom tool calls are handled by
+ * their own pipelines).
+ */
+function handleCustomPlanToolCallPayload(payload, state) {
+  if (!payload || payload.type !== 'custom_tool_call') return false;
+
+  const callId = getResponseItemCallId(payload);
+  const planInput = extractUpdatePlanFromResponseItemPayload(payload);
+  if (!callId || !planInput) return false;
+
+  const toolUseId = `codex_plan_${callId}`;
+  if (!state.processedCustomPlanCallIds.has(callId)) {
+    state.processedCustomPlanCallIds.add(callId);
+    if (!state.emittedToolUseIds.has(toolUseId)) {
+      state.emitMessage(toolUseMsg(toolUseId, 'update_plan', planInput));
+      state.emittedToolUseIds.add(toolUseId);
+    }
+    state.pendingCustomPlanToolUseIds.set(callId, toolUseId);
+  }
+  return true;
+}
+
+function extractCustomToolOutputText(output) {
+  if (typeof output === 'string') return output;
+  if (Array.isArray(output)) {
+    return output.map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item.text === 'string') return item.text;
+      return JSON.stringify(item ?? '');
+    }).join('\n');
+  }
+  if (output && typeof output.text === 'string') return output.text;
+  return JSON.stringify(output ?? '');
+}
+
+function handleCustomPlanToolCallOutputPayload(payload, state) {
+  if (!payload || payload.type !== 'custom_tool_call_output') return false;
+
+  const callId = getResponseItemCallId(payload);
+  const planToolUseId = callId ? state.pendingCustomPlanToolUseIds.get(callId) : null;
+  if (!planToolUseId) return false;
+
+  const output = extractCustomToolOutputText(payload.output);
+  // Plan outputs are short status texts, so an any-line match is safe here.
+  const planErrorOutput = /(?:^|\n)\s*(?:error:|failed to parse|permission denied|command denied|script failed\b|script error:|exit code:\s*[1-9]\d*)/i;
+  const isPlanError = payload.status === 'error' || payload.is_error === true || planErrorOutput.test(output);
+  if (!state.emittedToolResultIds.has(planToolUseId)) {
+    state.emitMessage(toolResultMsg(planToolUseId, isPlanError, isPlanError ? 'Plan update failed' : 'Plan updated'));
+    state.emittedToolResultIds.add(planToolUseId);
+  }
+  state.pendingCustomPlanToolUseIds.delete(callId);
+  return true;
+}
+
+function flushPendingCustomPlanCalls(state, isError = false) {
+  for (const toolUseId of state.pendingCustomPlanToolUseIds.values()) {
+    if (state.emittedToolResultIds.has(toolUseId)) continue;
+    state.emitMessage(toolResultMsg(toolUseId, isError, isError ? 'Plan update failed' : 'Plan updated'));
+    state.emittedToolResultIds.add(toolUseId);
+  }
+  state.pendingCustomPlanToolUseIds.clear();
+}
+
 
 /** Creates the initial mutable state bag consumed by processCodexEventStream. */
 export function createInitialEventState(emitMessage) {
@@ -230,8 +303,12 @@ export function createInitialEventState(emitMessage) {
     sessionFunctionCursor: 0,
     sessionTurnStartCursor: 0,
     processedPatchCallIds: new Set(),
+    processedCustomPlanCallIds: new Set(),
+    pendingCustomPlanToolUseIds: new Map(),
     processedSessionFunctionCallIds: new Set(),
     processedSessionFunctionOutputIds: new Set(),
+    processedSessionCustomToolCallIds: new Set(),
+    processedSessionCustomToolOutputIds: new Set(),
     emittedFileChangeToolIds: new Set(),
     reasoningTextCache: new Map(),
     assistantTextCache: new Map(),
@@ -404,6 +481,26 @@ async function replayMissingFunctionCallsFromSession(state, config) {
       if (state.processedSessionFunctionOutputIds.has(callId)) continue;
       state.processedSessionFunctionOutputIds.add(callId);
       if (handleFunctionCallOutputPayload(payload, state)) {
+        toolResults += 1;
+      }
+      continue;
+    }
+
+    if (payloadType === 'custom_tool_call') {
+      const callId = getResponseItemCallId(payload) || `line_${i}`;
+      if (state.processedSessionCustomToolCallIds.has(callId)) continue;
+      state.processedSessionCustomToolCallIds.add(callId);
+      if (handleCustomPlanToolCallPayload(payload, state)) {
+        toolUses += 1;
+      }
+      continue;
+    }
+
+    if (payloadType === 'custom_tool_call_output') {
+      const callId = getResponseItemCallId(payload) || `line_${i}`;
+      if (state.processedSessionCustomToolOutputIds.has(callId)) continue;
+      state.processedSessionCustomToolOutputIds.add(callId);
+      if (handleCustomPlanToolCallOutputPayload(payload, state)) {
         toolResults += 1;
       }
     }
@@ -884,8 +981,12 @@ export async function processCodexEventStream(events, state, config) {
         state.sessionFunctionCursor = 0;
         state.sessionTurnStartCursor = 0;
         state.processedPatchCallIds.clear();
+        state.processedCustomPlanCallIds.clear();
+        state.pendingCustomPlanToolUseIds.clear();
         state.processedSessionFunctionCallIds.clear();
         state.processedSessionFunctionOutputIds.clear();
+        state.processedSessionCustomToolCallIds.clear();
+        state.processedSessionCustomToolOutputIds.clear();
         console.log('[THREAD_ID]', state.currentThreadId);
         break;
       }
@@ -984,6 +1085,7 @@ export async function processCodexEventStream(events, state, config) {
         } catch (error) {
           console.warn('[DEBUG] turn.completed patch scan failed:', error?.message || error);
         }
+        flushPendingCustomPlanCalls(state);
         if (event.usage) {
           console.log('[DEBUG] Token usage:', event.usage);
           const totalInputTokens = event.usage.input_tokens || 0;
@@ -1063,6 +1165,18 @@ export async function processCodexEventStream(events, state, config) {
           if (handleFunctionCallOutputPayload(payload, state)) {
             if (payloadCallId) {
               state.processedSessionFunctionOutputIds.add(payloadCallId);
+            }
+            break;
+          }
+          if (handleCustomPlanToolCallPayload(payload, state)) {
+            if (payloadCallId) {
+              state.processedSessionCustomToolCallIds.add(payloadCallId);
+            }
+            break;
+          }
+          if (handleCustomPlanToolCallOutputPayload(payload, state)) {
+            if (payloadCallId) {
+              state.processedSessionCustomToolOutputIds.add(payloadCallId);
             }
             break;
           }
