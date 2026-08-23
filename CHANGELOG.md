@@ -1,5 +1,23 @@
 # Changelog
 
+##### **2026年8月23日（v0.1.7）**
+
+English:
+- Add DeepSeek Harness (DSH) provider: persistent daemon-hosted sessions with preset overlays, approval bridging, and full history
+- Add OMP CLI provider with dedicated session/service layer and history reader
+- Migrate Grok to a persistent ACP service for more stable long-running sessions
+- Claude: conversation chain, message rewind, and task completion notifications
+- Codex: plan parsing, plan usage tracking, and enhanced MCP admin
+- Webview: subagent status panel upgrades, richer message rendering, and chat input enhancements
+
+中文:
+- 新增 DeepSeek Harness（DSH）Provider：常驻守护进程承载会话，支持预设覆盖、审批桥接与完整历史
+- 新增 OMP CLI Provider：独立会话/服务层与历史读取
+- Grok 迁移至常驻 ACP 服务，长会话更稳定
+- Claude：会话链、消息回溯（rewind）与任务完成通知
+- Codex：计划解析、计划用量统计与 MCP 管理增强
+- Webview：子代理状态面板升级、消息渲染增强与输入框改进
+
 ##### **2026年8月19日（v0.1.5）**
 
 English:

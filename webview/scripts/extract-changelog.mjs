@@ -21,7 +21,7 @@ const content = fs.readFileSync(changelogPath, 'utf8');
  * Parse CHANGELOG.md into structured entries.
  * Handles three format eras:
  * - Newer (v0.1.7+): Bilingual with English and Chinese markers plus emoji section headers
- * - Mid (v0.1.4-v0.1.6): Bilingual with English and Chinese markers plus checkbox items
+ * - Mid (v0.1.4-v0.1.7): Bilingual with English and Chinese markers plus checkbox items
  * - Older (< v0.1.4): Chinese-only entries with checkbox items or plain text
  */
 function parseChangelog(raw) {
