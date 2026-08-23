@@ -1,9 +1,11 @@
 import { type RefObject, useCallback, useMemo, useRef } from 'react';
 import type { TFunction } from 'i18next';
 import type {
+  ClaudeContentBlock,
   ClaudeMessage,
   ClaudeRawMessage,
   SubagentHistoryResponse,
+  TodoItem,
   ToolResultBlock,
 } from '../types';
 import type { GetToolResultRawFn } from '../contexts/SubagentContext';
@@ -11,12 +13,15 @@ import type { RewindableMessage } from '../components/RewindSelectDialog';
 import { formatTime } from '../utils/helpers';
 import { extractTodosFromToolUse, extractAccumulatedTasks } from '../utils/todoToolNormalization';
 import {
+  computeStatusScopeMessages,
   finalizeSubagentsForSettledTurn,
   finalizeTodosForSettledTurn,
+  selectLatestSubagentTurn,
   sliceLatestConversationTurn,
 } from '../utils/turnScope';
 import { FILE_MODIFY_TOOL_NAMES, isToolName } from '../utils/toolConstants';
-import { useSubagents } from './useSubagents';
+import { extractSubagentsFromMessages, useSubagents } from './useSubagents';
+import { useCodexSubagentStatusPolling } from './useCodexSubagentStatusPolling';
 import { useFileChanges } from './useFileChanges';
 import { useFileChangesManagement } from './useFileChangesManagement';
 import type { useMessageProcessing } from './useMessageProcessing';
@@ -42,6 +47,78 @@ interface UseChatComputationsParams {
   subagentHistories: Record<string, SubagentHistoryResponse>;
   getMessageText: ReturnType<typeof useMessageProcessing>['getMessageText'];
   getContentBlocks: ReturnType<typeof useMessageProcessing>['getContentBlocks'];
+}
+
+/**
+ * Whether a message slice contains any assistant tool_use block. Used to decide
+ * whether the latest-turn scope is carrying active tool work worth focusing on,
+ * or is empty of tools (a reload snapshot / text-only turn) and should widen to
+ * the full conversation so StatusPanel lists do not disappear.
+ */
+function sliceHasToolUse(
+  messages: ClaudeMessage[],
+  getContentBlocks: (message: ClaudeMessage) => ClaudeContentBlock[],
+): boolean {
+  for (const message of messages) {
+    if (message.type !== 'assistant') continue;
+    const blocks = getContentBlocks(message);
+    for (const block of blocks) {
+      if (block.type === 'tool_use') return true;
+    }
+  }
+  return false;
+}
+
+export function deriveTodosForTurn(
+  turnMessages: ClaudeMessage[],
+  getContentBlocks: (message: ClaudeMessage) => ClaudeContentBlock[],
+  streamingActive: boolean,
+  currentProvider: string,
+): TodoItem[] {
+  const scopedMessages = currentProvider === 'codex'
+    ? sliceLatestConversationTurn(turnMessages)
+    : turnMessages;
+  let latestTodos: ReturnType<typeof extractTodosFromToolUse> = null;
+  let sawEmptyClaudeSnapshot = false;
+  for (let i = scopedMessages.length - 1; i >= 0; i--) {
+    const msg = scopedMessages[i];
+    if (msg.type !== 'assistant') continue;
+    const blocks = getContentBlocks(msg);
+    for (let j = blocks.length - 1; j >= 0; j--) {
+      const block = blocks[j];
+      const todos = extractTodosFromToolUse(block);
+      const input = block.type === 'tool_use' ? block.input : undefined;
+      const isExplicitEmptySnapshot = Boolean(input) && (
+        (Array.isArray(input?.todos) && input.todos.length === 0)
+        || (Array.isArray(input?.plan) && input.plan.length === 0)
+      );
+      if (todos && todos.length > 0) {
+        latestTodos = todos;
+        break;
+      }
+      if (todos && isExplicitEmptySnapshot) {
+        if (currentProvider === 'codex') {
+          latestTodos = todos;
+          break;
+        }
+        sawEmptyClaudeSnapshot = true;
+      }
+    }
+    if (latestTodos) break;
+  }
+
+  const accumulatedTasks = sawEmptyClaudeSnapshot
+    ? extractAccumulatedTasks(scopedMessages, getContentBlocks)
+    : null;
+  if (accumulatedTasks && accumulatedTasks.length > 0) {
+    return accumulatedTasks;
+  }
+
+  if (latestTodos !== null) {
+    return finalizeTodosForSettledTurn(latestTodos, streamingActive, currentProvider);
+  }
+
+  return accumulatedTasks ?? extractAccumulatedTasks(scopedMessages, getContentBlocks);
 }
 
 /**
@@ -117,6 +194,7 @@ export function useChatComputations({
     // Async subagent Write/Edit only appear on sidechain transcripts loaded into
     // subagentHistories — without this the StatusPanel "编辑" tab stays empty.
     subagentHistories,
+    currentSessionId,
   });
 
   const filteredFileChanges = useMemo(() => {
@@ -126,43 +204,74 @@ export function useChatComputations({
 
   const latestTurnMessages = useMemo(() => sliceLatestConversationTurn(messages), [messages]);
 
-  const latestTurnSubagents = useSubagents({
-    messages: latestTurnMessages,
+  // A run_in_background agent outlives the turn that launched it: the main turn
+  // settles while the sidechain keeps running, and its terminal report arrives
+  // as a later turn's task-notification user message. The turn-scoped narrowing
+  // below exists to focus sync tool progress on the current turn; if the
+  // session contains any async agent, narrowing would drop the agent's card
+  // from StatusPanel while the user waits for it to return — the reported
+  // "subagent list disappears after the session ends" symptom. Keep the full
+  // conversation in scope in that case. The check reuses the same extraction
+  // as the list itself (isAsyncAgentInput on the raw tool input) so the two
+  // can never disagree.
+  const asyncAgentPresence = useMemo(
+    () => extractSubagentsFromMessages(messages, getContentBlocks, findToolResult, getToolResultRaw, {})
+      .some((subagent) => subagent.isAsync === true),
+    [messages, getContentBlocks, findToolResult, getToolResultRaw],
+  );
+
+  // While streaming, focus on the current turn's task progress; once settled
+  // (history replay or idle), widen the scope to the whole conversation -
+  // otherwise a multi-turn history session whose last turn has no task tool
+  // would lose its task and subagent lists entirely.
+  //
+  // Exception: if the latest-turn slice carries no tool_use at all (e.g. a
+  // same-session reload snapshot whose latest turn predates the active work, or
+  // a text-only turn), widen to the full conversation. Without this, the
+  // StatusPanel subagent list can briefly disappear when a deferred
+  // reload's message refresh lands at the frontend a moment before the
+  // stream-end signal flips streamingActive back to false. Widening only adds
+  // content (earlier turns' settled items) - it never drops the current turn's.
+  // A session with any async agent likewise never narrows (see asyncAgentPresence).
+  const statusScopeMessages = useMemo(() => {
+    const latestTurnHasToolUse = latestTurnMessages.length > 0 && sliceHasToolUse(latestTurnMessages, getContentBlocks);
+    return computeStatusScopeMessages(streamingActive, asyncAgentPresence, latestTurnMessages, messages, latestTurnHasToolUse);
+  }, [streamingActive, asyncAgentPresence, latestTurnMessages, messages, getContentBlocks]);
+
+  // Plans belong to the current user turn while streaming. Unlike subagents,
+  // a text-only new turn must not temporarily revive a previous turn's plan.
+  // Settled/history views scan the full transcript for Claude; Codex is always
+  // narrowed to its latest user turn inside deriveTodosForTurn.
+  const todoScopeMessages = useMemo(
+    () => (streamingActive ? latestTurnMessages : messages),
+    [streamingActive, latestTurnMessages, messages],
+  );
+
+  const extractedSubagents = useSubagents({
+    messages: currentProvider === 'codex' ? messages : statusScopeMessages,
     getContentBlocks,
     findToolResult,
     getToolResultRaw,
     subagentHistories,
   });
 
+  const latestTurnSubagents = useMemo(
+    () => (currentProvider === 'codex'
+      ? selectLatestSubagentTurn(messages, extractedSubagents)
+      : extractedSubagents),
+    [currentProvider, messages, extractedSubagents],
+  );
+
   const subagents = useMemo(
     () => finalizeSubagentsForSettledTurn(latestTurnSubagents, streamingActive),
     [latestTurnSubagents, streamingActive],
   );
 
+  useCodexSubagentStatusPolling({ subagents, currentSessionId, currentProvider });
+
   const globalTodos = useMemo(() => {
-    let latestTodos: ReturnType<typeof extractTodosFromToolUse> = null;
-    for (let i = latestTurnMessages.length - 1; i >= 0; i--) {
-      const msg = latestTurnMessages[i];
-      if (msg.type !== 'assistant') continue;
-      const blocks = getContentBlocks(msg);
-      for (let j = blocks.length - 1; j >= 0; j--) {
-        const todos = extractTodosFromToolUse(blocks[j]);
-        if (todos && todos.length > 0) {
-          latestTodos = todos;
-          break;
-        }
-      }
-      if (latestTodos) break;
-    }
-    if (latestTodos) {
-      return finalizeTodosForSettledTurn(latestTodos, streamingActive);
-    }
-    const accumulated = extractAccumulatedTasks(messages, getContentBlocks);
-    if (accumulated.length > 0) {
-      return accumulated;
-    }
-    return [];
-  }, [latestTurnMessages, messages, getContentBlocks, streamingActive]);
+    return deriveTodosForTurn(todoScopeMessages, getContentBlocks, streamingActive, currentProvider);
+  }, [todoScopeMessages, getContentBlocks, streamingActive, currentProvider]);
 
   const canRewindFromMessageIndex = useCallback(
     (userMessageIndex: number) => {

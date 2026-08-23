@@ -73,7 +73,6 @@ const t = ((key: string, opts?: Record<string, string>) => {
     'chat.noThinkingContent': '无思考内容',
     'markdown.copyMessage': '复制消息',
     'markdown.copySuccess': '已复制',
-    'chat.streamingConnected': '已连接',
     'chat.totalDuration': '本次耗时',
     'chat.tokenUsage': '输入 {{input}} / 输出 {{output}}',
     'chat.tokenUsageDetail': '本轮合计 — 输入 {{input}} · 缓存写入 {{cacheWrite}} · 缓存读取 {{cacheRead}} · 输出 {{output}}',
@@ -201,6 +200,43 @@ describe('MessageItem copy button visibility', () => {
 
     expect(screen.getByTestId('bash-tool-group-block')).toBeTruthy();
     expect(screen.queryAllByTestId('content-block-tool_use')).toHaveLength(0);
+  });
+
+  it('keeps the Agent block mounted when its tool id arrives later', () => {
+    const makeMessage = (id?: string): ClaudeMessage => ({
+      type: 'assistant',
+      raw: {
+        content: [{
+          type: 'tool_use',
+          ...(id ? { id } : {}),
+          name: 'Task',
+          input: { description: 'Inspect the project' },
+        }],
+      },
+    } as unknown as ClaudeMessage);
+
+    const renderAgentMessage = (message: ClaudeMessage) => (
+      <MessageItem
+        message={message}
+        messageIndex={0}
+        messageKey="message-0"
+        isLast
+        streamingActive
+        isThinking={false}
+        t={t}
+        getMessageText={getMessageText}
+        getContentBlocks={getContentBlocks}
+        findToolResult={findToolResult}
+        extractMarkdownContent={extractMarkdownContent}
+      />
+    );
+
+    const { rerender } = render(renderAgentMessage(makeMessage()));
+    const initialBlock = screen.getByTestId('agent-group-block');
+
+    rerender(renderAgentMessage(makeMessage('tool-1')));
+
+    expect(screen.getByTestId('agent-group-block')).toBe(initialBlock);
   });
 });
 

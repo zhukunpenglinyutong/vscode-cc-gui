@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { ClaudeContentBlock, ClaudeMessage, SubagentInfo, TaskEventMap, ToolResultBlock } from '../types';
+import type { ClaudeContentBlock, ClaudeMessage, ToolResultBlock } from '../types';
 import { applySubagentHistoryCompletion, extractSubagentsFromMessages } from './useSubagents';
-import { finalizeSubagentsForSettledTurn } from '../utils/turnScope';
 
-const assistantWithAgent = (
-  toolUseId: string,
-  options?: { runInBackground?: boolean; description?: string },
-): ClaudeMessage => ({
+const assistantWithAgent = (toolUseId: string): ClaudeMessage => ({
   type: 'assistant',
   content: '',
   raw: {
@@ -18,9 +14,8 @@ const assistantWithAgent = (
           name: 'Agent',
           input: {
             subagent_type: 'research',
-            description: options?.description ?? '分析后端历史索引服务的设计模式',
+            description: '分析后端历史索引服务的设计模式',
             prompt: '分析 ClaudeHistoryIndexService',
-            ...(options?.runInBackground ? { run_in_background: true } : {}),
           },
         },
       ],
@@ -28,10 +23,7 @@ const assistantWithAgent = (
   },
 });
 
-const toolResultMessage = (
-  toolUseId: string,
-  options?: { isError?: boolean; content?: string; withUsage?: boolean },
-): ClaudeMessage => ({
+const toolResultMessage = (toolUseId: string): ClaudeMessage => ({
   type: 'user',
   content: '',
   raw: {
@@ -39,21 +31,18 @@ const toolResultMessage = (
       {
         type: 'tool_result',
         tool_use_id: toolUseId,
-        is_error: options?.isError,
-        content: [{ type: 'text', text: options?.content ?? 'final report' }],
+        content: [{ type: 'text', text: 'final report' }],
       },
     ],
-    toolUseResult: options?.withUsage === false
-      ? { agentId: 'agent-launch-ack' }
-      : {
-        status: 'completed',
-        agentId: 'af5a83aa15ca39691',
-        agentType: 'research',
-        totalDurationMs: 62629,
-        totalTokens: 110586,
-        totalToolUseCount: 4,
-        toolStats: { readCount: 4, searchCount: 0 },
-      },
+    toolUseResult: {
+      status: 'completed',
+      agentId: 'af5a83aa15ca39691',
+      agentType: 'research',
+      totalDurationMs: 62629,
+      totalTokens: 110586,
+      totalToolUseCount: 4,
+      toolStats: { readCount: 4, searchCount: 0 },
+    },
   } as any,
 });
 
@@ -89,6 +78,125 @@ const getToolResultRaw = (messages: ClaudeMessage[]) => (toolUseId: string) => {
 };
 
 describe('extractSubagentsFromMessages', () => {
+  it('retains Codex spawn_agent path metadata for history requests', () => {
+    const message: ClaudeMessage = {
+      type: 'assistant',
+      content: '',
+      raw: {
+        message: {
+          content: [{
+            type: 'tool_use',
+            id: 'call-spawn',
+            name: 'spawn_agent',
+            input: { task_name: 'audit_ui', message: 'Review anchors' },
+          }],
+        },
+      },
+    };
+
+    const subagents = extractSubagentsFromMessages(
+      [message], getContentBlocks, findToolResult([message]), getToolResultRaw([message]),
+    );
+
+    expect(subagents).toHaveLength(1);
+    expect(subagents[0]).toMatchObject({
+      id: 'call-spawn',
+      type: 'audit_ui',
+      agentPath: 'audit_ui',
+      isAsync: true,
+      status: 'running',
+    });
+    expect(subagents[0].description).toBe('');
+    expect(subagents[0].prompt).toBeUndefined();
+  });
+
+  it('does not expose Codex spawn_agent message content in StatusPanel fields', () => {
+    const opaqueMessage = 'gAAAAABopaque-transport-content';
+    const message: ClaudeMessage = {
+      type: 'assistant',
+      content: '',
+      raw: {
+        message: {
+          content: [{
+            type: 'tool_use',
+            id: 'call-safe-spawn',
+            name: 'spawn_agent',
+            input: { task_name: '/root/reviewer', message: opaqueMessage },
+          }],
+        },
+      },
+    };
+
+    const [subagent] = extractSubagentsFromMessages(
+      [message], getContentBlocks, findToolResult([message]), getToolResultRaw([message]),
+    );
+
+    expect(subagent).toMatchObject({ type: 'reviewer', description: '', agentPath: '/root/reviewer' });
+    expect(subagent.prompt).toBeUndefined();
+    expect(JSON.stringify(subagent)).not.toContain(opaqueMessage);
+  });
+
+  it('filters only empty spawn_agent argument parsing noise', () => {
+    const messages: ClaudeMessage[] = [{
+      type: 'assistant',
+      content: '',
+      raw: {
+        message: {
+          content: [{ type: 'tool_use', id: 'call-invalid-spawn', name: 'spawn_agent', input: {} }],
+        },
+      },
+    }, {
+      type: 'user',
+      content: '',
+      raw: {
+        content: [{
+          type: 'tool_result',
+          tool_use_id: 'call-invalid-spawn',
+          content: 'failed to parse function arguments: EOF while parsing a value',
+        }],
+      },
+    }];
+
+    expect(extractSubagentsFromMessages(
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
+    )).toEqual([]);
+  });
+
+  it('retains a valid spawn_agent request that fails at runtime', () => {
+    const messages: ClaudeMessage[] = [{
+      type: 'assistant',
+      content: '',
+      raw: {
+        message: {
+          content: [{
+            type: 'tool_use',
+            id: 'call-valid-failure',
+            name: 'spawn_agent',
+            input: { task_name: 'reviewer', message: 'opaque' },
+          }],
+        },
+      },
+    }, {
+      type: 'user',
+      content: '',
+      raw: {
+        content: [{
+          type: 'tool_result',
+          tool_use_id: 'call-valid-failure',
+          content: 'permission denied while starting agent',
+          is_error: true,
+        }],
+      },
+    }];
+
+    const subagents = extractSubagentsFromMessages(
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
+    );
+
+    expect(subagents).toHaveLength(1);
+    expect(subagents[0]).toMatchObject({ type: 'reviewer', status: 'error' });
+  });
+
   it('attaches completed Agent result metadata including stable agent id', () => {
     const messages = [assistantWithAgent('tooluse_backend'), toolResultMessage('tooluse_backend')];
 
@@ -103,7 +211,6 @@ describe('extractSubagentsFromMessages', () => {
       type: 'research',
       description: '分析后端历史索引服务的设计模式',
       status: 'completed',
-      isAsync: false,
       totalDurationMs: 62629,
       totalTokens: 110586,
       totalToolUseCount: 4,
@@ -111,39 +218,66 @@ describe('extractSubagentsFromMessages', () => {
     expect(subagents[0].toolStats).toMatchObject({ readCount: 4 });
   });
 
-  it('keeps async agents running after launch ack until task_notification arrives', () => {
-    const messages = [
-      assistantWithAgent('tooluse_async', { runInBackground: true, description: '写文件A' }),
-      toolResultMessage('tooluse_async', { content: 'launched', withUsage: false }),
-    ];
+  const assistantWithAsyncAgent = (toolUseId: string): ClaudeMessage => ({
+    type: 'assistant',
+    content: '',
+    raw: {
+      message: {
+        content: [
+          {
+            type: 'tool_use',
+            id: toolUseId,
+            name: 'Agent',
+            input: {
+              subagent_type: 'research',
+              description: '后台调研 subagent',
+              prompt: '调研索引服务设计模式',
+              run_in_background: true,
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  // Async agent (Agent tool with run_in_background:true) only gets a launch
+  // acknowledgment tool_result; the terminal status arrives later via a
+  // task_notification event.
+  const launchAckResult = (toolUseId: string): ClaudeMessage => ({
+    type: 'user',
+    content: '',
+    raw: {
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: toolUseId,
+          content: 'Async agent launched successfully.',
+        },
+      ],
+    } as any,
+  });
+
+  it('keeps async agent running while only the launch ack has landed', () => {
+    const messages = [assistantWithAsyncAgent('tu_spawn'), launchAckResult('tu_spawn')];
 
     const subagents = extractSubagentsFromMessages(
-      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), {},
     );
 
     expect(subagents).toHaveLength(1);
-    expect(subagents[0]).toMatchObject({
-      id: 'tooluse_async',
-      status: 'running',
-      isAsync: true,
-      description: '写文件A',
-    });
+    expect(subagents[0].status).toBe('running');
   });
 
-  it('completes async agents when a task_notification event lands', () => {
-    const messages = [
-      assistantWithAgent('tooluse_async', { runInBackground: true }),
-      toolResultMessage('tooluse_async', { content: 'launched', withUsage: false }),
-    ];
-    const taskEvents: TaskEventMap = {
-      tooluse_async: {
-        toolUseId: 'tooluse_async',
-        status: 'completed',
-        summary: 'done writing file',
-        agentId: 'bg-agent-1',
-        totalTokens: 1200,
-        totalToolUseCount: 3,
-        totalDurationMs: 4000,
+  it('completes async agent from its task_notification with event-derived metadata', () => {
+    const messages = [assistantWithAsyncAgent('tu_spawn'), launchAckResult('tu_spawn')];
+    const taskEvents = {
+      tu_spawn: {
+        toolUseId: 'tu_spawn',
+        status: 'completed' as const,
+        summary: '后台调研完成,发现 3 处索引模式',
+        totalTokens: 4200,
+        totalToolUseCount: 7,
+        totalDurationMs: 18000,
       },
     };
 
@@ -151,132 +285,105 @@ describe('extractSubagentsFromMessages', () => {
       messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), taskEvents,
     );
 
+    expect(subagents).toHaveLength(1);
     expect(subagents[0]).toMatchObject({
+      id: 'tu_spawn',
       status: 'completed',
-      isAsync: true,
-      agentId: 'bg-agent-1',
-      resultText: 'done writing file',
-      totalTokens: 1200,
-      totalToolUseCount: 3,
-      totalDurationMs: 4000,
+      resultText: '后台调研完成,发现 3 处索引模式',
+      totalTokens: 4200,
+      totalToolUseCount: 7,
+      totalDurationMs: 18000,
     });
   });
 
-  it('marks async launch failures as error without waiting for task_notification', () => {
-    const messages = [
-      assistantWithAgent('tooluse_async', { runInBackground: true }),
-      toolResultMessage('tooluse_async', { isError: true, content: 'validation failed', withUsage: false }),
+  it('marks async agent as error when task_notification reports failure', () => {
+    const messages = [assistantWithAsyncAgent('tu_spawn')];
+    const taskEvents = {
+      tu_spawn: { toolUseId: 'tu_spawn', status: 'failed' as const },
+    };
+
+    const subagents = extractSubagentsFromMessages(
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), taskEvents,
+    );
+
+    expect(subagents).toHaveLength(1);
+    expect(subagents[0].status).toBe('error');
+  });
+
+  it('marks a failed async launch as error when the ack tool_result is is_error', () => {
+    // A validation failure (e.g. "In-process teammates cannot spawn background
+    // agents") returns an is_error tool_result before the background task is
+    // registered, so no task_notification ever follows - the agent must surface
+    // as error, not stay stuck on "running".
+    const messages: ClaudeMessage[] = [
+      assistantWithAsyncAgent('tu_launch_fail'),
+      {
+        type: 'user',
+        content: '',
+        raw: {
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'tu_launch_fail',
+              content: 'In-process teammates cannot spawn background agents',
+              is_error: true,
+            },
+          ],
+        } as any,
+      },
     ];
 
     const subagents = extractSubagentsFromMessages(
-      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), {},
     );
 
-    expect(subagents[0]).toMatchObject({
-      status: 'error',
-      isAsync: true,
-    });
+    expect(subagents).toHaveLength(1);
+    expect(subagents[0].status).toBe('error');
   });
 
-  it('StatusPanel progress stays partial after parent turn settles while async agents run', () => {
-    const messages = [
-      assistantWithAgent('tool-a', { runInBackground: true, description: '写文件A' }),
-      assistantWithAgent('tool-b', { runInBackground: true, description: '写文件B' }),
-      toolResultMessage('tool-a', { content: 'launched', withUsage: false }),
-      toolResultMessage('tool-b', { content: 'launched', withUsage: false }),
-    ];
-
+  it('finalizes only async agents whose sidechain history ends in end_turn', () => {
+    const messages = [assistantWithAsyncAgent('tu_spawn'), launchAckResult('tu_spawn')];
     const extracted = extractSubagentsFromMessages(
-      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), {},
     );
-    // Parent stream ended — must NOT flip background agents to completed.
-    const settled = finalizeSubagentsForSettledTurn(extracted, false);
 
-    expect(settled).toHaveLength(2);
-    expect(settled.every((item) => item.status === 'running')).toBe(true);
-    expect(settled.filter((item) => item.status === 'completed')).toHaveLength(0);
+    expect(applySubagentHistoryCompletion(extracted, {
+      tu_spawn: { success: true, completed: false, messages: [] },
+    })[0].status).toBe('running');
+
+    expect(applySubagentHistoryCompletion(extracted, {
+      tu_spawn: { success: true, completed: true, messages: [] },
+    })[0].status).toBe('completed');
   });
 
-  it('flips async agents to completed once a sidechain history reports completion', () => {
-    const messages = [
-      assistantWithAgent('tool-a', { runInBackground: true, description: '写文件A' }),
-      toolResultMessage('tool-a', { content: 'launched', withUsage: false }),
-    ];
-
+  it('flips to error only on an authoritatively observed sidechain failure', () => {
+    const messages = [assistantWithAsyncAgent('tu_spawn'), launchAckResult('tu_spawn')];
     const extracted = extractSubagentsFromMessages(
-      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
-    );
-    // No task_notification landed yet (delayed/missed), but the sidechain
-    // transcript has already ended — the recovered history is the only signal.
-    const completed = applySubagentHistoryCompletion(extracted, {
-      'tool-a': { success: true, completed: true },
-    });
-
-    expect(completed[0].status).toBe('completed');
-  });
-
-  it('leaves async agents running when the sidechain history is not yet terminal', () => {
-    const messages = [
-      assistantWithAgent('tool-a', { runInBackground: true, description: '写文件A' }),
-      toolResultMessage('tool-a', { content: 'launched', withUsage: false }),
-    ];
-
-    const extracted = extractSubagentsFromMessages(
-      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), {},
     );
 
-    const stillRunning = applySubagentHistoryCompletion(extracted, {
-      'tool-a': { success: true, completed: false },
-    });
-    expect(stillRunning[0].status).toBe('running');
+    // Transient resolution/read failures (success === false) must keep the
+    // agent running so polling can correct them.
+    expect(applySubagentHistoryCompletion(extracted, {
+      tu_spawn: { success: false, status: 'error', error: 'Read timed out' },
+    })[0].status).toBe('running');
 
-    const noHistory = applySubagentHistoryCompletion(extracted, {});
-    expect(noHistory[0].status).toBe('running');
+    // The backend read the sidechain and saw the turn abort: terminal error.
+    expect(applySubagentHistoryCompletion(extracted, {
+      tu_spawn: { success: true, status: 'error', error: 'Codex subagent turn was aborted' },
+    })[0].status).toBe('error');
   });
 
-  it('resolves sidechain completion by agentId when keyed under the runtime id', () => {
-    const messages = [
-      assistantWithAgent('tool-a', { runInBackground: true, description: '写文件A' }),
-      toolResultMessage('tool-a', { content: 'launched', withUsage: false }),
-    ];
-    const extracted = extractSubagentsFromMessages(
-      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages),
-    );
-    // The launch ACK carries a stable agentId; simulate history stored under
-    // that runtime id instead of the tool_use_id.
-    const agentId = extracted[0].agentId;
-    const completed = applySubagentHistoryCompletion(extracted, {
-      [agentId as string]: { success: true, completed: true, agentId },
-    });
-
-    expect(completed[0].status).toBe('completed');
-  });
-
-  it('ignores sidechain history for sync agents and non-running agents', () => {
-    const sync: SubagentInfo = {
-      id: 'tool-sync',
-      type: 'general-purpose',
-      description: 'inline',
-      status: 'running',
-      isAsync: false,
-      messageIndex: 0,
+  it('does not overwrite a task_notification error with sidechain completion', () => {const messages = [assistantWithAsyncAgent('tu_spawn')];
+    const taskEvents = {
+      tu_spawn: { toolUseId: 'tu_spawn', status: 'failed' as const },
     };
-    const alreadyDone: SubagentInfo = {
-      id: 'tool-done',
-      type: 'general-purpose',
-      description: 'async done',
-      status: 'completed',
-      isAsync: true,
-      messageIndex: 0,
-    };
+    const extracted = extractSubagentsFromMessages(
+      messages, getContentBlocks, findToolResult(messages), getToolResultRaw(messages), taskEvents,
+    );
 
-    const result = applySubagentHistoryCompletion([sync, alreadyDone], {
-      'tool-sync': { success: true, completed: true },
-      'tool-done': { success: true, completed: true },
-    });
-
-    // Sync agents never complete via sidechain; completed agents stay put.
-    expect(result[0].status).toBe('running');
-    expect(result[1].status).toBe('completed');
+    expect(applySubagentHistoryCompletion(extracted, {
+      tu_spawn: { success: true, completed: true, messages: [] },
+    })[0].status).toBe('error');
   });
 });

@@ -167,7 +167,16 @@ export function normalizeToolInput(name: string | undefined, input: ToolInput | 
     };
   }
 
-  if (normalizedName === 'edit' || normalizedName === 'replace_string' || normalizedName === 'write_to_file') {
+  // Edit / Search Replace / StrReplace style tools
+  if (
+    normalizedName === 'edit'
+    || normalizedName === 'replace_string'
+    || normalizedName === 'write_to_file'
+    || normalizedName === 'search_replace'
+    || normalizedName === 'searchreplace'
+    || normalizedName === 'str_replace'
+    || normalizedName === 'strreplace'
+  ) {
     return {
       ...inputRecord,
       file_path:
@@ -177,11 +186,13 @@ export function normalizeToolInput(name: string | undefined, input: ToolInput | 
       old_string:
         (typeof inputRecord.old_string === 'string' ? inputRecord.old_string : undefined) ??
         (typeof inputRecord.oldString === 'string' ? inputRecord.oldString : undefined) ??
+        (typeof inputRecord.old_str === 'string' ? inputRecord.old_str : undefined) ??
         (typeof inputRecord.old_text === 'string' ? inputRecord.old_text : undefined) ??
         (typeof inputRecord.oldText === 'string' ? inputRecord.oldText : undefined),
       new_string:
         (typeof inputRecord.new_string === 'string' ? inputRecord.new_string : undefined) ??
         (typeof inputRecord.newString === 'string' ? inputRecord.newString : undefined) ??
+        (typeof inputRecord.new_str === 'string' ? inputRecord.new_str : undefined) ??
         (typeof inputRecord.new_text === 'string' ? inputRecord.new_text : undefined) ??
         (typeof inputRecord.newText === 'string' ? inputRecord.newText : undefined) ??
         (typeof inputRecord.content === 'string' ? inputRecord.content : undefined),
