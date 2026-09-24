@@ -4,6 +4,11 @@ import * as os from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
+import {
+  isWithinOrEqualTolerant,
+  relativePathInside,
+  resolveFilePathAgainstBase,
+} from '../pathUtils';
 
 const execFileAsync = promisify(execFile);
 
@@ -25,8 +30,13 @@ interface UndoFileRequest {
 }
 
 export class DiffService {
+  /**
+   * @param getBaseDir Effective working directory the AI daemon operates in
+   * (may differ from workspaceFolders[0] when the user configured a custom
+   * working directory). Used to resolve relative paths and as git cwd.
+   */
   constructor(
-    private readonly getWorkspacePath: () => string,
+    private readonly getBaseDir: () => string,
     private readonly callWebviewJson: CallWebviewJson,
   ) {}
 
@@ -47,59 +57,84 @@ export class DiffService {
   }
 
   /**
-   * View AI file changes — same idea as Source Control / `git diff`:
-   * - Right side = real workspace file (never copy into the repo)
-   * - Left side  = HEAD (via git.openChange) or reconstructed "before" in OS temp
+   * View AI file changes — Trae / Source-Control semantics:
+   * - Right side = real workspace file (never copied into the repo)
+   * - Left side  = session "before" reconstructed by reverse-applying the
+   *   recorded edit ops (works for untracked files); falls back to git HEAD.
    *
    * Do NOT write `.ccg-before/.ccg-after` next to project files (pollutes git U).
    */
   async showFileChangeDiff(content: string): Promise<void> {
-    try {
-      const data = this.safeJson<any>(content, {});
-      const filePath = String(data.filePath ?? '');
-      if (!filePath) return;
-      this.assertPathInWorkspace(filePath);
+    const data = this.safeJson<any>(content, {});
+    const rawPath = String(data.filePath ?? '');
+    if (!rawPath) return;
+    const filePath = this.resolveTargetPath(rawPath);
+    const base = path.basename(filePath);
 
+    try {
       const status = String(data.status ?? 'M');
       const operations: UndoOperation[] = Array.isArray(data.operations) ? data.operations : [];
       const fileUri = vscode.Uri.file(filePath);
-      const base = path.basename(filePath);
 
-      // Modified tracked file: use Git's own change view (working tree ↔ HEAD),
-      // identical to clicking the file in the Source Control list.
-      if (status !== 'A') {
-        try {
-          await vscode.commands.executeCommand('git.openChange', fileUri);
-          return;
-        } catch {
-          // Git extension unavailable or file untracked — fall through.
-        }
+      if (!fs.existsSync(filePath)) {
+        vscode.window.showWarningMessage(`无法显示 ${base} 的变更对比：文件已不存在`);
+        return;
       }
 
-      // Fallback / new file: left = before (OS temp only), right = real file URI
-      const current = await this.readFileIfExists(filePath);
-      let before = '';
+      // New file created by AI: left = empty, right = real file.
       if (status === 'A') {
-        before = '';
-      } else {
-        const reversed = this.applyReverseOperations(current, operations);
-        if (reversed !== current) {
-          before = reversed;
-        } else {
-          const gitBefore = await this.gitShowHeadFile(filePath);
-          before = gitBefore != null ? gitBefore : current;
-        }
+        const oldUri = await this.writeTempDiffFile(filePath, 'before', '');
+        await vscode.commands.executeCommand('vscode.diff', oldUri, fileUri, `${base} (新建文件)`);
+        return;
       }
 
-      const oldUri = await this.writeTempDiffFile(filePath, 'before', before);
-      await vscode.commands.executeCommand(
-        'vscode.diff',
-        oldUri,
-        fileUri,
-        `${base} (改动前 ↔ 当前)`,
+      // 1) Session-scoped "before": reverse-apply the recorded edit ops on the
+      // real file. This matches Trae/Source-Control semantics — only the AI's
+      // session changes are shown, not the user's own uncommitted edits, and
+      // it works for files that are untracked in git (where git.openChange
+      // renders a misleading all-additions diff).
+      const current = await this.readFileIfExists(filePath);
+      const reversed = this.applyReverseOperations(current, operations);
+      if (reversed !== current) {
+        const oldUri = await this.writeTempDiffFile(filePath, 'before', reversed);
+        await vscode.commands.executeCommand(
+          'vscode.diff',
+          oldUri,
+          fileUri,
+          `${base} (改动前 ↔ 当前)`,
+        );
+        return;
+      }
+
+      // 2) Git's own change view (working tree ↔ HEAD), identical to clicking
+      // the file in the Source Control list — for tracked files when the op
+      // payloads are stats-only and cannot be reverse-applied.
+      try {
+        await vscode.commands.executeCommand('git.openChange', fileUri);
+        return;
+      } catch {
+        // Git extension unavailable or file untracked — fall through.
+      }
+
+      // 3) HEAD content as the left side via the git CLI.
+      const gitBefore = await this.gitShowHeadFile(filePath);
+      if (gitBefore != null && gitBefore !== current) {
+        const oldUri = await this.writeTempDiffFile(filePath, 'before', gitBefore);
+        await vscode.commands.executeCommand(
+          'vscode.diff',
+          oldUri,
+          fileUri,
+          `${base} (HEAD ↔ 当前)`,
+        );
+        return;
+      }
+
+      vscode.window.showWarningMessage(`无法显示 ${base} 的变更对比：没有可对比的历史内容`);
+    } catch (error) {
+      // Never fail silently — issue #3: clicking the diff icon gave no feedback.
+      vscode.window.showWarningMessage(
+        `无法显示 ${base} 的变更对比: ${error instanceof Error ? error.message : String(error)}`,
       );
-    } catch {
-      // Diff preview is best-effort.
     }
   }
 
@@ -236,10 +271,11 @@ export class DiffService {
   }
 
   private async applyUndoFileChange(request: UndoFileRequest): Promise<void> {
-    const filePath = String(request?.filePath ?? '');
+    const rawPath = String(request?.filePath ?? '');
     const status = String(request?.status ?? '');
-    if (!filePath) throw new Error('File path is required');
-    this.assertPathInWorkspace(filePath);
+    if (!rawPath) throw new Error('File path is required');
+    const filePath = this.resolveTargetPath(rawPath);
+    this.assertPathAllowed(filePath);
 
     // Only delete on undo when this was a true create (status A from Write tool).
     // Modified files (M) must reverse-patch content — never delete.
@@ -351,25 +387,19 @@ export class DiffService {
 
   /** Read file content at HEAD, or null if unavailable. */
   private async gitShowHeadFile(filePath: string): Promise<string | null> {
-    const workspacePath = path.resolve(
-      this.getWorkspacePath() || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '',
-    );
-    if (!workspacePath) return null;
-    const resolved = path.resolve(filePath);
-    let rel: string;
-    try {
-      rel = path.relative(workspacePath, resolved);
-      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
-    } catch {
-      return null;
-    }
+    const baseDir = this.baseDir();
+    if (!baseDir) return null;
+    // Tolerate case-only differences (Windows drive letter, macOS FS) — a
+    // case-sensitive path.relative would report the file as outside the base.
+    const rel = relativePathInside(baseDir, filePath);
+    if (!rel) return null;
     try {
       await execFileAsync('git', ['rev-parse', '--is-inside-work-tree'], {
-        cwd: workspacePath,
+        cwd: baseDir,
         timeout: 10_000,
       });
       const { stdout } = await execFileAsync('git', ['show', `HEAD:${rel.replace(/\\/g, '/')}`], {
-        cwd: workspacePath,
+        cwd: baseDir,
         timeout: 30_000,
         maxBuffer: 20 * 1024 * 1024,
         encoding: 'utf8',
@@ -384,24 +414,16 @@ export class DiffService {
    * Restore a tracked file to HEAD in the workspace. Returns true on success.
    */
   private async gitRestoreWorktreeFile(filePath: string): Promise<boolean> {
-    const workspacePath = path.resolve(
-      this.getWorkspacePath() || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '',
-    );
-    if (!workspacePath) return false;
+    const baseDir = this.baseDir();
+    if (!baseDir) return false;
 
-    const resolved = path.resolve(filePath);
-    let rel: string;
-    try {
-      rel = path.relative(workspacePath, resolved);
-      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return false;
-    } catch {
-      return false;
-    }
+    const rel = relativePathInside(baseDir, filePath);
+    if (!rel) return false;
 
     // Must be inside a git work tree
     try {
       await execFileAsync('git', ['rev-parse', '--is-inside-work-tree'], {
-        cwd: workspacePath,
+        cwd: baseDir,
         timeout: 10_000,
       });
     } catch {
@@ -413,13 +435,13 @@ export class DiffService {
       await execFileAsync(
         'git',
         ['restore', '--source=HEAD', '--worktree', '--', rel],
-        { cwd: workspacePath, timeout: 30_000 },
+        { cwd: baseDir, timeout: 30_000 },
       );
       return true;
     } catch {
       try {
         await execFileAsync('git', ['checkout', 'HEAD', '--', rel], {
-          cwd: workspacePath,
+          cwd: baseDir,
           timeout: 30_000,
         });
         return true;
@@ -429,13 +451,42 @@ export class DiffService {
     }
   }
 
-  private assertPathInWorkspace(filePath: string): void {
-    const workspacePath = path.resolve(this.getWorkspacePath() || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
-    if (!workspacePath) throw new Error('Workspace path is not available');
+  /** Effective working directory of the daemon, falling back to workspace folder[0]. */
+  private baseDir(): string {
+    const dir = this.getBaseDir() || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+    return dir ? path.resolve(dir) : '';
+  }
+
+  /**
+   * Resolve a path from the webview to an absolute filesystem path. Relative
+   * paths (Codex apply_patch) resolve against the daemon's working directory,
+   * never the extension-host process cwd.
+   */
+  private resolveTargetPath(filePath: string): string {
+    return resolveFilePathAgainstBase(filePath, this.baseDir());
+  }
+
+  /**
+   * Mutation guard for undo: the target must live under the daemon's working
+   * directory or any workspace folder. Comparison tolerates case-only
+   * differences — issue #3: undo failed with "path must be inside the
+   * workspace" whenever the CLI-reported casing differed from VS Code's
+   * normalized fsPath (Windows drive letter, macOS) or a custom working
+   * directory was configured.
+   */
+  private assertPathAllowed(filePath: string): void {
     const resolved = path.resolve(filePath);
-    if (resolved !== workspacePath && !resolved.startsWith(workspacePath + path.sep)) {
-      throw new Error('Invalid file path: path must be inside the workspace');
+    const roots: string[] = [];
+    const base = this.baseDir();
+    if (base) roots.push(base);
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      roots.push(path.resolve(folder.uri.fsPath));
     }
+    if (roots.length === 0) throw new Error('Workspace path is not available');
+    if (roots.some((root) => isWithinOrEqualTolerant(resolved, root))) {
+      return;
+    }
+    throw new Error('Invalid file path: path must be inside the workspace');
   }
 
   /**
@@ -450,9 +501,10 @@ export class DiffService {
   ): Promise<vscode.Uri> {
     await fs.promises.mkdir(CCG_DIFF_TEMP_DIR, { recursive: true });
     const base = path.basename(sourceFilePath) || 'file';
-    // Keep original extension for syntax highlighting (e.g. seed-topics.ts)
+    // Original filename LAST so the extension survives for syntax highlighting
+    // (previously `.ccg-diff` was the final extension → no language mode).
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const tempName = `${base}.${role}.${stamp}.ccg-diff`;
+    const tempName = `ccg-${role}-${stamp}-${base}`;
     const tempPath = path.join(CCG_DIFF_TEMP_DIR, tempName);
     const uri = vscode.Uri.file(tempPath);
     await vscode.workspace.fs.writeFile(uri, Buffer.from(content ?? '', 'utf8'));
