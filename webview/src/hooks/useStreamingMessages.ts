@@ -279,6 +279,15 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
     }
 
     if (!content.startsWith(prefixText)) {
+      const textRunIsContiguous = textIndices.every((index, offset) =>
+        offset === 0 || index === textIndices[offset - 1] + 1,
+      );
+      if (textIndices.length > 1 && textRunIsContiguous) {
+        const firstTextIdx = textIndices[0];
+        const nextBlocks = blocks.filter((_, index) => !textIndices.slice(1).includes(index));
+        nextBlocks[firstTextIdx] = { ...nextBlocks[firstTextIdx], text: content };
+        return nextBlocks;
+      }
       if (textIndices.length !== 1) {
         return blocks;
       }

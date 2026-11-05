@@ -114,6 +114,36 @@ describe('useStreamingMessages', () => {
     expect(patched.isStreaming).toBe(true);
   });
 
+  it('replaces cumulative raw text snapshots when their concatenation no longer matches the stream buffer', () => {
+    const { result } = renderHook(() => useStreamingMessages());
+    const streamed = 'The complete final summary';
+    result.current.streamingContentRef.current = streamed;
+
+    const assistant: ClaudeMessage = {
+      type: 'assistant',
+      content: 'AABABC',
+      isStreaming: true,
+      raw: {
+        message: {
+          content: [
+            { type: 'thinking', thinking: 'reasoning', text: 'reasoning' },
+            { type: 'text', text: 'A' },
+            { type: 'text', text: 'AB' },
+            { type: 'text', text: 'ABC' },
+          ],
+        },
+      },
+    };
+
+    const patched = result.current.patchAssistantForStreaming(assistant);
+    const rawBlocks = (patched.raw as any).message.content as ContentBlockTest[];
+    const textBlocks = rawBlocks.filter((block) => block.type === 'text');
+
+    expect(textBlocks).toHaveLength(1);
+    expect(textBlocks[0]).toMatchObject({ type: 'text', text: streamed });
+    expect(getRenderedBlocks(patched).filter((block) => block.type === 'text').map((block) => block.text).join(''))
+      .toBe(streamed);
+  });
   it('uses delta content when it is longer than backend content', () => {
     const { result } = renderHook(() => useStreamingMessages());
 
