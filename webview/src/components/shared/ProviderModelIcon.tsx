@@ -134,6 +134,23 @@ const OmpIcon = (size: number): ReactElement => (
     <path fill="currentColor" d="M14 16h36v8H40v32h-8V24h-6v22h-8V24h-4z" />
   </svg>
 );
+
+/** Official Cheaper Inference mark, mono via currentColor (no lobehub icon). */
+const CheaperInferenceIcon = (size: number): ReactElement => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    aria-label="Cheaper Inference"
+    role="img"
+    style={{ flex: 'none', display: 'block' }}
+  >
+    <title>Cheaper Inference</title>
+    <path fill="currentColor" d="M9.107 2.786H15.429V8.839H9.589a3.213 3.213 0 0 0 0.321 6.375H15.214L9.434 20.994A9.107 9.107 0 1 1 9.107 2.786Z" />
+    <path fill="currentColor" d="M22.179 3.429H22.607a1.286 1.286 0 0 1 1.286 1.286V19.714a1.393 1.393 0 0 1 -1.393 1.393H17.464V8.143Z" />
+  </svg>
+);
 /**
  * ZCode badge — original "Z" letterform drawn for this project (the desktop
  * app ships no monochrome mark). Mono follows currentColor like the Pi/OMP
@@ -218,6 +235,8 @@ const VENDOR_ICON_MAP: Record<
     <GrokMono size={size} />,
   openrouter: (size, _colored) =>
     <OpenRouterMono size={size} />,
+  cheaperinference: (size, _colored) =>
+    CheaperInferenceIcon(size),
   yi: (size, colored) =>
     colored ? <YiColor size={size} /> : <YiMono size={size} />,
 };

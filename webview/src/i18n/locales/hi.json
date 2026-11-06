@@ -656,7 +656,8 @@
         "bailian": "Bailian",
         "bailianCoding": "Bailian Coding",
         "longcat": "LongCat",
-        "opencodeGo": "OpenCode Go"
+        "opencodeGo": "OpenCode Go",
+        "cheaperInference": "Cheaper Inference"
       },
       "disabled": "अक्षम"
     },
