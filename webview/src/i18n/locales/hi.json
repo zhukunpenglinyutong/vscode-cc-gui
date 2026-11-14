@@ -1491,7 +1491,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · सबसे शक्तिशाली · Mythos-श्रेणी"
+        "description": "Fable 5.1 · पिछली Fable पीढ़ी"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1503,7 +1503,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · नवीनतम Opus अपग्रेड"
+        "description": "Opus 5 · पिछली Opus पीढ़ी"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · नवीनतम Sonnet अपग्रेड"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · नवीनतम Opus अपग्रेड"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · सबसे शक्तिशाली · Mythos-श्रेणी"
       }
     },
     "longContext": {
@@ -1564,6 +1576,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "स्वायत्त कंप्यूटर उपयोग और लंबे एजेंटिक कार्यों के लिए नई पीढ़ी का फ्लैगशिप मॉडल।"
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "जटिल पेशेवर कार्यों के लिए GPT-6.1 फ्रंटियर मॉडल।"
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "जटिल पेशेवर कार्यों के लिए GPT-6 फ्रंटियर मॉडल।"
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "लागत-संवेदनशील वर्कलोड के लिए अनुकूलित GPT-6 मॉडल।"
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "बुद्धिमत्ता और लागत में संतुलन वाला GPT-6.1 मॉडल।"
       }
     },
     "searchPlaceholder": "मॉडल खोजें",

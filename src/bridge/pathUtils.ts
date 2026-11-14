@@ -60,3 +60,57 @@ function isWithinOrEqual(p: string, base: string): boolean {
   const prefix = base.endsWith(path.sep) ? base : base + path.sep;
   return p.startsWith(prefix);
 }
+
+/** Case-fold for platforms whose filesystem is case-insensitive by default. */
+export function foldPathCase(p: string): string {
+  return process.platform === 'win32' || process.platform === 'darwin' ? p.toLowerCase() : p;
+}
+
+/**
+ * Case-tolerant variant of `isWithinOrEqual` — AI CLIs report paths with their
+ * own casing (e.g. Windows drive letter `C:` vs VS Code's normalized `c:`),
+ * and macOS/Windows filesystems do not distinguish case.
+ */
+export function isWithinOrEqualTolerant(p: string, base: string): boolean {
+  if (isWithinOrEqual(p, base)) {
+    return true;
+  }
+  return isWithinOrEqual(foldPathCase(p), foldPathCase(base));
+}
+
+/**
+ * Resolve a possibly-relative file path against a base directory. Absolute
+ * paths are only normalized; relative paths must NOT fall back to the
+ * extension-host process cwd (Codex apply_patch sends repo-relative paths).
+ */
+export function resolveFilePathAgainstBase(filePath: string, baseDir: string): string {
+  if (!filePath) {
+    return filePath;
+  }
+  if (path.isAbsolute(filePath)) {
+    return path.normalize(filePath);
+  }
+  return baseDir ? path.resolve(baseDir, filePath) : path.normalize(filePath);
+}
+
+/**
+ * Relative path of `target` inside `base`, tolerating case-only differences.
+ * Returns null when target is outside base; '' when they are equal.
+ * The returned path keeps the target's real casing.
+ */
+export function relativePathInside(base: string, target: string): string | null {
+  const rel = path.relative(base, target);
+  if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+    return rel;
+  }
+  const baseFolded = foldPathCase(base);
+  const targetFolded = foldPathCase(target);
+  if (targetFolded === baseFolded) {
+    return '';
+  }
+  const prefix = baseFolded.endsWith(path.sep) ? baseFolded : baseFolded + path.sep;
+  if (targetFolded.startsWith(prefix)) {
+    return target.slice(prefix.length);
+  }
+  return null;
+}
