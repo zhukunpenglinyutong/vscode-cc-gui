@@ -427,7 +427,7 @@ export class BridgeServer {
     dispatcher.register(new HistoryHandler(bridgeContext));
     dispatcher.register(new DiffHandler(this._diffService));
     dispatcher.register(new ClipboardHandler(bridgeContext));
-    dispatcher.register(new PromptEnhancerHandler(bridgeContext));
+    dispatcher.register(new PromptEnhancerHandler(bridgeContext, this._settingsStore));
     dispatcher.register(new NodeProcessHandler(bridgeContext));
     dispatcher.register(new ContextUsageHandler(bridgeContext));
     dispatcher.register(new RewindHandler(bridgeContext));
