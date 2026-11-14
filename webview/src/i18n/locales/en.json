@@ -1813,7 +1813,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · Most powerful · Mythos-class"
+        "description": "Fable 5.1 · Previous Fable generation"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1825,7 +1825,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · Latest Opus upgrade"
+        "description": "Opus 5 · Previous Opus generation"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · Latest Sonnet upgrade"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · Latest Opus upgrade"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · Most powerful · Mythos-class"
       }
     },
     "codex": {
@@ -1880,6 +1892,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "New-generation flagship for autonomous computer use and long agentic tasks."
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "GPT-6.1 frontier model for complex professional work."
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "GPT-6 frontier model for complex professional work."
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "GPT-6 model optimized for cost-sensitive workloads."
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "GPT-6.1 model that balances intelligence and cost."
       }
     },
     "searchPlaceholder": "Search models",

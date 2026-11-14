@@ -1492,7 +1492,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · Le plus puissant · classe Mythos"
+        "description": "Fable 5.1 · Génération Fable précédente"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1504,7 +1504,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · Dernière évolution d’Opus"
+        "description": "Opus 5 · Génération Opus précédente"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · Dernière évolution de Sonnet"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · Dernière évolution d’Opus"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · Le plus puissant · classe Mythos"
       }
     },
     "longContext": {
@@ -1565,6 +1577,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "Vaisseau amiral de nouvelle génération pour l'utilisation autonome de l'ordinateur et les longues tâches agentiques."
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "Modèle frontier GPT-6.1 pour les travaux professionnels complexes."
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "Modèle frontier GPT-6 pour les travaux professionnels complexes."
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "Modèle GPT-6 optimisé pour les charges de travail sensibles aux coûts."
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "Modèle GPT-6.1 qui équilibre intelligence et coût."
       }
     },
     "searchPlaceholder": "Rechercher des modèles",

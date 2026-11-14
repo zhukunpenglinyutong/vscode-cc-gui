@@ -1492,7 +1492,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · El más potente · clase Mythos"
+        "description": "Fable 5.1 · Generación anterior de Fable"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1504,7 +1504,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · Última mejora de Opus"
+        "description": "Opus 5 · Generación anterior de Opus"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · Última mejora de Sonnet"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · Última mejora de Opus"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · El más potente · clase Mythos"
       }
     },
     "longContext": {
@@ -1565,6 +1577,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "Insignia de nueva generación para el uso autónomo del ordenador y tareas agénticas largas."
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "Modelo frontera GPT-6.1 para trabajo profesional complejo."
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "Modelo frontera GPT-6 para trabajo profesional complejo."
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "Modelo GPT-6 optimizado para cargas de trabajo sensibles al costo."
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "Modelo GPT-6.1 que equilibra inteligencia y costo."
       }
     },
     "searchPlaceholder": "Buscar modelos",
