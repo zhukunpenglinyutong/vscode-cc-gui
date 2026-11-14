@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { ClaudeMessage } from '../types';
+import { collapseCumulativeTextSnapshots } from '../utils/cumulativeTextSnapshots';
 
 /** A single block inside `raw.message.content`. */
 interface ContentBlock {
@@ -279,15 +280,6 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
     }
 
     if (!content.startsWith(prefixText)) {
-      const textRunIsContiguous = textIndices.every((index, offset) =>
-        offset === 0 || index === textIndices[offset - 1] + 1,
-      );
-      if (textIndices.length > 1 && textRunIsContiguous) {
-        const firstTextIdx = textIndices[0];
-        const nextBlocks = blocks.filter((_, index) => !textIndices.slice(1).includes(index));
-        nextBlocks[firstTextIdx] = { ...nextBlocks[firstTextIdx], text: content };
-        return nextBlocks;
-      }
       if (textIndices.length !== 1) {
         return blocks;
       }
@@ -436,7 +428,7 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
         ? rawObj.content
         : Array.isArray(msg?.content) ? msg.content : [];
 
-      let blocks = [...rawContent] as ContentBlock[];
+      let blocks = collapseCumulativeTextSnapshots(rawContent as ContentBlock[]);
       blocks = materializePendingStreamingBlocks(blocks, 'thinking', deltaThinking);
       blocks = materializePendingStreamingBlocks(blocks, 'text', bestContent);
       blocks = syncThinkingBlocksWithContent(blocks, deltaThinking);

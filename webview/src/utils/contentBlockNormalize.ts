@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { ClaudeContentBlock, ClaudeRawMessage } from '../types';
+import { collapseCumulativeTextSnapshots } from './cumulativeTextSnapshots';
 
 // ---------------------------------------------------------------------------
 // Constants - avoid magic strings throughout the codebase
@@ -486,7 +487,7 @@ export function normalizeBlocks(
       return [{ type: 'text' as const, text: localizeMessage(text) }];
     }
     if (Array.isArray(content)) {
-      const result = buildBlocksFromArray(content);
+      const result = buildBlocksFromArray(isUserMessage ? content : collapseCumulativeTextSnapshots(content));
       return result.length ? result : null;
     }
     return null;
