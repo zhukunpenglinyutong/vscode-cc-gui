@@ -110,8 +110,8 @@ describe('AiFeatureProviderModelPanel', () => {
     );
 
     const [, modelSelect] = screen.getAllByRole('combobox');
-    fireEvent.change(modelSelect, { target: { value: 'gpt-5.4' } });
+    fireEvent.change(modelSelect, { target: { value: 'gpt-6.1-sol' } });
 
-    expect(onModelChange).toHaveBeenCalledWith('gpt-5.4');
+    expect(onModelChange).toHaveBeenCalledWith('gpt-6.1-sol');
   });
 });

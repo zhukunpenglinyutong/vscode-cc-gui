@@ -13,6 +13,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: '0.2.0',
+    date: '2026-11-12',
+    content: {
+      en: `✨ Features
+- Update the **Claude model lineup**: add **Fable 5.2** (\`claude-fable-5-2\`) as the new top entry, plus **Opus 5.5** (\`claude-opus-5-5\`) and **Sonnet 5.5** (\`claude-sonnet-5-5\`), all with effort support (xhigh / max for Fable and Opus, max for Sonnet); Fable 5 is delisted and saved \`claude-fable-5\` selections migrate to Fable 5.2
+- Update the **Codex model lineup** to match the live Codex catalog: add **GPT-6.1 Sol** (\`gpt-6.1-sol\`, new default for fresh sessions), **GPT-6 Sol**, **GPT-6 Luna** and **GPT-6.1 Terra**, and remove the retired **GPT-5.4** — saved \`gpt-5.4\` selections fall back to GPT-6.1 Sol
+
+🔧 Improvements
+- **Group the model dropdown by provider prefix** with section headers and a search box for long catalogs; OMP model roles stay selectable from the mode selector
+- The input toolbar **switches to compact mode automatically when it overflows**, instead of relying on a fixed width breakpoint
+- Usage statistics now price **Opus 5.5** (\$4 / \$20 per 1M tokens) and **Opus 5** (\$5 / \$25) instead of falling back to Sonnet rates`,
+      zh: `✨ 新功能
+- 更新 **Claude 模型清单**：新增 **Fable 5.2**（\`claude-fable-5-2\`）为首位模型，并新增 **Opus 5.5**（\`claude-opus-5-5\`）与 **Sonnet 5.5**（\`claude-sonnet-5-5\`），均支持推理强度（Fable / Opus 支持 xhigh / max，Sonnet 支持 max）；Fable 5 从列表移除，已保存的 \`claude-fable-5\` 选择自动迁移到 Fable 5.2
+- 按 Codex 官方实时目录更新 **Codex 模型清单**：新增 **GPT-6.1 Sol**（\`gpt-6.1-sol\`，新会话默认模型）、**GPT-6 Sol**、**GPT-6 Luna** 与 **GPT-6.1 Terra**，移除已下线的 **GPT-5.4**——已保存的 \`gpt-5.4\` 选择回落到 GPT-6.1 Sol
+
+🔧 优化
+- **模型下拉按供应商前缀分组**，带分组标题，模型较多时提供搜索框；OMP 模型角色改为从模式选择器中选择
+- 输入工具栏 **在内容溢出时自动切换为紧凑模式**，不再依赖固定宽度断点
+- 用量统计按 **Opus 5.5**（每百万 token \$4 / \$20）与 **Opus 5**（\$5 / \$25）计价，不再回落到 Sonnet 价格`,
+    },
+  },
+  {
     version: '0.1.9',
     date: '2026-09-17',
     content: {

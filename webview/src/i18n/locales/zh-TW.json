@@ -1520,7 +1520,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · 最強大 · Mythos 級"
+        "description": "Fable 5.1 · 保留的前代 Fable 模型"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1532,7 +1532,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · Opus 最新升級模型"
+        "description": "Opus 5 · 保留的前代 Opus 模型"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · Sonnet 最新升級模型"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · Opus 最新升級模型"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · 最強大 · Mythos 級"
       }
     },
     "longContext": {
@@ -1593,6 +1605,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "新一代旗艦模型，擅長自主電腦操作與長鏈路智慧體任務"
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "面向複雜專業工作的 GPT-6.1 前沿模型"
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "面向複雜專業工作的 GPT-6 前沿模型"
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "針對成本敏感場景優化的 GPT-6 模型"
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "智慧與成本兼顧的 GPT-6.1 模型"
       }
     },
     "searchPlaceholder": "搜尋模型",

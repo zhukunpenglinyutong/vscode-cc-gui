@@ -1503,7 +1503,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · 最も強力 · Mythosクラス"
+        "description": "Fable 5.1 · 前世代の Fable モデル"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1515,7 +1515,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · 最新の Opus アップグレード"
+        "description": "Opus 5 · 前世代の Opus モデル"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · 最新の Sonnet アップグレード"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · 最新の Opus アップグレード"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · 最も強力 · Mythosクラス"
       }
     },
     "codex": {
@@ -1570,6 +1582,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "自律的なコンピュータ操作と長時間のエージェントタスク向けの新世代フラッグシップ"
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "複雑なプロフェッショナル業務向けの GPT-6.1 フロンティアモデル"
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "複雑なプロフェッショナル業務向けの GPT-6 フロンティアモデル"
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "コスト重視のワークロードに最適化された GPT-6 モデル"
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "知能とコストのバランスに優れた GPT-6.1 モデル"
       }
     },
     "searchPlaceholder": "モデルを検索",
