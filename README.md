@@ -23,7 +23,7 @@ npm exec --yes --package=@vscode/vsce -- vsce package
 The generated file is named `vscode-cc-gui-<version>.vsix` in the project root. Install it in VS Code with:
 
 ```bash
-code --install-extension ./vscode-cc-gui-0.1.1.vsix
+code --install-extension ./vscode-cc-gui-0.2.0.vsix
 ```
 
 ### Repair a broken global `vsce` command

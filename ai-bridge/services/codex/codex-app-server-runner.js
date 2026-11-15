@@ -11,8 +11,21 @@
 
 import { spawn } from 'child_process';
 import { createInterface } from 'readline';
+import { createRequire } from 'module';
 import { getCodexCliEntrypoint } from '../../utils/sdk-loader.js';
 import { emitFileChangeItemAsTools } from './codex-file-change-emit.js';
+
+const require = createRequire(import.meta.url);
+
+// Report the host extension's real version instead of a frozen literal.
+function readAppVersion() {
+  try {
+    return require('../../../package.json').version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+const APP_VERSION = readAppVersion();
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -372,7 +385,7 @@ export async function runCodexAppServerTurn(options = {}) {
 
   try {
     await sendRequest('initialize', {
-      clientInfo: { name: 'vscode-cc-gui', version: '0.1.0' },
+      clientInfo: { name: 'vscode-cc-gui', version: APP_VERSION },
       capabilities: { experimentalApi: true },
     });
     sendNotification('initialized', {});

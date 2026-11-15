@@ -1,7 +1,8 @@
 import * as path from 'path';
 
 export function isLikelyNodeExecutable(filePath: string, platform = process.platform): boolean {
-  const base = path.basename(filePath).toLowerCase();
+  // Target platform, not host: tests simulate win32 on POSIX.
+  const base = (platform === 'win32' ? path.win32 : path.posix).basename(filePath).toLowerCase();
   if (platform === 'win32') {
     return base === 'node.exe' || base === 'node';
   }
@@ -17,7 +18,8 @@ export function getNpmBinaryNames(platform = process.platform): string[] {
 }
 
 export function getNpmCandidatesFromNodePath(nodePath: string, platform = process.platform): string[] {
-  return getNpmBinaryNames(platform).map((name) => path.join(path.dirname(nodePath), name));
+  const p = platform === 'win32' ? path.win32 : path.posix;
+  return getNpmBinaryNames(platform).map((name) => p.join(p.dirname(nodePath), name));
 }
 
 export function getCommonNodeCandidates(
@@ -29,15 +31,15 @@ export function getCommonNodeCandidates(
     const programFilesX86 = env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     const localAppData = env.LOCALAPPDATA;
     const candidates = [
-      path.join(programFiles, 'nodejs', 'node.exe'),
-      path.join(programFiles, 'nodejs', 'node'),
-      path.join(programFilesX86, 'nodejs', 'node.exe'),
-      path.join(programFilesX86, 'nodejs', 'node'),
+      path.win32.join(programFiles, 'nodejs', 'node.exe'),
+      path.win32.join(programFiles, 'nodejs', 'node'),
+      path.win32.join(programFilesX86, 'nodejs', 'node.exe'),
+      path.win32.join(programFilesX86, 'nodejs', 'node'),
     ];
     if (localAppData) {
       candidates.push(
-        path.join(localAppData, 'Programs', 'nodejs', 'node.exe'),
-        path.join(localAppData, 'Programs', 'nodejs', 'node'),
+        path.win32.join(localAppData, 'Programs', 'nodejs', 'node.exe'),
+        path.win32.join(localAppData, 'Programs', 'nodejs', 'node'),
       );
     }
     return candidates;
@@ -60,15 +62,15 @@ export function getCommonNpmCandidates(
     const programFilesX86 = env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     const localAppData = env.LOCALAPPDATA;
     const candidates = [
-      path.join(programFiles, 'nodejs', 'npm.cmd'),
-      path.join(programFiles, 'nodejs', 'npm'),
-      path.join(programFilesX86, 'nodejs', 'npm.cmd'),
-      path.join(programFilesX86, 'nodejs', 'npm'),
+      path.win32.join(programFiles, 'nodejs', 'npm.cmd'),
+      path.win32.join(programFiles, 'nodejs', 'npm'),
+      path.win32.join(programFilesX86, 'nodejs', 'npm.cmd'),
+      path.win32.join(programFilesX86, 'nodejs', 'npm'),
     ];
     if (localAppData) {
       candidates.push(
-        path.join(localAppData, 'Programs', 'nodejs', 'npm.cmd'),
-        path.join(localAppData, 'Programs', 'nodejs', 'npm'),
+        path.win32.join(localAppData, 'Programs', 'nodejs', 'npm.cmd'),
+        path.win32.join(localAppData, 'Programs', 'nodejs', 'npm'),
       );
     }
     return candidates;
