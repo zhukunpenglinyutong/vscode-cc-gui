@@ -33,6 +33,11 @@ describe('normalizeClaudeModelId', () => {
     expect(normalizeClaudeModelId('claude-opus-4-8')).toBe('claude-opus-5');
   });
 
+  it('migrates delisted Fable 5 to Fable 5.2', () => {
+    expect(normalizeClaudeModelId('claude-fable-5')).toBe('claude-fable-5-2');
+    expect(normalizeClaudeModelId('claude-fable-5[1m]')).toBe('claude-fable-5-2');
+  });
+
   it('migrates retired IDs carrying a [1m] suffix', () => {
     expect(normalizeClaudeModelId('claude-sonnet-4-6[1m]')).toBe('claude-sonnet-5');
     expect(normalizeClaudeModelId('claude-sonnet-4-7[1m]')).toBe('claude-sonnet-5');

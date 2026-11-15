@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { ClaudeMessage } from '../types';
+import { collapseCumulativeTextSnapshots } from '../utils/cumulativeTextSnapshots';
 
 /** A single block inside `raw.message.content`. */
 interface ContentBlock {
@@ -427,7 +428,7 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
         ? rawObj.content
         : Array.isArray(msg?.content) ? msg.content : [];
 
-      let blocks = [...rawContent] as ContentBlock[];
+      let blocks = collapseCumulativeTextSnapshots(rawContent as ContentBlock[]);
       blocks = materializePendingStreamingBlocks(blocks, 'thinking', deltaThinking);
       blocks = materializePendingStreamingBlocks(blocks, 'text', bestContent);
       blocks = syncThinkingBlocksWithContent(blocks, deltaThinking);

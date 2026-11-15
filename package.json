@@ -2,7 +2,7 @@
   "name": "vscode-cc-gui",
   "displayName": "CCGUI / CC GUI（Claude Codex OpenCode Kimi）",
   "description": "CCGUI / CC GUI — independent open-source GUI for Claude Code, Codex, OpenCode, Kimi, Grok and more (unofficial)",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "publisher": "MossX",
   "author": {
     "name": "MossX"
@@ -12,8 +12,13 @@
     "type": "git",
     "url": "https://github.com/zhukunpenglinyutong/vscode-cc-gui"
   },
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Other", "AI"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "AI"
+  ],
   "keywords": [
     "ccgui",
     "CCGUI",
@@ -46,7 +51,9 @@
     "prompt",
     "multi-agent"
   ],
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
   "contributes": {

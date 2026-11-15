@@ -5,6 +5,7 @@ import * as cp from 'child_process';
 import { BridgeContext, BridgeHandler, BridgeMessage } from '../types';
 import { callWindowFunction, parseJson } from './helpers';
 import { NodeDetector } from '../../nodeDetector';
+import type { SettingsStore } from '../services/SettingsStore';
 
 const ENHANCE_TIMEOUT_MS = 60_000;
 const CURSOR_CONTEXT_LINES = 10;
@@ -16,14 +17,16 @@ const ENHANCE_SYSTEM_PROMPT =
 
 interface EnhancePromptPayload {
   prompt?: string;
-  model?: string;
   systemPrompt?: string;
 }
 
 export class PromptEnhancerHandler implements BridgeHandler {
   readonly supportedEvents = ['enhance_prompt'] as const;
 
-  constructor(private readonly context: BridgeContext) {}
+  constructor(
+    private readonly context: BridgeContext,
+    private readonly store: SettingsStore,
+  ) {}
 
   async handle({ event, content, webview }: BridgeMessage): Promise<boolean> {
     if (event !== 'enhance_prompt') return false;
@@ -65,7 +68,7 @@ export class PromptEnhancerHandler implements BridgeHandler {
 
     const request = {
       prompt,
-      model: payload.model ?? '',
+      promptEnhancerConfig: this.store.getPromptEnhancerConfig(),
       systemPrompt: payload.systemPrompt ?? ENHANCE_SYSTEM_PROMPT,
       context: this.collectEditorContext(),
     };

@@ -114,6 +114,87 @@ describe('useStreamingMessages', () => {
     expect(patched.isStreaming).toBe(true);
   });
 
+  it('replaces cumulative raw text snapshots when their concatenation no longer matches the stream buffer', () => {
+    const { result } = renderHook(() => useStreamingMessages());
+    const streamed = 'The complete final summary';
+    result.current.streamingContentRef.current = streamed;
+
+    const assistant: ClaudeMessage = {
+      type: 'assistant',
+      content: 'AABABC',
+      isStreaming: true,
+      raw: {
+        message: {
+          content: [
+            { type: 'thinking', thinking: 'reasoning', text: 'reasoning' },
+            { type: 'text', text: 'A' },
+            { type: 'text', text: 'AB' },
+            { type: 'text', text: 'ABC' },
+          ],
+        },
+      },
+    };
+
+    const patched = result.current.patchAssistantForStreaming(assistant);
+    const rawBlocks = (patched.raw as any).message.content as ContentBlockTest[];
+    const textBlocks = rawBlocks.filter((block) => block.type === 'text');
+
+    expect(textBlocks).toHaveLength(1);
+    expect(textBlocks[0]).toMatchObject({ type: 'text', text: streamed });
+    expect(getRenderedBlocks(patched).filter((block) => block.type === 'text').map((block) => block.text).join(''))
+      .toBe(streamed);
+  });
+
+  it('collapses cumulative text snapshots that arrive after a tool block', () => {
+    const { result } = renderHook(() => useStreamingMessages());
+    result.current.streamingContentRef.current = 'pre ABCD';
+
+    const assistant: ClaudeMessage = {
+      type: 'assistant',
+      content: '',
+      isStreaming: true,
+      raw: {
+        message: {
+          content: [
+            { type: 'text', text: 'pre ' },
+            { type: 'tool_use', id: 'tool-1', name: 'Bash', input: {} },
+            { type: 'text', text: 'A' },
+            { type: 'text', text: 'AB' },
+            { type: 'text', text: 'ABC' },
+          ],
+        },
+      },
+    };
+
+    const patched = result.current.patchAssistantForStreaming(assistant);
+    const rawBlocks = (patched.raw as any).message.content as ContentBlockTest[];
+
+    expect(rawBlocks.map((block) => block.type)).toEqual(['text', 'tool_use', 'text']);
+    expect(rawBlocks.filter((block) => block.type === 'text').map((block) => block.text))
+      .toEqual(['pre ', 'ABCD']);
+  });
+
+  it('keeps distinct text blocks when the stream buffer only holds a later segment', () => {
+    const { result } = renderHook(() => useStreamingMessages());
+    result.current.streamingContentRef.current = 'Third';
+
+    const blocks = [
+      { type: 'text', text: 'First. ' },
+      { type: 'text', text: 'Second. ' },
+      { type: 'text', text: 'Thi' },
+    ] as const;
+    const assistant: ClaudeMessage = {
+      type: 'assistant',
+      content: '',
+      isStreaming: true,
+      raw: { message: { content: [...blocks] } },
+    };
+
+    const patched = result.current.patchAssistantForStreaming(assistant);
+
+    expect((patched.raw as any).message.content).toEqual(blocks);
+  });
+
   it('uses delta content when it is longer than backend content', () => {
     const { result } = renderHook(() => useStreamingMessages());
 

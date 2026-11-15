@@ -14,9 +14,11 @@ function mockDataTransfer(data: Record<string, string>, files: Array<File & { pa
     types: Object.keys(data),
     getData: (type: string) => data[type] ?? '',
     files: {
-      length: files.length,
       item: (i: number) => files[i] ?? null,
       ...files,
+      // Spread of an array is typed with `length`, but it is non-enumerable at
+      // runtime, so set it explicitly after the spread.
+      length: files.length,
       [Symbol.iterator]: function* () {
         yield* files;
       },

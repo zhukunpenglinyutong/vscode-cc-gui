@@ -1609,7 +1609,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · 가장 강력함 · Mythos급"
+        "description": "Fable 5.1 · 이전 세대 Fable 모델"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1621,7 +1621,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · 최신 Opus 업그레이드"
+        "description": "Opus 5 · 이전 세대 Opus 모델"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · 최신 Sonnet 업그레이드"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · 최신 Opus 업그레이드"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · 가장 강력함 · Mythos급"
       }
     },
     "longContext": {
@@ -1682,6 +1694,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "자율 컴퓨터 조작과 장기 에이전트 작업을 위한 차세대 플래그십 모델."
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "복잡한 전문 작업을 위한 GPT-6.1 프런티어 모델."
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "복잡한 전문 작업을 위한 GPT-6 프런티어 모델."
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "비용 민감형 워크로드에 최적화된 GPT-6 모델."
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "지능과 비용의 균형을 맞춘 GPT-6.1 모델."
       }
     },
     "searchPlaceholder": "모델 검색",

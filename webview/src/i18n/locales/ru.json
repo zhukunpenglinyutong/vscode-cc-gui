@@ -1518,7 +1518,7 @@
       },
       "fable51": {
         "label": "Fable 5.1",
-        "description": "Fable 5.1 · Самая мощная · класс Mythos"
+        "description": "Fable 5.1 · Предыдущее поколение Fable"
       },
       "fable5": {
         "label": "Fable 5",
@@ -1530,7 +1530,19 @@
       },
       "opus5": {
         "label": "Opus 5",
-        "description": "Opus 5 · Последнее обновление Opus"
+        "description": "Opus 5 · Предыдущее поколение Opus"
+      },
+      "sonnet55": {
+        "label": "Sonnet 5.5",
+        "description": "Sonnet 5.5 · Последнее обновление Sonnet"
+      },
+      "opus55": {
+        "label": "Opus 5.5",
+        "description": "Opus 5.5 · Последнее обновление Opus"
+      },
+      "fable52": {
+        "label": "Fable 5.2",
+        "description": "Fable 5.2 · Самая мощная · класс Mythos"
       }
     },
     "longContext": {
@@ -1591,6 +1603,22 @@
       "gpt6astra": {
         "label": "GPT-6 Astra",
         "description": "Флагман нового поколения для автономной работы с компьютером и длительных агентных задач."
+      },
+      "gpt61sol": {
+        "label": "GPT-6.1 Sol",
+        "description": "Передовая модель GPT-6.1 для сложной профессиональной работы."
+      },
+      "gpt6sol": {
+        "label": "GPT-6 Sol",
+        "description": "Передовая модель GPT-6 для сложной профессиональной работы."
+      },
+      "gpt6luna": {
+        "label": "GPT-6 Luna",
+        "description": "Модель GPT-6, оптимизированная для экономичных рабочих нагрузок."
+      },
+      "gpt61terra": {
+        "label": "GPT-6.1 Terra",
+        "description": "Модель GPT-6.1, сочетающая интеллект и экономичность."
       }
     },
     "searchPlaceholder": "Поиск моделей",

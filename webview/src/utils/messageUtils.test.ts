@@ -53,9 +53,11 @@ describe('getMessageKey', () => {
     expect(getMessageKey(msg, 0)).toBe('abc-123');
   });
 
-  it('returns __turnId-based key when uuid is absent', () => {
-    const msg = makeMsg('assistant', 'hello', { __turnId: 3 });
-    expect(getMessageKey(msg, 0)).toBe('turn-3');
+  it('returns a turn-and-index key when uuid is absent', () => {
+    const first = makeMsg('assistant', 'hello', { __turnId: 3 });
+    const second = makeMsg('assistant', 'world', { __turnId: 3 });
+    expect(getMessageKey(first, 0)).toBe('turn-3-0');
+    expect(getMessageKey(second, 2)).toBe('turn-3-2');
   });
 
   it('falls back to type-timestamp when both uuid and __turnId are absent', () => {

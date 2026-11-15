@@ -116,13 +116,16 @@ describe('ModelSelect', () => {
 
   it('Claude 内置模型列表应按目标顺序展示最新模型，并移除旧可见项', () => {
     expect(CLAUDE_MODELS.map((model) => model.id)).toEqual([
+      'claude-fable-5-2',
       'claude-fable-5-1',
-      'claude-fable-5',
+      'claude-opus-5-5',
       'claude-opus-5',
+      'claude-sonnet-5-5',
       'claude-sonnet-5',
       'claude-haiku-4-5',
     ]);
     const ids = CLAUDE_MODELS.map((model) => model.id);
+    expect(ids).not.toContain('claude-fable-5');
     expect(ids).not.toContain('claude-opus-4-8');
     expect(ids).not.toContain('claude-opus-4-7');
     expect(ids).not.toContain('claude-opus-4-6');
@@ -133,12 +136,15 @@ describe('ModelSelect', () => {
 
   it('Codex 内置模型列表应与目标设计一致', () => {
     expect(CODEX_MODELS.map((model) => model.id)).toEqual([
+      'gpt-6.1-sol',
       'gpt-6-astra',
+      'gpt-6-sol',
+      'gpt-6-luna',
       'gpt-5.6-sol',
+      'gpt-6.1-terra',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.5',
-      'gpt-5.4',
     ]);
   });
 

@@ -50,4 +50,38 @@ describe('normalizeBlocks', () => {
       { type: 'image', src: 'data:image/png;base64,aW1hZ2U=', mediaType: 'image/png' },
     ]);
   });
+
+  it('renders cumulative assistant text snapshots once after streaming ends', () => {
+    const blocks = normalizeBlocks(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'text', text: '## Summary' },
+            { type: 'text', text: '## Summary\nAll done.' },
+          ],
+        },
+      },
+      (text) => text,
+      t,
+    );
+
+    expect(blocks).toEqual([{ type: 'text', text: '## Summary\nAll done.' }]);
+  });
+
+  it('leaves user text blocks untouched', () => {
+    const blocks = normalizeBlocks(
+      {
+        type: 'user',
+        message: { content: [{ type: 'text', text: 'retry' }, { type: 'text', text: 'retry please' }] },
+      },
+      (text) => text,
+      t,
+    );
+
+    expect(blocks).toEqual([
+      { type: 'text', text: 'retry' },
+      { type: 'text', text: 'retry please' },
+    ]);
+  });
 });

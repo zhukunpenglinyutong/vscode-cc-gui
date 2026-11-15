@@ -15,8 +15,10 @@ const MODEL_PRICING: Record<string, { input: number; output: number; cacheRead: 
   'claude-3-5-haiku':     { input: 0.8,  output: 4,    cacheRead: 0.08, cacheWrite: 1     },
   'claude-3-opus':        { input: 15,   output: 75,   cacheRead: 1.5,  cacheWrite: 18.75 },
   'claude-3-haiku':       { input: 0.25, output: 1.25, cacheRead: 0.03, cacheWrite: 0.3   },
-  // startsWith matching: the longer fable-5-1 key must precede the fable-5 prefix.
-  'claude-fable-5-1':     { input: 10,   output: 50,   cacheRead: 1.0, cacheWrite: 12.5  },
+  // startsWith matching: longer keys (fable-5-1, opus-5-5) must precede their shorter prefix.
+  'claude-opus-5-5':      { input: 4,    output: 20,   cacheRead: 0.4, cacheWrite: 5     },
+  'claude-opus-5':        { input: 5,    output: 25,   cacheRead: 0.5, cacheWrite: 6.25  },
+  'claude-fable-5-1':    { input: 10,   output: 50,   cacheRead: 1.0, cacheWrite: 12.5  },
   'claude-fable-5':       { input: 10,   output: 50,   cacheRead: 1.0, cacheWrite: 12.5  },
   'gpt-6-astra':          { input: 10,   output: 50,   cacheRead: 1.0, cacheWrite: 0     },
   'gpt-6':                { input: 10,   output: 50,   cacheRead: 1.0, cacheWrite: 0     },

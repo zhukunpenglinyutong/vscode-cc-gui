@@ -164,7 +164,10 @@ export class BridgeServer {
       (line) => this._log.appendLine(line),
     );
     this._diffService = new DiffService(
-      () => this._workspacePath,
+      // The daemon edits files under the *effective* working directory, which
+      // may differ from workspaceFolders[0] — issue #3: diff/undo broke when a
+      // custom working directory was configured.
+      () => this.getEffectiveWorkingDirectory() || this._workspacePath,
       (webview, functionName, payload) => this._callWebviewJson(webview, functionName, payload),
     );
     this._permissionIpc = new PermissionIpcService(
@@ -424,7 +427,7 @@ export class BridgeServer {
     dispatcher.register(new HistoryHandler(bridgeContext));
     dispatcher.register(new DiffHandler(this._diffService));
     dispatcher.register(new ClipboardHandler(bridgeContext));
-    dispatcher.register(new PromptEnhancerHandler(bridgeContext));
+    dispatcher.register(new PromptEnhancerHandler(bridgeContext, this._settingsStore));
     dispatcher.register(new NodeProcessHandler(bridgeContext));
     dispatcher.register(new ContextUsageHandler(bridgeContext));
     dispatcher.register(new RewindHandler(bridgeContext));

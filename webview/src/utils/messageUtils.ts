@@ -53,7 +53,7 @@ export type { LocalizeMessageFn } from './contentBlockNormalize';
 export function getMessageKey(message: ClaudeMessage, index: number): string {
   const rawObj = typeof message.raw === 'object' ? message.raw as Record<string, unknown> : null;
   if (rawObj?.uuid) return rawObj.uuid as string;
-  if (message.__turnId !== undefined) return `turn-${message.__turnId}`;
+  if (message.__turnId !== undefined) return `turn-${message.__turnId}-${index}`;
   return message.timestamp ? `${message.type}-${message.timestamp}` : `${message.type}-${index}`;
 }
 

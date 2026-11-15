@@ -350,6 +350,8 @@ const LEGACY_CLAUDE_MODEL_ID_ALIASES: Record<string, string> = {
   'claude-sonnet-4-7': 'claude-sonnet-5',
   'claude-opus-4-6': 'claude-opus-5',
   'claude-opus-4-8': 'claude-opus-5',
+  // Delisted from CLAUDE_MODELS (still served); migrate saved selections to the new top Fable.
+  'claude-fable-5': 'claude-fable-5-2',
 };
 
 export function normalizeClaudeModelId(modelId: string | undefined | null): string {
@@ -367,19 +369,29 @@ export function normalizeClaudeModelId(modelId: string | undefined | null): stri
  */
 export const CLAUDE_MODELS: ModelInfo[] = [
   {
-    id: 'claude-fable-5-1',
-    label: 'Fable 5.1',
-    description: 'Fable 5.1 · Most powerful · Mythos-class',
+    id: 'claude-fable-5-2',
+    label: 'Fable 5.2',
+    description: 'Fable 5.2 · Most powerful · Mythos-class',
   },
   {
-    id: 'claude-fable-5',
-    label: 'Fable 5',
-    description: 'Fable 5 · Previous Fable generation',
+    id: 'claude-fable-5-1',
+    label: 'Fable 5.1',
+    description: 'Fable 5.1 · Previous Fable generation',
+  },
+  {
+    id: 'claude-opus-5-5',
+    label: 'Opus 5.5',
+    description: 'Opus 5.5 · Latest Opus upgrade',
   },
   {
     id: 'claude-opus-5',
     label: 'Opus 5',
-    description: 'Opus 5 · Latest Opus upgrade',
+    description: 'Opus 5 · Previous Opus generation',
+  },
+  {
+    id: 'claude-sonnet-5-5',
+    label: 'Sonnet 5.5',
+    description: 'Sonnet 5.5 · Latest Sonnet upgrade',
   },
   {
     id: 'claude-sonnet-5',
@@ -398,14 +410,34 @@ export const CLAUDE_MODELS: ModelInfo[] = [
  */
 export const CODEX_MODELS: ModelInfo[] = [
   {
+    id: 'gpt-6.1-sol',
+    label: 'GPT-6.1 Sol',
+    description: 'GPT-6.1 frontier model for complex professional work.',
+  },
+  {
     id: 'gpt-6-astra',
     label: 'GPT-6 Astra',
     description: 'New-generation flagship for autonomous computer use and long agentic tasks.',
   },
   {
+    id: 'gpt-6-sol',
+    label: 'GPT-6 Sol',
+    description: 'GPT-6 frontier model for complex professional work.',
+  },
+  {
+    id: 'gpt-6-luna',
+    label: 'GPT-6 Luna',
+    description: 'GPT-6 model optimized for cost-sensitive workloads.',
+  },
+  {
     id: 'gpt-5.6-sol',
     label: 'GPT-5.6 Sol',
     description: 'Frontier model for complex professional work.',
+  },
+  {
+    id: 'gpt-6.1-terra',
+    label: 'GPT-6.1 Terra',
+    description: 'GPT-6.1 model that balances intelligence and cost.',
   },
   {
     id: 'gpt-5.6-terra',
@@ -421,11 +453,6 @@ export const CODEX_MODELS: ModelInfo[] = [
     id: 'gpt-5.5',
     label: 'GPT-5.5',
     description: 'Latest frontier model with stronger capabilities.',
-  },
-  {
-    id: 'gpt-5.4',
-    label: 'GPT-5.4',
-    description: 'Latest frontier model with enhanced capabilities.',
   },
 ];
 
@@ -681,12 +708,15 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
  * Based on: https://code.claude.com/docs/en/model-config#adjust-effort-level
  */
 export const EFFORT_SUPPORTED_CLAUDE_MODELS = new Set([
+  'claude-fable-5-2',
   'claude-fable-5-1',
   'claude-fable-5',
+  'claude-opus-5-5',
   'claude-opus-5',
   'claude-opus-4-8',
   'claude-opus-4-6',
   'claude-opus-4-6[1m]',
+  'claude-sonnet-5-5',
   'claude-sonnet-5',
   'claude-sonnet-4-7',
   'claude-sonnet-4-6',
@@ -696,8 +726,10 @@ export const EFFORT_SUPPORTED_CLAUDE_MODELS = new Set([
  * Claude models that additionally support the 'xhigh' effort level.
  */
 export const XHIGH_EFFORT_CLAUDE_MODELS = new Set([
+  'claude-fable-5-2',
   'claude-fable-5-1',
   'claude-fable-5',
+  'claude-opus-5-5',
   'claude-opus-5',
   'claude-opus-4-8',
 ]);
@@ -706,12 +738,15 @@ export const XHIGH_EFFORT_CLAUDE_MODELS = new Set([
  * Claude models that support the 'max' effort level.
  */
 export const MAX_EFFORT_CLAUDE_MODELS = new Set([
+  'claude-fable-5-2',
   'claude-fable-5-1',
   'claude-fable-5',
+  'claude-opus-5-5',
   'claude-opus-5',
   'claude-opus-4-8',
   'claude-opus-4-6',
   'claude-opus-4-6[1m]',
+  'claude-sonnet-5-5',
   'claude-sonnet-5',
   'claude-sonnet-4-7',
   'claude-sonnet-4-6',
