@@ -488,6 +488,26 @@ test('buildRuntimeSignature is stable for the same [1m] state', () => {
   assert.equal(a, b);
 });
 
+// Issue #16: base URL / credentials are frozen into the CLI subprocess at
+// spawn, so a provider switch must rebuild the runtime instead of reusing it.
+test('buildRuntimeSignature differs when the provider endpoint or credential changes', () => {
+  const base = { cwd: '/tmp/project', model: 'sonnet' };
+  const minimax = buildRuntimeSignature(
+    { ...base, env: { ANTHROPIC_BASE_URL: 'https://api.minimaxi.com/anthropic', ANTHROPIC_AUTH_TOKEN: 'mm' } },
+    '', true, 'epoch-x', 'claude-sonnet-4-6');
+  const deepseek = buildRuntimeSignature(
+    { ...base, env: { ANTHROPIC_BASE_URL: 'https://api.deepseek.com/anthropic', ANTHROPIC_AUTH_TOKEN: 'mm' } },
+    '', true, 'epoch-x', 'claude-sonnet-4-6');
+  const newKey = buildRuntimeSignature(
+    { ...base, env: { ANTHROPIC_BASE_URL: 'https://api.minimaxi.com/anthropic', ANTHROPIC_AUTH_TOKEN: 'mm2' } },
+    '', true, 'epoch-x', 'claude-sonnet-4-6');
+
+  assert.notEqual(minimax, deepseek);
+  assert.notEqual(minimax, newKey);
+  // The signature is logged, so it must never carry the raw secret.
+  assert.doesNotMatch(newKey, /mm2/);
+});
+
 test('applyPermissionModeToRuntime keeps state unchanged when the SDK rejects a live mode change', async () => {
   const runtime = {
     closed: false,

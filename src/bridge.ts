@@ -2194,14 +2194,9 @@ export class BridgeServer {
     this.context.globalState.update(`ccg.${key}`, value);
   }
   /**
-   * Repair the active Claude provider config in ~/.claude/settings.json so the
-   * daemon and CLI follow the shared provider selection stored in ~/.codemoss/config.json.
-   *
-   * Repair-only ("fill in the blanks") rules:
-   * - Only ADD provider-managed fields that are missing; never overwrite values
-   *   the user already has (env keys are judged independently).
-   * - Never write when no managed provider is active (local / CLI login / disabled / null).
-   * - Never write when the active provider has an empty env payload (incomplete state).
+   * Apply the active Claude provider to ~/.claude/settings.json so the daemon,
+   * CLI and usage indicator follow the selection stored in ~/.codemoss/config.json.
+   * Called on explicit switch / import; rules live in planClaudeSettingsSync.
    */
   private _syncProviderToDisk(providers: any[]) {
     const active = providers.find((p: any) => p.isActive) ?? null;
@@ -2216,7 +2211,8 @@ export class BridgeServer {
         }
       } catch { /* start fresh */ }
 
-      const decision = planClaudeSettingsSync(settings, active);
+      const previous = providers.find((p: any) => p.id === settings?.codemossProviderId) ?? null;
+      const decision = planClaudeSettingsSync(settings, active, previous);
       if (decision.action === 'skip') {
         this._log.appendLine(
           `[bridge] Skip settings.json sync: ${decision.reason}`

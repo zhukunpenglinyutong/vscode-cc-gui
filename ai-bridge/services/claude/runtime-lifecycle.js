@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { AsyncStream } from '../../utils/async-stream.js';
 import { loadClaudeSdk } from '../../utils/sdk-loader.js';
 import { createPreToolUseHook, normalizePermissionMode } from './permission-mode.js';
@@ -131,7 +132,14 @@ export function createTurnSink() {
 }
 
 export function buildRuntimeSignature(options, systemPromptAppend, streamingEnabled, runtimeSessionEpoch, modelId) {
+  const env = options.env || {};
+  const credential = env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY || '';
   const material = {
+    // Endpoint and credentials are frozen into the CLI subprocess env at spawn,
+    // so a provider switch must rebuild the runtime (issue #16). The signature
+    // is logged, hence a short hash instead of the secret.
+    endpoint: env.ANTHROPIC_BASE_URL || env.ANTHROPIC_API_URL || '',
+    credential: credential ? createHash('sha256').update(credential).digest('hex').slice(0, 12) : '',
     cwd: options.cwd || '',
     additionalDirectories: options.additionalDirectories || [],
     systemPromptAppend: systemPromptAppend || '',
