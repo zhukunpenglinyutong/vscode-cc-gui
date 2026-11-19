@@ -1,6 +1,7 @@
 /**
  * Discover OpenCode models via `opencode models`.
- * Output lines look like: `opencode/big-pickle`, `anthropic/claude-fable-5`
+ * Output lines look like: `opencode/big-pickle`, `anthropic/claude-fable-5`,
+ * or Ollama tags such as `ollama/qwen3.6:35b`.
  */
 
 import { spawnSync } from 'child_process';
@@ -37,6 +38,11 @@ function formatLabel(fullId) {
 /**
  * A model id looks like `provider/model`. Reject Windows paths (`C:/...`),
  * URLs, and UNC-ish tokens so noisy CLI output cannot become a bogus model.
+ *
+ * The model segment may contain a colon because Ollama tags use the
+ * `provider/name:tag` form (e.g. `ollama/qwen3.6:35b`). The provider segment
+ * deliberately stays colon-free so host:port tokens are not mistaken for
+ * model ids.
  * @param {string} part
  * @returns {boolean}
  */
@@ -45,7 +51,7 @@ function isModelIdToken(part) {
   if (/^[a-z]:[\/\\]/i.test(part)) return false;
   if (/^https?:\/\//i.test(part)) return false;
   if (part.includes('\\')) return false;
-  return /^[\w.-]+\/[\w./-]+$/.test(part);
+  return /^[\w.-]+\/[\w.:/-]+$/.test(part);
 }
 
 /**

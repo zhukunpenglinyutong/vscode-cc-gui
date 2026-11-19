@@ -11,6 +11,17 @@ test('parses provider/model lines and dedups', () => {
   assert.equal(models[0].label, 'opencode/Big-Pickle');
 });
 
+test('parses Ollama-style tags with a colon in the model segment', () => {
+  const out = 'ollama/qwen3.5:9b\nollama/qwen3.6:35b\nopencode/beam-free\n';
+  const models = parseOpenCodeModelsOutput(out);
+  assert.deepEqual(models.map((m) => m.id), [
+    'ollama/qwen3.5:9b',
+    'ollama/qwen3.6:35b',
+    'opencode/beam-free',
+  ]);
+  assert.equal(models[1].label, 'ollama/Qwen3.6:35b');
+});
+
 test('handles CRLF and ANSI escape sequences (Windows terminals)', () => {
   const out = '[32mopencode/big-pickle[0m\r\n[2manthropic/claude-fable-5[0m\r\n';
   const models = parseOpenCodeModelsOutput(out);
@@ -29,6 +40,8 @@ test('rejects Windows paths, URLs and UNC-ish tokens', () => {
     'Docs: https://opencode.ai/docs/models',
     'Share \\\\server\\share\\dir',
     'D:\\tools\\opencode.cmd run',
+    'localhost:11435/v1',
+    '127.0.0.1:11435/v1',
     'anthropic/claude-fable-5',
   ].join('\r\n');
   const models = parseOpenCodeModelsOutput(out);
